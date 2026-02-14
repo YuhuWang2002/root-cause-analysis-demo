@@ -299,6 +299,17 @@ def main():
         print(f"   - 建议数据字段数: {len(result.suggested_data_fields)}")
         print(f"   - 推理过程长度: {len(result.reasoning)} 字符")
         
+        # 打印因果图
+        print(f"\n   📊 因果图结构:")
+        for source, targets in result.causal_graph.items():
+            if len(targets) > 0:
+                print(f"      {source} → {', '.join(targets)}")
+        
+        # 打印建议的数据字段
+        print(f"\n   📝 建议的数据字段:")
+        for field in result.suggested_data_fields:
+            print(f"      - {field}")
+        
         causal_graph_result = result
         test_status["llm_agent"] = True
         

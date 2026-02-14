@@ -367,13 +367,29 @@ class LLMAgentSync(LLMAgent):
                 attributes=[]
             )
         
-        # 第二步：构建提示词（直接使用基类的方法
+        # 第二步：构建提示词（直接使用基类的方法）
         print(f"[LLM Agent Sync] 正在构建提示词...")
         prompt = self._build_derivation_prompt(
             request.scenario_description,
             request.outcome_entity,
             ontology_response
         )
+        
+        # 保存提示词
+        import os
+        from datetime import datetime
+        
+        prompt_dir = "prompts"
+        if not os.path.exists(prompt_dir):
+            os.makedirs(prompt_dir)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        prompt_file = os.path.join(prompt_dir, f"agent_prompt_{timestamp}.txt")
+        
+        with open(prompt_file, 'w', encoding='utf-8') as f:
+            f.write(prompt)
+        
+        print(f"[LLM Agent Sync] 提示词已保存到: {prompt_file}")
         
         # 第三步：返回示例响应（简化版，不调用LLM）
         print(f"[LLM Agent Sync] 正在推导因果图（使用内部逻辑...")
