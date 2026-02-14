@@ -39,3 +39,7 @@ anomaly_factors.json
 
 # 本体文件
 ontology.json
+
+# API相关
+ontology_api.py
+llm_agent.py

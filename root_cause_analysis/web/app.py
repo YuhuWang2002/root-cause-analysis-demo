@@ -25,6 +25,7 @@ import os
 from data_generator import create_demo_scenario
 from causal_analyzer import CausalAnalyzer, RootCauseAnalysisPipeline
 from llm_explainer import LLMExplainer
+from llm_agent import LLMAgent
 
 # 设置页面配置
 st.set_page_config(
@@ -104,6 +105,10 @@ class RootCauseAnalysisWebApp:
             st.session_state.llm_explainer = None
         if 'llm_explanation' not in st.session_state:
             st.session_state.llm_explanation = None
+        if 'llm_agent' not in st.session_state:
+            st.session_state.llm_agent = None
+        if 'causal_graph_derived' not in st.session_state:
+            st.session_state.causal_graph_derived = None
         
         self.data = st.session_state.data
         self.anomaly_factors = st.session_state.anomaly_factors
@@ -111,6 +116,8 @@ class RootCauseAnalysisWebApp:
         self.pipeline = st.session_state.pipeline
         self.llm_explainer = st.session_state.llm_explainer
         self.llm_explanation = st.session_state.llm_explanation
+        self.llm_agent = st.session_state.llm_agent
+        self.causal_graph_derived = st.session_state.causal_graph_derived
         
     def _save_state(self):
         """保存状态到 session_state"""
@@ -170,8 +177,71 @@ class RootCauseAnalysisWebApp:
                     json.dump(self.anomaly_factors, f, ensure_ascii=False, indent=2)
                 
                 st.success(f"✅ 已生成并保存 {len(self.data)} 条数据记录到 {self.data_csv_path}")
+            
             except Exception as e:
                 st.warning(f"⚠️ 保存数据到CSV失败: {str(e)}")
+    
+    def init_llm_agent(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None):
+        """
+        初始化LLM Agent
+        
+        Args:
+            ontology_api_url: 本体API地址
+            llm_api_key: 大模型API密钥
+        """
+        if not llm_api_key:
+            st.warning("⚠️ 请输入LLM API密钥")
+            return False
+        
+        try:
+            self.llm_agent = LLMAgent(ontology_api_url=ontology_api_url, llm_api_key=llm_api_key)
+            st.success(f"✅ LLM Agent已初始化，连接到本体API: {ontology_api_url}")
+            return True
+        except Exception as e:
+            st.error(f"❌ 初始化LLM Agent失败: {str(e)}")
+            return False
+    
+    async def derive_causal_graph_with_agent(self, scenario_description: str, outcome_entity: str = "production_efficiency"):
+        """
+        使用Agent推导因果图
+        
+        Args:
+            scenario_description: 场景描述
+            outcome_entity: 结果实体
+            
+        Returns:
+            因果图推导响应
+        """
+        if not self.llm_agent:
+            st.error("❌ 请先初始化LLM Agent")
+            return None
+        
+        try:
+            with st.spinner("LLM正在推导因果图..."):
+                from llm_agent import CausalGraphDerivationRequest
+                
+                request = CausalGraphDerivationRequest(
+                    scenario_description=scenario_description,
+                    outcome_entity=outcome_entity
+                )
+                
+                response = await self.llm_agent.async_derive_causal_graph(request)
+                
+                # 保存推导结果
+                self.causal_graph_derived = {
+                    "causal_graph": response.causal_graph,
+                    "reasoning": response.reasoning,
+                    "suggested_data_fields": response.suggested_data_fields,
+                    "required_entities": response.required_entities
+                }
+                
+                st.success(f"✅ 因果图推导完成！")
+                st.info(f"推理过程：\n{response.reasoning}")
+                
+                return response
+        except Exception as e:
+            st.error(f"❌ 推导因果图失败: {str(e)}")
+            return None
     
     def run_analysis(self):
         """运行分析"""
