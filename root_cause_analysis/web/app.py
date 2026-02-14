@@ -87,6 +87,10 @@ class RootCauseAnalysisWebApp:
     """根因分析Web应用"""
     
     def __init__(self):
+        # CSV文件路径
+        self.data_csv_path = "production_data.csv"
+        self.anomaly_factors_json_path = "anomaly_factors.json"
+        
         # 使用 st.session_state 持久化状态
         if 'data' not in st.session_state:
             st.session_state.data = None
@@ -120,11 +124,54 @@ class RootCauseAnalysisWebApp:
     def load_data(self):
         """加载数据"""
         if self.data is None:
-            with st.spinner("生成模拟数据..."):
-                self.data, self.anomaly_factors = create_demo_scenario()
-                self.pipeline = RootCauseAnalysisPipeline(self.data)
+            with st.spinner("加载数据..."):
+                # 尝试从CSV文件读取
+                if os.path.exists(self.data_csv_path):
+                    try:
+                        import json
+                        self.data = pd.read_csv(self.data_csv_path, parse_dates=['date'])
+                        
+                        # 读取异常因素配置
+                        if os.path.exists(self.anomaly_factors_json_path):
+                            with open(self.anomaly_factors_json_path, 'r', encoding='utf-8') as f:
+                                self.anomaly_factors = json.load(f)
+                        else:
+                            self.anomaly_factors = {
+                                "payment_delay": True,
+                                "supplier_issue": True,
+                                "employee_turnover": False,
+                                "equipment_failure": False
+                            }
+                        
+                        self.pipeline = RootCauseAnalysisPipeline(self.data)
+                        st.success(f"✅ 从CSV文件加载了 {len(self.data)} 条数据记录")
+                    except Exception as e:
+                        st.warning(f"⚠️ 读取CSV文件失败: {str(e)}，将重新生成数据")
+                        self._generate_new_data()
+                else:
+                    # CSV文件不存在，生成新数据
+                    self._generate_new_data()
             self._save_state()
         return self.data, self.anomaly_factors
+    
+    def _generate_new_data(self):
+        """生成新数据并保存到CSV"""
+        with st.spinner("生成模拟数据..."):
+            self.data, self.anomaly_factors = create_demo_scenario()
+            self.pipeline = RootCauseAnalysisPipeline(self.data)
+            
+            # 保存到CSV文件
+            try:
+                self.data.to_csv(self.data_csv_path, index=False, encoding='utf-8')
+                
+                # 保存异常因素配置
+                import json
+                with open(self.anomaly_factors_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.anomaly_factors, f, ensure_ascii=False, indent=2)
+                
+                st.success(f"✅ 已生成并保存 {len(self.data)} 条数据记录到 {self.data_csv_path}")
+            except Exception as e:
+                st.warning(f"⚠️ 保存数据到CSV失败: {str(e)}")
     
     def run_analysis(self):
         """运行分析"""
@@ -395,7 +442,7 @@ class RootCauseAnalysisWebApp:
         
         page = st.sidebar.radio(
             "选择页面",
-            ["场景介绍", "因果图", "数据分析", "因果分析", "结论建议", "AI智能解释"]
+            ["场景介绍", "因果图", "数据分析", "因果分析", "AI智能解释"]
         )
         
         st.sidebar.markdown("### 大模型配置")
@@ -655,81 +702,6 @@ class RootCauseAnalysisWebApp:
             </div>
             """, unsafe_allow_html=True)
     
-    def render_conclusion_page(self):
-        """渲染结论页面"""
-        st.header("结论与建议")
-        
-        self.load_data()
-        self.run_analysis()
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.markdown(self.analysis_results['summary'])
-            
-            st.subheader("详细指标变化")
-            comparison_df = self.analysis_results['comparison']
-            st.dataframe(comparison_df.style.format({
-                'normal_mean': '{:.3f}',
-                'anomaly_mean': '{:.3f}',
-                'change_percent': '{:.2f}%',
-                'abs_change': '{:.2f}%'
-            }))
-        
-        with col2:
-            st.markdown("""
-            <div class="section-header">
-                改进建议
-            </div>
-            
-            <div class="info-box">
-            <h4>短期措施</h4>
-            <ol>
-                <li><strong>优化付款流程</strong>：
-                    <ul>
-                        <li>建立供应商付款预警机制</li>
-                        <li>简化审批流程，缩短付款周期</li>
-                        <li>对核心供应商实施预付款政策</li>
-                    </ul>
-                </li>
-                <li><strong>加强供应商管理</strong>：
-                    <ul>
-                        <li>建立供应商绩效评估体系</li>
-                        <li>发展备选供应商，降低依赖风险</li>
-                        <li>定期与供应商沟通，了解生产状况</li>
-                    </ul>
-                </li>
-            </ol>
-            </div>
-            
-            <div class="info-box">
-            <h4>长期措施</h4>
-            <ol>
-                <li><strong>员工技能提升</strong>：
-                    <ul>
-                        <li>建立系统化的培训体系</li>
-                        <li>实施技能等级认证制度</li>
-                        <li>激励高技能员工，减少流失</li>
-                    </ul>
-                </li>
-                <li><strong>设备管理优化</strong>：
-                    <ul>
-                        <li>建立设备维护保养计划</li>
-                        <li>考虑设备更新换代</li>
-                        <li>实施预测性维护</li>
-                    </ul>
-                </li>
-                <li><strong>建立监控系统</strong>：
-                    <ul>
-                        <li>实时监控生产效率指标</li>
-                        <li>建立异常预警机制</li>
-                        <li>定期进行根因分析</li>
-                    </ul>
-                </li>
-            </ol>
-            </div>
-            """, unsafe_allow_html=True)
-    
     def render_llm_explanation_page(self):
         """渲染大模型解释页面"""
         st.header("AI智能解释")
@@ -883,8 +855,6 @@ class RootCauseAnalysisWebApp:
             self.render_data_analysis_page()
         elif page == "因果分析":
             self.render_causal_analysis_page()
-        elif page == "结论建议":
-            self.render_conclusion_page()
         elif page == "AI智能解释":
             self.render_llm_explanation_page()
 

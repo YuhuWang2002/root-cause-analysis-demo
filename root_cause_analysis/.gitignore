@@ -32,3 +32,7 @@ Thumbs.db
 
 # 提示词保存目录（可选，如果需要保存提示词可以注释掉）
 web/prompts/
+
+# 生成的数据文件
+production_data.csv
+anomaly_factors.json
