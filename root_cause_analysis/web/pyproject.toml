@@ -1,0 +1,18 @@
+[project]
+name = "root_cause_analysis_web"
+dependencies = [
+    "streamlit>=1.30.0",
+    "pandas>=1.5.0",
+    "numpy>=1.21.0",
+    "matplotlib>=3.5.0",
+    "seaborn>=0.12.0",
+    "networkx>=2.8",
+    "graphviz>=0.20",
+    "scipy>=1.9.0",
+    "dowhy>=0.8",
+    "plotly>=5.0.0",
+    "altair>=4.0.0"
+]
+
+[tool.uv]
+python-version = "3.11"
