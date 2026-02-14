@@ -36,3 +36,6 @@ web/prompts/
 # 生成的数据文件
 production_data.csv
 anomaly_factors.json
+
+# 本体文件
+ontology.json

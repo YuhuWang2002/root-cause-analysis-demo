@@ -1,5 +1,5 @@
 """
-制造企业根因分析 - 数据生成模块（Web版本）
+制造企业根因分析 - 数据生成模块（Web版本，本体驱动版本）
 
 场景说明：
 - 制造企业有很多供应商，提供不同的零部件
@@ -7,47 +7,115 @@
 - 供货商供货效率不一样
 - 我们需要下单付款供应商才生产，我们的付款流程也会影响供货效率
 - 我们需要根据数据发现生产效率对比上个月降低的原因是什么
+
+本版本特点：
+- 基于本体配置生成数据
+- 支持通过修改本体文件实现不同场景
+- 提高系统的通用性和可扩展性
 """
 
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from ontology_manager import OntologyManager, create_manufacturing_ontology
 
 
 class ManufacturingDataGenerator:
-    """制造企业数据生成器"""
+    """制造企业数据生成器（本体驱动版本）"""
     
-    def __init__(self, seed: int = 42):
-        np.random.seed(seed)
-        self.suppliers = self._init_suppliers()
-        self.factories = self._init_factories()
-        self.employees = self._init_employees()
+    def __init__(self, seed: int = 42, ontology_manager: Optional[OntologyManager] = None):
+        """
+        初始化数据生成器
         
-    def _init_suppliers(self) -> List[Dict]:
-        """初始化供应商信息"""
-        suppliers = [
-            {"id": "S001", "name": "核心零部件供应商A", "type": "核心", "base_efficiency": 0.85, "parts": ["发动机", "变速箱"]},
-            {"id": "S002", "name": "电子元件供应商B", "type": "核心", "base_efficiency": 0.80, "parts": ["控制芯片", "传感器"]},
-            {"id": "S003", "name": "结构件供应商C", "type": "普通", "base_efficiency": 0.90, "parts": ["车架", "外壳"]},
-            {"id": "S004", "name": "配件供应商D", "type": "普通", "base_efficiency": 0.88, "parts": ["轮胎", "玻璃"]},
-            {"id": "S005", "name": "新材料供应商E", "type": "普通", "base_efficiency": 0.75, "parts": ["电池", "电机"]},
-        ]
+        Args:
+            seed: 随机种子
+            ontology_manager: 本体管理器，如果为None则使用默认本体
+        """
+        np.random.seed(seed)
+        
+        # 初始化本体管理器
+        if ontology_manager is None:
+            self.ontology = create_manufacturing_ontology()
+        else:
+            self.ontology = ontology_manager
+        
+        # 从本体初始化数据
+        self.suppliers = self._init_suppliers_from_ontology()
+        self.factories = self._init_factories_from_ontology()
+        self.employees = self._init_employees_from_ontology()
+        
+        print(f"[DataGenerator] 基于本体初始化: {len(self.ontology.entities)} 个实体")
+        
+    def _init_suppliers_from_ontology(self) -> List[Dict]:
+        """从本体初始化供应商信息"""
+        suppliers = []
+        
+        # 从本体获取供应商实体
+        supplier_entities = self.ontology.get_entities_by_type("supplier")
+        
+        # 如果本体中没有供应商实体，使用默认配置
+        if not supplier_entities:
+            suppliers = [
+                {"id": "S001", "name": "核心零部件供应商A", "type": "核心", "base_efficiency": 0.85, "parts": ["发动机", "变速箱"]},
+                {"id": "S002", "name": "电子元件供应商B", "type": "核心", "base_efficiency": 0.80, "parts": ["控制芯片", "传感器"]},
+                {"id": "S003", "name": "结构件供应商C", "type": "普通", "base_efficiency": 0.90, "parts": ["车架", "外壳"]},
+                {"id": "S004", "name": "配件供应商D", "type": "普通", "base_efficiency": 0.88, "parts": ["轮胎", "玻璃"]},
+                {"id": "S005", "name": "新材料供应商E", "type": "普通", "base_efficiency": 0.75, "parts": ["电池", "电机"]},
+            ]
+        else:
+            # 从本体生成供应商
+            for i, entity in enumerate(supplier_entities, 1):
+                base_eff = entity.attributes.get('base_value', 0.85)
+                suppliers.append({
+                    "id": f"S{i:03d}",
+                    "name": entity.name,
+                    "type": entity.type,
+                    "base_efficiency": base_eff,
+                    "parts": ["零部件"]
+                })
+        
         return suppliers
     
-    def _init_factories(self) -> List[Dict]:
-        """初始化工厂信息"""
-        factories = [
-            {"id": "F001", "name": "华东工厂", "capacity": 1000, "equipment_age": 3},
-            {"id": "F002", "name": "华南工厂", "capacity": 800, "equipment_age": 5},
-            {"id": "F003", "name": "华北工厂", "capacity": 1200, "equipment_age": 2},
-        ]
+    def _init_factories_from_ontology(self) -> List[Dict]:
+        """从本体初始化工厂信息"""
+        factories = []
+        
+        # 从本体获取工厂实体
+        factory_entities = self.ontology.get_entities_by_type("factory")
+        
+        # 如果本体中没有工厂实体，使用默认配置
+        if not factory_entities:
+            factories = [
+                {"id": "F001", "name": "华东工厂", "capacity": 1000, "equipment_age": 3},
+                {"id": "F002", "name": "华南工厂", "capacity": 800, "equipment_age": 5},
+                {"id": "F003", "name": "华北工厂", "capacity": 1200, "equipment_age": 2},
+            ]
+        else:
+            # 从本体生成工厂
+            for i, entity in enumerate(factory_entities, 1):
+                capacity = entity.attributes.get('base_value', 1000)
+                equipment_age = entity.attributes.get('base_value', 3)
+                factories.append({
+                    "id": f"F{i:03d}",
+                    "name": entity.name,
+                    "capacity": capacity,
+                    "equipment_age": equipment_age
+                })
+        
         return factories
     
-    def _init_employees(self) -> List[Dict]:
-        """初始化员工信息"""
+    def _init_employees_from_ontology(self) -> List[Dict]:
+        """从本体初始化员工信息"""
         employees = []
-        skill_levels = ["初级", "中级", "高级", "专家"]
+        
+        # 从本体获取技能等级属性
+        skill_attr = self.ontology.attributes.get('skill_level')
+        if skill_attr and skill_attr.enum_values:
+            skill_levels = skill_attr.enum_values
+        else:
+            skill_levels = ["初级", "中级", "高级", "专家"]
+        
         skill_weights = [0.3, 0.4, 0.2, 0.1]
         
         for factory in self.factories:
@@ -63,6 +131,18 @@ class ManufacturingDataGenerator:
                     "experience_years": np.random.exponential(3) + 0.5
                 })
         return employees
+    
+    def _init_suppliers(self) -> List[Dict]:
+        """初始化供应商信息（保留兼容性）"""
+        return self._init_suppliers_from_ontology()
+    
+    def _init_factories(self) -> List[Dict]:
+        """初始化工厂信息（保留兼容性）"""
+        return self._init_factories_from_ontology()
+    
+    def _init_employees(self) -> List[Dict]:
+        """初始化员工信息（保留兼容性）"""
+        return self._init_employees_from_ontology()
     
     def generate_monthly_data(self, year: int, month: int, 
                                is_anomaly_month: bool = False,
@@ -264,7 +344,7 @@ def create_demo_scenario():
         "equipment_failure": False
     }
     
-    normal_months = [(2024, 10), (2024, 11)]
+    normal_months = [(2024, 8),(2024, 9),(2024, 10), (2024, 11)]
     anomaly_month = (2024, 12)
     
     df = generator.generate_comparison_data(

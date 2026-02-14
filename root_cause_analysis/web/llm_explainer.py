@@ -1,19 +1,20 @@
 """
-大模型根因解释模块
+大模型根因解释模块（本体驱动版本）
 
 支持SiliconFlow API（多种开源模型）
 """
 
 import os
 import datetime
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import pandas as pd
+from ontology_manager import OntologyManager
 
 
 class LLMExplainer:
-    """大模型解释器"""
+    """大模型解释器（本体驱动版本）"""
     
-    def __init__(self, api_type: str = "siliconflow", api_key: str = None, model: str = None, base_url: str = None):
+    def __init__(self, api_type: str = "siliconflow", api_key: str = None, model: str = None, base_url: str = None, ontology_manager: Optional[OntologyManager] = None):
         """
         初始化大模型解释器
         
@@ -22,11 +23,13 @@ class LLMExplainer:
             api_key: API密钥
             model: 模型名称
             base_url: API基础URL（用于自定义API端点）
+            ontology_manager: 本体管理器，如果为None则不使用本体
         """
         self.api_type = api_type
         self.api_key = api_key
         self.model = model or "Qwen/Qwen2.5-7B-Instruct"
         self.base_url = base_url
+        self.ontology = ontology_manager
         self.client = None
         self.connection_error = None
         self.prompt_save_dir = "prompts"
@@ -206,7 +209,12 @@ class LLMExplainer:
             return self._generate_rule_based_explanation(analysis_results, comparison_df, causal_results)
     
     def _build_causal_graph_description(self) -> str:
-        """构建因果图描述"""
+        """构建因果图描述（基于本体）"""
+        # 如果有本体，使用本体描述
+        if self.ontology:
+            return self.ontology.get_ontology_description()
+        
+        # 如果没有本体，使用默认描述
         return """## 因果图结构（根据DoWhy因果推断框架定义）
 
 以下是各因素之间的因果关系路径：

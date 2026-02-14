@@ -1,12 +1,7 @@
 """
-制造企业根因分析 - DoWhy因果分析模块（Web版本）
+制造企业根因分析 - DoWhy因果分析模块（Web版本，本体驱动版本）
 
-因果图结构：
-- 付款及时性 -> 供应商效率 -> 零部件可用性 -> 生产效率
-- 供应商基础效率 -> 供应商效率
-- 员工技能 -> 生产效率
-- 设备状态 -> 生产效率
-- 产能利用率 -> 生产效率
+因果图结构：从本体动态读取
 """
 
 import pandas as pd
@@ -17,13 +12,22 @@ warnings.filterwarnings('ignore')
 
 import dowhy
 from dowhy import CausalModel
+from ontology_manager import OntologyManager
 
 
 class CausalAnalyzer:
-    """因果分析器"""
+    """因果分析器（本体驱动版本）"""
     
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame, ontology_manager: Optional[OntologyManager] = None):
+        """
+        初始化因果分析器
+        
+        Args:
+            data: 数据
+            ontology_manager: 本体管理器，如果为None则不使用本体
+        """
         self.data = data
+        self.ontology = ontology_manager
         self.model = None
         self.identified_estimand = None
         self.estimate = None
@@ -31,18 +35,25 @@ class CausalAnalyzer:
         
     def build_causal_graph(self) -> str:
         """
-        构建因果图的DOT格式定义
+        构建因果图的DOT格式定义（基于本体）
         
-        因果关系说明：
-        1. 付款及时性 (payment_timeliness) 影响供应商效率
-        2. 供应商效率 (supplier_efficiency) 影响零部件可用性
-        3. 零部件可用性 (parts_availability) 影响生产效率
-        4. 员工技能 (avg_employee_skill) 影响生产效率
-        5. 设备状态 (equipment_status) 影响生产效率
-        6. 产能利用率 (capacity_utilization) 影响生产效率
-        7. 供应商基础效率 (supplier_base_efficiency) 影响供应商效率
-        8. 设备年龄 (equipment_age) 影响设备状态
+        Returns:
+            因果图的DOT格式字符串
         """
+        # 如果有本体，从本体读取因果图
+        if self.ontology:
+            causal_graph_dict = self.ontology.get_causal_graph()
+            
+            # 构建DOT格式
+            edges = []
+            for source, targets in causal_graph_dict.items():
+                for target in targets:
+                    edges.append(f"    {source} -> {target};")
+            
+            causal_graph = "digraph {\n" + "\n".join(edges) + "\n}"
+            return causal_graph
+        
+        # 如果没有本体，使用默认因果图
         causal_graph = """digraph {
             payment_timeliness -> supplier_efficiency;
             supplier_efficiency -> parts_availability;
@@ -322,11 +333,18 @@ class CausalAnalyzer:
 
 
 class RootCauseAnalysisPipeline:
-    """根因分析流水线"""
+    """根因分析流水线（本体驱动版本）"""
     
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame, ontology_manager: Optional[OntologyManager] = None):
+        """
+        初始化根因分析流水线
+        
+        Args:
+            data: 数据
+            ontology_manager: 本体管理器，如果为None则不使用本体
+        """
         self.data = data
-        self.analyzer = CausalAnalyzer(data)
+        self.analyzer = CausalAnalyzer(data, ontology_manager)
         self.analysis_results = None
         self.counterfactual_results = None
         
