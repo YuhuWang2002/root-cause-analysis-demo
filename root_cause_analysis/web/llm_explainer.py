@@ -205,6 +205,34 @@ class LLMExplainer:
             print(f"  - Model: {self.model}")
             return self._generate_rule_based_explanation(analysis_results, comparison_df, causal_results)
     
+    def _build_causal_graph_description(self) -> str:
+        """构建因果图描述"""
+        return """## 因果图结构（根据DoWhy因果推断框架定义）
+
+以下是各因素之间的因果关系路径：
+
+### 主要因果链
+1. **付款及时性** → **供应商效率** → **零部件可用性** → **生产效率**
+   - 付款不及时会降低供应商效率
+   - 供应商效率降低会导致零部件供应不足
+   - 零部件不足直接影响生产效率
+
+2. **员工技能** → **生产效率**
+   - 员工技能水平直接影响生产效率
+
+3. **设备状态** → **生产效率**
+   - 设备状态好坏直接影响生产效率
+
+4. **产能利用率** → **生产效率**
+   - 产能利用率过高或过低都会影响生产效率
+
+### 其他因果关系
+- **供应商基础效率** → **供应商效率**
+- **设备年龄** → **设备状态**
+- **工厂产能** → **产能利用率**
+- **工厂产能** → **生产效率**
+"""
+    
     def _build_prompt(self, 
                       analysis_results: Dict,
                       comparison_df: pd.DataFrame,
@@ -227,6 +255,8 @@ class LLMExplainer:
 ## 场景背景
 某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。
 
+{self._build_causal_graph_description()}
+
 ## 数据分析结果
 
 ### 1. 生产效率变化
@@ -235,13 +265,25 @@ class LLMExplainer:
 ### 2. 主要下降指标
 """
         
+        metric_names = {
+            'production_efficiency': '生产效率',
+            'payment_timeliness': '付款及时性',
+            'supplier_efficiency': '供应商效率',
+            'parts_availability': '零部件可用性',
+            'avg_employee_skill': '员工技能水平',
+            'equipment_status': '设备状态',
+            'capacity_utilization': '产能利用率'
+        }
+        
         for _, row in top_declines.iterrows():
-            prompt += f"- {row['metric']}: 下降 {abs(row['change_percent']):.2f}%\n"
+            metric_name = metric_names.get(row['metric'], row['metric'])
+            prompt += f"- {metric_name}: 下降 {abs(row['change_percent']):.2f}%\n"
         
         prompt += "\n### 3. 因果效应分析结果\n"
         
         for _, row in top_causes.iterrows():
-            prompt += f"- {row['cause']}: 因果效应值 {row['causal_effect']:.4f}\n"
+            cause_name = metric_names.get(row['cause'], row['cause'])
+            prompt += f"- {cause_name}: 因果效应值 {row['causal_effect']:.4f}\n"
         
         if counterfactual_results is not None and len(counterfactual_results) > 0:
             prompt += "\n### 4. DoWhy反事实分析结果（预期改进效果）\n"
@@ -255,13 +297,15 @@ class LLMExplainer:
         prompt += """
 ## 请回答以下问题：
 
-1. **根因分析**：根据因果效应分析结果，哪些因素是导致生产效率下降的根本原因？为什么？
+1. **根因分析**：根据因果图结构和因果效应分析结果，哪些因素是导致生产效率下降的根本原因？为什么？
 
-2. **影响机制**：这些因素是如何影响生产效率的？请解释其因果路径。
+2. **因果路径分析**：请结合上面提供的因果图结构，详细解释这些因素是如何通过因果链影响生产效率的。
 
 3. **改进建议**：针对识别出的根本原因，应该采取哪些具体的改进措施？请按优先级排序。
 
-4. **引用DoWhy分析结果**：在回答中，请引用DoWhy反事实分析的预期改进效果数据，不要自己猜测改进效果。
+4. **引用分析结果**：在回答中，请引用以下信息：
+   - 引用因果图中的因果关系路径
+   - 引用DoWhy反事实分析的预期改进效果数据（不要自己猜测改进效果）
 
 请用专业但易懂的语言回答，适合企业管理层阅读。
 """
@@ -300,8 +344,19 @@ class LLMExplainer:
 
 """
         
+        metric_names = {
+            'production_efficiency': '生产效率',
+            'payment_timeliness': '付款及时性',
+            'supplier_efficiency': '供应商效率',
+            'parts_availability': '零部件可用性',
+            'avg_employee_skill': '员工技能水平',
+            'equipment_status': '设备状态',
+            'capacity_utilization': '产能利用率'
+        }
+        
         for i, (_, row) in enumerate(top_declines.iterrows(), 1):
-            explanation += f"**{i}. {row['metric']}**\n"
+            metric_name = metric_names.get(row['metric'], row['metric'])
+            explanation += f"**{i}. {metric_name}**\n"
             explanation += f"- 下降幅度: {abs(row['change_percent']):.2f}%\n"
             explanation += f"- 正常月份均值: {row['normal_mean']:.3f}\n"
             explanation += f"- 异常月份均值: {row['anomaly_mean']:.3f}\n\n"
@@ -311,7 +366,8 @@ class LLMExplainer:
         
         for i, (_, row) in enumerate(top_causes.iterrows(), 1):
             effect_strength = "强" if abs(row['causal_effect']) > 0.3 else "中等" if abs(row['causal_effect']) > 0.1 else "弱"
-            explanation += f"**{i}. {row['cause']}**\n"
+            cause_name = metric_names.get(row['cause'], row['cause'])
+            explanation += f"**{i}. {cause_name}**\n"
             explanation += f"- 因果效应值: {row['causal_effect']:.4f}\n"
             explanation += f"- 影响强度: {effect_strength}\n"
             explanation += f"- 解释: {row['interpretation']}\n\n"
@@ -323,7 +379,8 @@ class LLMExplainer:
             valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
             for i, (_, row) in enumerate(valid_counterfactual.iterrows(), 1):
                 gain_percent = row['expected_efficiency_gain'] * 100
-                explanation += f"**{i}. {row['factor']}**\n"
+                factor_name = metric_names.get(row['factor'], row['factor'])
+                explanation += f"**{i}. {factor_name}**\n"
                 explanation += f"- 改善程度: {row['improvement_level']*100:.0f}%\n"
                 explanation += f"- 预计效率提升: {gain_percent:.1f}%\n"
                 explanation += f"- 解释: {row['interpretation']}\n\n"
