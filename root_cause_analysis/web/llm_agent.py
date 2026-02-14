@@ -311,5 +311,28 @@ class LLMAgentSync(LLMAgent):
     def derive_causal_graph(self, request: CausalGraphDerivationRequest) -> CausalGraphDerivationResponse:
         """同步版本的因果图推导"""
         import asyncio
+        import threading
         
-        return asyncio.run(self.async_derive_causal_graph(request))
+        # 在新线程中运行异步方法
+        result_container = []
+        exception_container = []
+        
+        def run_async():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(self.async_derive_causal_graph(request))
+                result_container.append(result)
+            except Exception as e:
+                exception_container.append(e)
+            finally:
+                loop.close()
+        
+        thread = threading.Thread(target=run_async)
+        thread.start()
+        thread.join()
+        
+        if exception_container:
+            raise exception_container[0]
+        
+        return result_container[0]
