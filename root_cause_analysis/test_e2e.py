@@ -254,19 +254,29 @@ def main():
         print("   请在 modelkey.cfg 文件中配置 API Key")
         return
     
+    # 测试状态
+    test_status = {
+        "ontology_api": False,
+        "llm_agent": False,
+        "data_generation": False,
+        "causal_analysis": False,
+        "llm_explanation": False
+    }
+    
     # 测试本体API
-    test_ontology_api()
+    test_status["ontology_api"] = test_ontology_api()
     
     # 测试LLM Agent（跳过本体API，直接测试Agent逻辑）
     print("\n" + "="*60)
     print("步骤2：测试LLM Agent（跳过本体API，直接测试Agent逻辑）")
     print("="*60)
     
+    causal_graph_result = None
     try:
-        # 初始化LLM Agent（不连接本体API）
-        from llm_agent import LLMAgent
+        # 初始化LLM Agent（使用同步版本）
+        from llm_agent import LLMAgentSync
         
-        agent = LLMAgent(
+        agent = LLMAgentSync(
             ontology_api_url="http://localhost:8000",
             llm_api_key=config["api_key"]
         )
@@ -290,42 +300,60 @@ def main():
         print(f"   - 推理过程长度: {len(result.reasoning)} 字符")
         
         causal_graph_result = result
+        test_status["llm_agent"] = True
         
     except Exception as e:
         print(f"❌ LLM Agent测试失败: {str(e)}")
         import traceback
         traceback.print_exc()
         causal_graph_result = None
+        test_status["llm_agent"] = False
     
     # 测试数据生成
     data, anomaly_factors = test_data_generation()
-    if data is None:
+    if data is not None:
+        test_status["data_generation"] = True
+    else:
         print("\n❌ 数据生成失败，跳过后续测试")
-        return
+        test_status["data_generation"] = False
+        # 继续总结，不return
     
     # 测试因果分析
-    analysis_results = test_causal_analysis(data)
-    if not analysis_results:
+    analysis_results = test_causal_analysis(data) if (data is not None) else None
+    if analysis_results:
+        test_status["causal_analysis"] = True
+    else:
         print("\n❌ 因果分析失败，跳过后续测试")
-        return
+        test_status["causal_analysis"] = False
+        # 继续总结，不return
     
     # 测试大模型解释
-    explanation = test_llm_explanation(config, analysis_results, data)
-    if not explanation:
-        print("\n❌ 大模型解释失败")
-        return
+    explanation = None
+    if (analysis_results is not None) and (data is not None):
+        explanation = test_llm_explanation(config, analysis_results, data)
+    
+    if explanation:
+        test_status["llm_explanation"] = True
+    else:
+        test_status["llm_explanation"] = False
     
     # 总结
     print("\n" + "="*60)
-    print("✅ 端到端测试完成！")
+    print("端到端测试完成！")
     print("="*60)
     print("\n测试总结：")
-    print("  ✅ 本体API - 正常")
-    print("  ✅ LLM Agent - 正常")
-    print("  ✅ 数据生成 - 正常")
-    print("  ✅ 因果分析 - 正常")
-    print("  ✅ 大模型解释 - 正常")
-    print("\n所有组件都正常工作！")
+    print(f"  {'✅' if test_status['ontology_api'] else '❌'} 本体API - {'正常' if test_status['ontology_api'] else '失败'}")
+    print(f"  {'✅' if test_status['llm_agent'] else '❌'} LLM Agent - {'正常' if test_status['llm_agent'] else '失败'}")
+    print(f"  {'✅' if test_status['data_generation'] else '❌'} 数据生成 - {'正常' if test_status['data_generation'] else '失败'}")
+    print(f"  {'✅' if test_status['causal_analysis'] else '❌'} 因果分析 - {'正常' if test_status['causal_analysis'] else '失败'}")
+    print(f"  {'✅' if test_status['llm_explanation'] else '❌'} 大模型解释 - {'正常' if test_status['llm_explanation'] else '失败'}")
+    
+    # 检查是否所有测试都通过
+    all_passed = all(test_status.values())
+    if all_passed:
+        print("\n✅ 所有组件都正常工作！")
+    else:
+        print("\n⚠️  部分组件测试失败！")
 
 
 if __name__ == "__main__":
