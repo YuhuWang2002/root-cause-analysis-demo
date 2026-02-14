@@ -6,7 +6,8 @@
 2. 因果图可视化
 3. 数据探索和分析
 4. DoWhy因果分析结果
-5. 结论和建议展示
+5. 大模型智能解释
+6. 结论和建议展示
 """
 
 import streamlit as st
@@ -23,6 +24,7 @@ import os
 
 from data_generator import create_demo_scenario
 from causal_analyzer import CausalAnalyzer, RootCauseAnalysisPipeline
+from llm_explainer import LLMExplainer
 
 # 设置页面配置
 st.set_page_config(
@@ -71,6 +73,12 @@ st.markdown("""
         padding: 15px;
         margin-bottom: 20px;
     }
+    .llm-box {
+        background-color: #f0f8ff;
+        border-left: 4px solid #4169E1;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,10 +87,35 @@ class RootCauseAnalysisWebApp:
     """根因分析Web应用"""
     
     def __init__(self):
-        self.data = None
-        self.anomaly_factors = None
-        self.analysis_results = None
-        self.pipeline = None
+        # 使用 st.session_state 持久化状态
+        if 'data' not in st.session_state:
+            st.session_state.data = None
+        if 'anomaly_factors' not in st.session_state:
+            st.session_state.anomaly_factors = None
+        if 'analysis_results' not in st.session_state:
+            st.session_state.analysis_results = None
+        if 'pipeline' not in st.session_state:
+            st.session_state.pipeline = None
+        if 'llm_explainer' not in st.session_state:
+            st.session_state.llm_explainer = None
+        if 'llm_explanation' not in st.session_state:
+            st.session_state.llm_explanation = None
+        
+        self.data = st.session_state.data
+        self.anomaly_factors = st.session_state.anomaly_factors
+        self.analysis_results = st.session_state.analysis_results
+        self.pipeline = st.session_state.pipeline
+        self.llm_explainer = st.session_state.llm_explainer
+        self.llm_explanation = st.session_state.llm_explanation
+        
+    def _save_state(self):
+        """保存状态到 session_state"""
+        st.session_state.data = self.data
+        st.session_state.anomaly_factors = self.anomaly_factors
+        st.session_state.analysis_results = self.analysis_results
+        st.session_state.pipeline = self.pipeline
+        st.session_state.llm_explainer = self.llm_explainer
+        st.session_state.llm_explanation = self.llm_explanation
         
     def load_data(self):
         """加载数据"""
@@ -90,6 +123,7 @@ class RootCauseAnalysisWebApp:
             with st.spinner("生成模拟数据..."):
                 self.data, self.anomaly_factors = create_demo_scenario()
                 self.pipeline = RootCauseAnalysisPipeline(self.data)
+            self._save_state()
         return self.data, self.anomaly_factors
     
     def run_analysis(self):
@@ -97,7 +131,50 @@ class RootCauseAnalysisWebApp:
         if self.analysis_results is None:
             with st.spinner("运行根因分析..."):
                 self.analysis_results = self.pipeline.run_full_analysis()
+            self._save_state()
         return self.analysis_results
+    
+    def init_llm_explainer(self, api_type: str, api_key: str, model: str = None, base_url: str = None):
+        """初始化大模型解释器"""
+        self.llm_explainer = LLMExplainer(api_type=api_type, api_key=api_key, model=model, base_url=base_url)
+        self.llm_explanation = None
+        self._save_state()
+    
+    def generate_llm_explanation(self):
+        """生成大模型解释"""
+        print("[APP] generate_llm_explanation 被调用")
+        print(f"  - llm_explainer: {self.llm_explainer is not None}")
+        print(f"  - analysis_results: {self.analysis_results is not None}")
+        print(f"  - llm_explanation: {self.llm_explanation is not None}")
+        
+        if self.llm_explanation is None and self.llm_explainer is not None:
+            print("[APP] 开始生成解释...")
+            
+            if self.analysis_results is None:
+                print("[APP] analysis_results 为空，先运行分析...")
+                self.run_analysis()
+            
+            print(f"[APP] analysis_results 状态: {self.analysis_results is not None}")
+            print(f"[APP] comparison 数据: {self.analysis_results['comparison'] is not None if self.analysis_results else 'N/A'}")
+            print(f"[APP] causal_analysis 数据: {self.analysis_results['causal_analysis'] is not None if self.analysis_results else 'N/A'}")
+            
+            with st.spinner("大模型正在生成解释..."):
+                print("[APP] 调用 llm_explainer.generate_explanation...")
+                
+                counterfactual_results = None
+                if 'counterfactual_analysis' in self.analysis_results:
+                    counterfactual_results = self.analysis_results['counterfactual_analysis']
+                
+                self.llm_explanation = self.llm_explainer.generate_explanation(
+                    self.analysis_results,
+                    self.analysis_results['comparison'],
+                    self.analysis_results['causal_analysis'],
+                    counterfactual_results
+                )
+                self._save_state()
+                print(f"[APP] 解释生成完成，长度: {len(self.llm_explanation) if self.llm_explanation else 0}")
+        
+        return self.llm_explanation
     
     def plot_causal_graph(self):
         """绘制因果图"""
@@ -318,8 +395,52 @@ class RootCauseAnalysisWebApp:
         
         page = st.sidebar.radio(
             "选择页面",
-            ["场景介绍", "因果图", "数据分析", "因果分析", "结论建议"]
+            ["场景介绍", "因果图", "数据分析", "因果分析", "结论建议", "AI智能解释"]
         )
+        
+        st.sidebar.markdown("### 大模型配置")
+        with st.sidebar.expander("配置大模型API"):
+            api_type = "siliconflow"
+            st.info("当前使用 SiliconFlow API")
+            
+            api_key = st.text_input(
+                "API密钥",
+                type="password",
+                help="输入您的SiliconFlow API密钥"
+            )
+            
+            base_url = st.text_input(
+                "API Base URL（可选）",
+                placeholder="默认: https://api.siliconflow.cn/v1",
+                help="自定义API端点，留空使用默认值"
+            )
+            
+            model = st.text_input(
+                "模型名称（可选）",
+                placeholder="默认: Qwen/Qwen2.5-7B-Instruct",
+                help="留空使用默认模型"
+            )
+            
+            if st.button("初始化大模型"):
+                if api_key:
+                    with st.spinner("正在初始化并测试连接..."):
+                        self.init_llm_explainer(
+                            api_type, 
+                            api_key, 
+                            model if model else None,
+                            base_url if base_url else None
+                        )
+                        
+                        success, message = self.llm_explainer.test_connection()
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
+                            st.info("请检查配置后重试，或使用规则解释功能")
+                else:
+                    st.warning("请输入API密钥")
         
         st.sidebar.markdown("### 关于系统")
         st.sidebar.info(
@@ -328,7 +449,8 @@ class RootCauseAnalysisWebApp:
             "**技术栈**：\n"+
             "- Python + Streamlit\n"+
             "- DoWhy 因果推断\n"+
-            "- Plotly 数据可视化"
+            "- Plotly 数据可视化\n"+
+            "- 大模型智能解释"
         )
         
         return page
@@ -608,6 +730,147 @@ class RootCauseAnalysisWebApp:
             </div>
             """, unsafe_allow_html=True)
     
+    def render_llm_explanation_page(self):
+        """渲染大模型解释页面"""
+        st.header("AI智能解释")
+        
+        st.markdown("""
+        <div class="llm-box">
+        <h4>🤖 大模型智能解释</h4>
+        <p>基于DoWhy因果分析结果，大模型将生成详细的根因分析报告，包括：</p>
+        <ul>
+            <li>根本原因分析</li>
+            <li>影响机制解释</li>
+            <li>改进建议</li>
+            <li>预期效果评估</li>
+        </ul>
+        <p><strong>操作步骤：</strong></p>
+        <ol>
+            <li>点击"运行DoWhy分析"按钮，获取因果分析结果</li>
+            <li>查看分析结果</li>
+            <li>点击"生成大模型解释"按钮，获取AI解释</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 步骤1：运行DoWhy分析
+        st.markdown("---")
+        st.markdown("### 步骤1：运行DoWhy因果分析")
+        
+        if st.button("运行DoWhy分析", type="primary"):
+            with st.spinner("正在生成数据并运行DoWhy分析..."):
+                self.load_data()
+                self.run_analysis()
+            st.success("✅ DoWhy分析完成！")
+        
+        # 展示DoWhy分析结果
+        if self.analysis_results is not None:
+            st.markdown("#### 📊 DoWhy分析结果")
+            
+            with st.expander("查看指标对比分析", expanded=True):
+                comparison_df = self.analysis_results['comparison']
+                st.dataframe(comparison_df.style.format({
+                    'normal_mean': '{:.3f}',
+                    'anomaly_mean': '{:.3f}',
+                    'change_percent': '{:.2f}%',
+                    'abs_change': '{:.2f}%'
+                }))
+            
+            with st.expander("查看因果效应分析"):
+                causal_df = self.analysis_results['causal_analysis']
+                valid_causal = causal_df[causal_df['causal_effect'].notna()]
+                st.dataframe(valid_causal.style.format({
+                    'causal_effect': '{:.4f}'
+                }))
+            
+            with st.expander("查看分析总结"):
+                st.markdown(self.analysis_results['summary'])
+            
+            with st.expander("查看反事实分析结果（预期改进效果）", expanded=True):
+                if 'counterfactual_analysis' in self.analysis_results and self.analysis_results['counterfactual_analysis'] is not None:
+                    cf_df = self.analysis_results['counterfactual_analysis']
+                    valid_cf = cf_df[cf_df['expected_efficiency_gain'].notna()]
+                    
+                    st.markdown("**预期改进效果（基于DoWhy因果推断）：**")
+                    
+                    st.dataframe(valid_cf.style.format({
+                        'causal_effect': '{:.4f}',
+                        'improvement_level': '{:.0%}',
+                        'expected_efficiency_gain': '{:.2%}'
+                    }))
+                    
+                    st.markdown("**改进效果说明：**")
+                    for _, row in valid_cf.iterrows():
+                        st.info(row['interpretation'])
+                else:
+                    st.info("暂无反事实分析结果")
+            
+            # 步骤2：配置大模型
+            st.markdown("---")
+            st.markdown("### 步骤2：配置大模型")
+            
+            if self.llm_explainer is None:
+                st.warning("⚠️ 请先在侧边栏配置SiliconFlow API密钥并初始化大模型")
+                st.info("""
+                **配置步骤：**
+                
+                1. 在侧边栏输入您的SiliconFlow API密钥
+                2. （可选）输入自定义的Base URL
+                3. （可选）输入模型名称
+                4. 点击"初始化大模型"按钮
+                
+                **支持的模型：**
+                - Qwen/Qwen2.5-7B-Instruct（默认）
+                - Qwen/Qwen2.5-72B-Instruct
+                - deepseek-ai/DeepSeek-V2.5
+                
+                **注意：** 如果未配置API，可以点击下方按钮使用规则解释。
+                """)
+                
+                if st.button("使用规则解释（无需API）"):
+                    self.llm_explainer = LLMExplainer()
+                    self._save_state()
+                    st.success("✅ 规则解释器已初始化！")
+                    st.rerun()
+            
+            # 步骤3：生成大模型解释
+            if self.llm_explainer is not None:
+                st.markdown("---")
+                st.markdown("### 步骤3：生成大模型解释")
+                
+                st.info(f"当前使用: **{self.llm_explainer.model}** 模型")
+                
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("生成大模型解释", type="primary"):
+                        print("[APP] 用户点击了'生成大模型解释'按钮")
+                        
+                        with st.spinner("大模型正在生成解释，请稍候..."):
+                            explanation = self.generate_llm_explanation()
+                        
+                        print(f"[APP] 获取到的解释: {explanation is not None}")
+                        
+                        if explanation:
+                            st.markdown("#### 📊 AI生成的根因分析报告")
+                            st.markdown(explanation)
+                            
+                            st.download_button(
+                                label="下载报告",
+                                data=explanation,
+                                file_name="根因分析报告.md",
+                                mime="text/markdown"
+                            )
+                        else:
+                            st.error("生成解释失败，请检查API配置或查看终端日志")
+                with col2:
+                    if st.button("重新生成解释"):
+                        self.llm_explanation = None
+                        self._save_state()
+                        st.success("✅ 已清除旧解释，请点击'生成大模型解释'")
+                        st.rerun()
+        else:
+            st.info("👆 请先点击「运行DoWhy分析」按钮")
+
     def run(self):
         """运行应用"""
         page = self.render_sidebar()
@@ -622,6 +885,8 @@ class RootCauseAnalysisWebApp:
             self.render_causal_analysis_page()
         elif page == "结论建议":
             self.render_conclusion_page()
+        elif page == "AI智能解释":
+            self.render_llm_explanation_page()
 
 
 if __name__ == "__main__":

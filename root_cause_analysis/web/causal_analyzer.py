@@ -206,6 +206,91 @@ class CausalAnalyzer:
             ascending=False
         )
     
+    def counterfactual_analysis(self, 
+                                target_variable: str = "production_efficiency",
+                                improvement_levels: Dict = None) -> pd.DataFrame:
+        """
+        反事实分析 - 计算如果改善某个因素，预期效率提升多少
+        
+        Args:
+            target_variable: 目标变量
+            improvement_levels: 各因素的改善程度，例如：
+                {
+                    "payment_timeliness": 0.2,  # 付款及时性提升20%
+                    "supplier_efficiency": 0.15   # 供应商效率提升15%
+                }
+                
+        Returns:
+            反事实分析结果
+        """
+        if improvement_levels is None:
+            improvement_levels = {
+                "payment_timeliness": 0.2,
+                "supplier_efficiency": 0.15,
+                "parts_availability": 0.1,
+                "avg_employee_skill": 0.05,
+                "equipment_status": 0.05
+            }
+        
+        results = []
+        
+        for cause, improvement in improvement_levels.items():
+            try:
+                self.create_causal_model(
+                    treatment=cause,
+                    outcome=target_variable
+                )
+                
+                self.identify_effect()
+                
+                estimate = self.estimate_effect()
+                
+                expected_efficiency_gain = estimate.value * improvement
+                
+                results.append({
+                    "factor": cause,
+                    "causal_effect": estimate.value,
+                    "improvement_level": improvement,
+                    "expected_efficiency_gain": expected_efficiency_gain,
+                    "interpretation": self._interpret_counterfactual(
+                        cause, expected_efficiency_gain, improvement
+                    )
+                })
+                
+            except Exception as e:
+                results.append({
+                    "factor": cause,
+                    "causal_effect": None,
+                    "improvement_level": improvement,
+                    "expected_efficiency_gain": None,
+                    "interpretation": f"反事实分析失败: {str(e)}"
+                })
+        
+        return pd.DataFrame(results).sort_values(
+            by="expected_efficiency_gain",
+            key=lambda x: abs(x) if x.notna().all() else x,
+            ascending=False
+        )
+    
+    def _interpret_counterfactual(self, factor: str, expected_gain: float, improvement: float) -> str:
+        """解释反事实分析结果"""
+        if expected_gain is None:
+            return "无法计算"
+        
+        factor_names = {
+            "payment_timeliness": "付款及时性",
+            "supplier_efficiency": "供应商效率",
+            "parts_availability": "零部件可用性",
+            "avg_employee_skill": "员工技能水平",
+            "equipment_status": "设备状态",
+            "capacity_utilization": "产能利用率"
+        }
+        
+        factor_name = factor_names.get(factor, factor)
+        gain_percent = expected_gain * 100
+        
+        return f"如果{factor_name}提升{improvement*100:.0f}%，预计生产效率提升{gain_percent:.1f}%"
+    
     def _interpret_effect(self, cause: str, effect: float) -> str:
         """解释因果效应"""
         if effect is None:
@@ -243,6 +328,7 @@ class RootCauseAnalysisPipeline:
         self.data = data
         self.analyzer = CausalAnalyzer(data)
         self.analysis_results = None
+        self.counterfactual_results = None
         
     def run_full_analysis(self) -> Dict:
         """运行完整的根因分析"""
@@ -257,12 +343,16 @@ class RootCauseAnalysisPipeline:
         print("\n第三步：因果分析")
         self.analysis_results = self.analyzer.analyze_root_cause()
         
-        print("\n第四步：根因总结")
+        print("\n第四步：反事实分析（预期改进效果）")
+        self.counterfactual_results = self.analyzer.counterfactual_analysis()
+        
+        print("\n第五步：根因总结")
         summary = self._generate_summary(comparison)
         
         return {
             "comparison": comparison,
             "causal_analysis": self.analysis_results,
+            "counterfactual_analysis": self.counterfactual_results,
             "summary": summary
         }
     
