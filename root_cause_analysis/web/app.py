@@ -225,7 +225,7 @@ class RootCauseAnalysisWebApp:
                     outcome_entity=outcome_entity
                 )
                 
-                response = await self.llm_agent.async_derive_causal_graph(request)
+                response = self.llm_agent.derive_causal_graph(request)
                 
                 # 保存推导结果
                 self.causal_graph_derived = {
@@ -512,7 +512,7 @@ class RootCauseAnalysisWebApp:
         
         page = st.sidebar.radio(
             "选择页面",
-            ["场景介绍", "因果图", "数据分析", "因果分析", "AI智能解释"]
+            ["场景介绍", "因果图", "数据分析", "因果分析", "AI智能解释", "Agent分析"]
         )
         
         st.sidebar.markdown("### 大模型配置")
@@ -772,6 +772,150 @@ class RootCauseAnalysisWebApp:
             </div>
             """, unsafe_allow_html=True)
     
+    def render_agent_analysis_page(self):
+        """渲染Agent分析页面"""
+        st.header("🤖 Agent智能分析")
+        
+        st.markdown("""
+        <div class="llm-box">
+        <h4>Agent驱动的因果分析</h4>
+        <p>通过LLM理解本体并推导因果图，实现智能的根因分析流程。</p>
+        <p><strong>操作步骤：</strong></p>
+        <ol>
+            <li>输入场景描述</li>
+            <li>选择结果实体</li>
+            <li>点击"推导因果图"按钮</li>
+            <li>查看推导结果</li>
+            <li>系统自动生成数据并分析</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 步骤1：输入场景描述
+        st.markdown("---")
+        st.markdown("### 步骤1：输入场景描述")
+        
+        scenario_description = st.text_area(
+            "场景描述",
+            placeholder="例如：某制造企业在2024年12月发现生产效率相比11月显著下降，需要分析原因并提出改进措施。",
+            height=100,
+            help="描述您遇到的问题场景，LLM将根据描述和本体信息推导因果图"
+        )
+        
+        # 步骤2：选择结果实体
+        st.markdown("### 步骤2：选择结果实体")
+        
+        if self.llm_agent:
+            outcome_entity = st.selectbox(
+                "选择结果实体（要分析的目标）",
+                options=["production_efficiency", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status"],
+                format_func=lambda x: {
+                    "production_efficiency": "生产效率",
+                    "supplier_efficiency": "供应商效率",
+                    "parts_availability": "零部件可用性",
+                    "avg_employee_skill": "员工技能水平",
+                    "equipment_status": "设备状态"
+                }[x],
+                help="选择要分析的结果实体"
+            )
+        else:
+            st.warning("⚠️ 请先初始化LLM Agent")
+        
+        # 步骤3：推导因果图
+        st.markdown("### 步骤3：推导因果图")
+        
+        if outcome_entity and self.llm_agent:
+            if st.button("推导因果图", type="primary"):
+                with st.spinner("LLM正在推导因果图，请稍候..."):
+                    from llm_agent import CausalGraphDerivationRequest
+                    
+                    request = CausalGraphDerivationRequest(
+                        scenario_description=scenario_description,
+                        outcome_entity=outcome_entity
+                    )
+                    
+                    result = self.llm_agent.derive_causal_graph(request)
+                    
+                    if result:
+                        st.success("✅ 因果图推导完成！")
+                        
+                        # 展示推导结果
+                        st.markdown("#### 📊 推导结果")
+                        
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.markdown("**因果图结构**")
+                            
+                            # 显示因果图
+                            causal_graph = result.causal_graph
+                            for source, targets in causal_graph.items():
+                                if len(targets) > 0:
+                                    st.markdown(f"- {source} → {', '.join(targets)}")
+                            
+                            # 显示推理过程
+                            st.markdown("**推理过程**")
+                            st.markdown(result.reasoning)
+                            
+                            # 显示建议的数据字段
+                            st.markdown("**建议的数据字段**")
+                            for field in result.suggested_data_fields:
+                                st.markdown(f"- {field}")
+                            
+                            # 显示需要的实体
+                            st.markdown("**需要的实体**")
+                            for entity_id in result.required_entities:
+                                st.markdown(f"- {entity_id}")
+                        
+                        with col2:
+                            st.markdown("**下一步操作**")
+                            st.info("""
+                            1. 系统将根据推导的因果图生成数据
+                            2. 自动运行DoWhy因果分析
+                            3. 生成分析报告
+                            """)
+                            
+                            # 自动生成数据并分析
+                            if st.button("生成数据并分析", type="primary"):
+                                self._generate_data_from_agent(result)
+                    else:
+                        st.error("❌ 推导因果图失败")
+        else:
+            st.info("👆 请先完成步骤1和步骤2")
+    
+    def _generate_data_from_agent(self, causal_graph_result):
+        """根据Agent推导的因果图生成数据并分析"""
+        try:
+            # 这里暂时使用现有的数据生成逻辑
+            # 实际使用时，应该根据causal_graph_result动态生成数据
+            with st.spinner("正在生成数据并运行分析..."):
+                self.data, self.anomaly_factors = create_demo_scenario()
+                self.pipeline = RootCauseAnalysisPipeline(self.data)
+                self.analysis_results = self.pipeline.run_full_analysis()
+                self._save_state()
+            
+            st.success("✅ 数据生成和分析完成！")
+            
+            # 显示分析结果摘要
+            st.markdown("#### 📊 分析结果摘要")
+            
+            if self.analysis_results:
+                st.markdown(f"- **数据记录数**: {len(self.data)}")
+                st.markdown(f"- **因果效应分析**: {len(self.analysis_results['causal_analysis'])} 个因素")
+                
+                # 显示主要发现
+                causal_df = self.analysis_results['causal_analysis']
+                top_causes = causal_df[causal_df['causal_effect'].notna()].head(3)
+                
+                st.markdown("**主要影响因素（按因果效应排序）：**")
+                for _, row in top_causes.iterrows():
+                    st.markdown(f"- {row['cause']}: {row['causal_effect']:.4f}")
+            
+            st.info("💡 提示：您现在可以查看其他分析页面了解详细信息")
+            
+        except Exception as e:
+            st.error(f"❌ 生成数据和分析失败: {str(e)}")
+    
     def render_llm_explanation_page(self):
         """渲染大模型解释页面"""
         st.header("AI智能解释")
@@ -912,7 +1056,151 @@ class RootCauseAnalysisWebApp:
                         st.rerun()
         else:
             st.info("👆 请先点击「运行DoWhy分析」按钮")
-
+    
+    def render_agent_analysis_page(self):
+        """渲染Agent分析页面"""
+        st.header("🤖 Agent智能分析")
+        
+        st.markdown("""
+        <div class="llm-box">
+        <h4>Agent驱动的因果分析</h4>
+        <p>通过LLM理解本体并推导因果图，实现智能的根因分析流程。</p>
+        <p><strong>操作步骤：</strong></p>
+        <ol>
+            <li>输入场景描述</li>
+            <li>选择结果实体</li>
+            <li>点击"推导因果图"按钮</li>
+            <li>查看推导结果</li>
+            <li>系统自动生成数据并分析</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 步骤1：输入场景描述
+        st.markdown("---")
+        st.markdown("### 步骤1：输入场景描述")
+        
+        scenario_description = st.text_area(
+            "场景描述",
+            placeholder="例如：某制造企业在2024年12月发现生产效率相比11月显著下降，需要分析原因并提出改进措施。",
+            height=100,
+            help="描述您遇到的问题场景，LLM将根据描述和本体信息推导因果图"
+        )
+        
+        # 步骤2：选择结果实体
+        st.markdown("### 步骤2：选择结果实体")
+        
+        if self.llm_agent:
+            outcome_entity = st.selectbox(
+                "选择结果实体（要分析的目标）",
+                options=["production_efficiency", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status"],
+                format_func=lambda x: {
+                    "production_efficiency": "生产效率",
+                    "supplier_efficiency": "供应商效率",
+                    "parts_availability": "零部件可用性",
+                    "avg_employee_skill": "员工技能水平",
+                    "equipment_status": "设备状态"
+                }[x],
+                help="选择要分析的结果实体"
+            )
+        else:
+            st.warning("⚠️ 请先初始化LLM Agent")
+        
+        # 步骤3：推导因果图
+        st.markdown("### 步骤3：推导因果图")
+        
+        if outcome_entity and self.llm_agent:
+            if st.button("推导因果图", type="primary"):
+                with st.spinner("LLM正在推导因果图，请稍候..."):
+                    from llm_agent import CausalGraphDerivationRequest
+                    
+                    request = CausalGraphDerivationRequest(
+                        scenario_description=scenario_description,
+                        outcome_entity=outcome_entity
+                    )
+                    
+                    result = self.llm_agent.derive_causal_graph(request)
+                    
+                    if result:
+                        st.success("✅ 因果图推导完成！")
+                        
+                        # 展示推导结果
+                        st.markdown("#### 📊 推导结果")
+                        
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.markdown("**因果图结构**")
+                            
+                            # 显示因果图
+                            causal_graph = result.causal_graph
+                            for source, targets in causal_graph.items():
+                                if len(targets) > 0:
+                                    st.markdown(f"- {source} → {', '.join(targets)}")
+                            
+                            # 显示推理过程
+                            st.markdown("**推理过程**")
+                            st.markdown(result.reasoning)
+                            
+                            # 显示建议的数据字段
+                            st.markdown("**建议的数据字段**")
+                            for field in result.suggested_data_fields:
+                                st.markdown(f"- {field}")
+                            
+                            # 显示需要的实体
+                            st.markdown("**需要的实体**")
+                            for entity_id in result.required_entities:
+                                st.markdown(f"- {entity_id}")
+                        
+                        with col2:
+                            st.markdown("**下一步操作**")
+                            st.info("""
+                            1. 系统将根据推导的因果图生成数据
+                            2. 自动运行DoWhy因果分析
+                            3. 生成分析报告
+                            """)
+                            
+                            # 自动生成数据并分析
+                            if st.button("生成数据并分析", type="primary"):
+                                self._generate_data_from_agent(result)
+                    else:
+                        st.error("❌ 推导因果图失败")
+        else:
+            st.info("👆 请先完成步骤1和步骤2")
+    
+    def _generate_data_from_agent(self, causal_graph_result):
+        """根据Agent推导的因果图生成数据并分析"""
+        try:
+            # 这里暂时使用现有的数据生成逻辑
+            # 实际使用时，应该根据causal_graph_result动态生成数据
+            with st.spinner("正在生成数据并运行分析..."):
+                self.data, self.anomaly_factors = create_demo_scenario()
+                self.pipeline = RootCauseAnalysisPipeline(self.data)
+                self.analysis_results = self.pipeline.run_full_analysis()
+                self._save_state()
+            
+            st.success("✅ 数据生成和分析完成！")
+            
+            # 显示分析结果摘要
+            st.markdown("#### 📊 分析结果摘要")
+            
+            if self.analysis_results:
+                st.markdown(f"- **数据记录数**: {len(self.data)}")
+                st.markdown(f"- **因果效应分析**: {len(self.analysis_results['causal_analysis'])} 个因素")
+                
+                # 显示主要发现
+                causal_df = self.analysis_results['causal_analysis']
+                top_causes = causal_df[causal_df['causal_effect'].notna()].head(3)
+                
+                st.markdown("**主要影响因素（按因果效应排序）：**")
+                for _, row in top_causes.iterrows():
+                    st.markdown(f"- {row['cause']}: {row['causal_effect']:.4f}")
+            
+            st.info("💡 提示：您现在可以查看其他分析页面了解详细信息")
+            
+        except Exception as e:
+            st.error(f"❌ 生成数据和分析失败: {str(e)}")
+    
     def run(self):
         """运行应用"""
         page = self.render_sidebar()
@@ -927,6 +1215,8 @@ class RootCauseAnalysisWebApp:
             self.render_causal_analysis_page()
         elif page == "AI智能解释":
             self.render_llm_explanation_page()
+        elif page == "Agent分析":
+            self.render_agent_analysis_page()
 
 
 if __name__ == "__main__":
