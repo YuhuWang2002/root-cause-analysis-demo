@@ -867,6 +867,7 @@ class RootCauseAnalysisWebApp:
         <p>通过LLM理解本体并推导因果图，实现智能的根因分析流程。</p>
         <p><strong>操作步骤：</strong></p>
         <ol>
+            <li>查看本体关系</li>
             <li>输入场景描述</li>
             <li>选择结果实体</li>
             <li>点击"推导因果图"按钮</li>
@@ -875,6 +876,183 @@ class RootCauseAnalysisWebApp:
         </ol>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 步骤0：查看本体关系
+        st.markdown("---")
+        st.markdown("### 步骤0：查看本体关系")
+        st.info("查看当前业务本体的实体和关系定义，了解系统的知识结构。")
+        
+        # 初始化会话状态
+        if 'ontology_schema' not in st.session_state:
+            st.session_state.ontology_schema = None
+        if 'ontology_graph_image' not in st.session_state:
+            st.session_state.ontology_graph_image = None
+        
+        # 查看本体关系按钮
+        if st.button("查看本体关系", type="primary"):
+            with st.spinner("正在读取本体Schema..."):
+                try:
+                    import requests
+                    
+                    # 从本体API读取schema
+                    response = requests.get("http://localhost:8000/schema")
+                    response.raise_for_status()
+                    schema = response.json()
+                    
+                    # 保存schema到会话状态
+                    st.session_state.ontology_schema = schema
+                    
+                    # 创建NetworkX图
+                    import networkx as nx
+                    import matplotlib.pyplot as plt
+                    import io
+                    import base64
+                    
+                    # 设置中文字体
+                    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei']  # 用来正常显示中文标签
+                    plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+                    
+                    G = nx.DiGraph()
+                    
+                    # 添加实体节点
+                    entity_map = {}
+                    for entity_type in schema.get('entity_types', []):
+                        entity_id = entity_type.get('id')
+                        entity_name = entity_type.get('name', entity_id)
+                        entity_map[entity_id] = entity_name
+                        G.add_node(entity_id, type='entity', name=entity_name)
+                    
+                    # 添加关系边
+                    for relation_type in schema.get('relation_types', []):
+                        relation_id = relation_type.get('id')
+                        relation_name = relation_type.get('name', relation_id)
+                        source_types = relation_type.get('source_types', [])
+                        target_types = relation_type.get('target_types', [])
+                        
+                        # 为每个源类型和目标类型创建边
+                        for source_type in source_types:
+                            for target_type in target_types:
+                                if source_type in entity_map and target_type in entity_map:
+                                    G.add_edge(source_type, target_type, label=relation_name)
+                    
+                    # 设置图形大小
+                    plt.figure(figsize=(12, 8))
+                    
+                    # 使用spring布局
+                    pos = nx.spring_layout(G, k=0.3, iterations=50)
+                    
+                    # 绘制节点
+                    nx.draw_networkx_nodes(G, pos, node_size=1000, node_color='#6495ED', alpha=0.8)
+                    
+                    # 绘制边
+                    nx.draw_networkx_edges(G, pos, edge_color='#888888', arrowsize=20, width=1.5)
+                    
+                    # 绘制边标签
+                    edge_labels = nx.get_edge_attributes(G, 'label')
+                    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, font_family='Arial Unicode MS')
+                    
+                    # 绘制节点标签（使用实体名称）
+                    node_labels = {entity_id: entity_name for entity_id, entity_name in entity_map.items()}
+                    nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=10, font_weight='bold', font_family='Arial Unicode MS')
+                    
+                    # 美化图形
+                    plt.title('本体关系图', fontsize=16, fontweight='bold')
+                    plt.axis('off')
+                    plt.tight_layout()
+                    
+                    # 保存到内存
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                    buf.seek(0)
+                    
+                    # 转换为base64
+                    image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+                    plt.close()
+                    
+                    # 保存图像到会话状态
+                    st.session_state.ontology_graph_image = image_base64
+                    
+                    st.success("✅ 本体Schema读取成功！")
+                except Exception as e:
+                    st.error(f"❌ 读取本体Schema失败: {str(e)}")
+                    # 清除失败的结果
+                    st.session_state.ontology_schema = None
+                    st.session_state.ontology_graph_image = None
+        
+        # 基于会话状态显示本体关系图和详细信息（持久化显示）
+        if st.session_state.ontology_schema and st.session_state.ontology_graph_image:
+            schema = st.session_state.ontology_schema
+            image_base64 = st.session_state.ontology_graph_image
+            
+            # 展示本体关系图形
+            st.markdown("#### � 本体关系图")
+            st.image(f"data:image/png;base64,{image_base64}")
+            
+            # 展示本体详细信息
+            st.markdown("#### 📋 本体详细信息")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**实体类型**")
+                for entity_type in schema.get('entity_types', []):
+                    entity_id = entity_type.get('id')
+                    entity_name = entity_type.get('name', entity_id)
+                    with st.expander(f"{entity_name} ({entity_id})"):
+                        st.write(f"**描述**：{entity_type.get('description', '无')}")
+                        attributes = entity_type.get('attributes', [])
+                        if attributes:
+                            # 处理属性，确保每个属性都是字符串
+                            attr_strings = []
+                            for attr in attributes:
+                                if isinstance(attr, dict):
+                                    # 如果是字典，使用id或name字段
+                                    attr_name = attr.get('name', attr.get('id', str(attr)))
+                                    attr_strings.append(attr_name)
+                                else:
+                                    # 如果是字符串，直接使用
+                                    attr_strings.append(str(attr))
+                            st.write(f"**属性**：{', '.join(attr_strings)}")
+                        else:
+                            st.write("**属性**：无")
+            
+            with col2:
+                st.markdown("**关系类型**")
+                for relation_type in schema.get('relation_types', []):
+                    relation_id = relation_type.get('id')
+                    relation_name = relation_type.get('name', relation_id)
+                    with st.expander(f"{relation_name} ({relation_id})"):
+                        st.write(f"**描述**：{relation_type.get('description', '无')}")
+                        source_types = relation_type.get('source_types', [])
+                        target_types = relation_type.get('target_types', [])
+                        
+                        # 处理源实体类型
+                        if source_types:
+                            # 确保每个源类型都是字符串
+                            source_strings = []
+                            for source in source_types:
+                                if isinstance(source, dict):
+                                    source_name = source.get('name', source.get('id', str(source)))
+                                    source_strings.append(source_name)
+                                else:
+                                    source_strings.append(str(source))
+                            st.write(f"**源实体类型**：{', '.join(source_strings)}")
+                        else:
+                            st.write("**源实体类型**：无")
+                        
+                        # 处理目标实体类型
+                        if target_types:
+                            # 确保每个目标类型都是字符串
+                            target_strings = []
+                            for target in target_types:
+                                if isinstance(target, dict):
+                                    target_name = target.get('name', target.get('id', str(target)))
+                                    target_strings.append(target_name)
+                                else:
+                                    target_strings.append(str(target))
+                            st.write(f"**目标实体类型**：{', '.join(target_strings)}")
+                        else:
+                            st.write("**目标实体类型**：无")
         
         # 步骤1：输入场景描述
         st.markdown("---")
@@ -1042,14 +1220,14 @@ class RootCauseAnalysisWebApp:
             # 清除因果图结果
             st.session_state.causal_graph_result = None
         
-        # 步骤4：数据分析与智能解释
+        # 4.1 根因分析
         st.markdown("---")
-        st.markdown("### 步骤4：数据分析与智能解释")
+        st.markdown("### 4.1 根因分析")
         
         if st.session_state.causal_graph_result:
             st.info("基于因果图推导结果，系统将生成数据并运行完整的分析流程。")
             
-            if st.button("开始数据分析与智能解释", type="primary"):
+            if st.button("根因分析", type="primary"):
                 self._generate_data_from_agent(st.session_state.causal_graph_result)
             
             # 基于会话状态显示DoWhy分析结果（持久化显示）
@@ -1072,12 +1250,11 @@ class RootCauseAnalysisWebApp:
                         'causal_effect': '{:.4f}'
                     }))
                 
-                with st.expander("查看分析总结"):
-                    st.markdown(self.analysis_results['summary'])
+
             
-            # 步骤4.2：生成大模型智能解释
+            # 4.2 智能解释
             st.markdown("---")
-            st.markdown("### 步骤4.2：生成大模型智能解释")
+            st.markdown("### 4.2 智能解释")
             
             if self.llm_explainer is None:
                 st.warning("⚠️ 请先在侧边栏配置SiliconFlow API密钥并初始化大模型解释器")
