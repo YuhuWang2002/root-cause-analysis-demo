@@ -35,25 +35,23 @@ class CausalAnalyzer:
         
     def build_causal_graph(self) -> str:
         """
-        构建因果图的DOT格式定义（基于本体）
+        构建因果图的DOT格式定义
         
         Returns:
             因果图的DOT格式字符串
         """
-        # 如果有本体，从本体读取因果图
+        # 如果有本体，从本体关系构建因果图
         if self.ontology:
-            causal_graph_dict = self.ontology.get_causal_graph()
-            
-            # 构建DOT格式
             edges = []
-            for source, targets in causal_graph_dict.items():
-                for target in targets:
-                    edges.append(f"    {source} -> {target};")
+            for relation in self.ontology.relations:
+                if relation.relation_type in ['influences', 'causes', 'related_to']:
+                    edges.append(f"    {relation.source} -> {relation.target};")
             
-            causal_graph = "digraph {\n" + "\n".join(edges) + "\n}"
-            return causal_graph
+            if edges:
+                causal_graph = "digraph {\n" + "\n".join(edges) + "\n}"
+                return causal_graph
         
-        # 如果没有本体，使用默认因果图
+        # 使用默认因果图
         causal_graph = """digraph {
             payment_timeliness -> supplier_efficiency;
             supplier_efficiency -> parts_availability;
@@ -63,10 +61,6 @@ class CausalAnalyzer:
             capacity_utilization -> production_efficiency;
             supplier_efficiency -> production_efficiency;
             payment_timeliness -> production_efficiency;
-            supplier_base_efficiency -> supplier_efficiency;
-            equipment_age -> equipment_status;
-            factory_capacity -> capacity_utilization;
-            factory_capacity -> production_efficiency;
         }"""
         return causal_graph
     

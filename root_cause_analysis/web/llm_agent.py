@@ -6,9 +6,12 @@ LLM Agent模块
 - 根据场景描述理解问题
 - 推导因果图
 - 返回推导结果
+
+MVP架构简化：
+- 因果图节点直接对应数据字段
+- 保持与 data_generator.py 生成的字段一致
 """
 
-import httpx
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
 
@@ -36,7 +39,7 @@ class CausalGraphDerivationRequest(BaseModel):
 
 class CausalGraphDerivationResponse(BaseModel):
     """因果图推导响应"""
-    causal_graph: Dict[str, List[str]]
+    causal_graph: Dict[str, List[str]]  # 节点直接对应数据字段
     reasoning: str
     suggested_data_fields: List[str]
     required_entities: List[str]
@@ -45,17 +48,21 @@ class CausalGraphDerivationResponse(BaseModel):
 class LLMAgent:
     """LLM Agent - 支持本体查询和因果图推导"""
     
-    def __init__(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None):
+    def __init__(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None, llm_base_url: str = None, llm_model: str = None):
         """
         初始化LLM Agent
         
         Args:
             ontology_api_url: 本体API地址
             llm_api_key: 大模型API密钥
+            llm_base_url: 大模型API基础URL
+            llm_model: 大模型名称
         """
         self.ontology_api_url = ontology_api_url
         self.llm_api_key = llm_api_key
-        self.http_client = httpx.Client(timeout=30.0)
+        self.llm_base_url = llm_base_url
+        self.llm_model = llm_model
+        self.http_client = None
     
     async def query_ontology(self, query_type: str = "all") -> OntologyQueryResponse:
         """
@@ -67,6 +74,10 @@ class LLMAgent:
         Returns:
             本体查询响应
         """
+        import httpx
+        if self.http_client is None:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
         try:
             response = await self.http_client.get(
                 f"{self.ontology_api_url}/entities" if query_type in ["all", "entities"] else 
@@ -107,6 +118,31 @@ class LLMAgent:
             print(f"[LLM Agent] 查询本体API失败: {str(e)}")
             raise
     
+    async def query_schema(self) -> dict:
+        """
+        查询本体Schema（元数据）
+        
+        Returns:
+            Schema响应字典
+        """
+        import httpx
+        if self.http_client is None:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
+        try:
+            response = await self.http_client.get(
+                f"{self.ontology_api_url}/schema"
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            print(f"[LLM Agent] Schema查询成功")
+            return data
+            
+        except Exception as e:
+            print(f"[LLM Agent] 查询Schema失败: {str(e)}")
+            raise
+    
     async def derive_causal_graph(self, request: CausalGraphDerivationRequest) -> CausalGraphDerivationResponse:
         """
         推导因果图
@@ -122,92 +158,93 @@ class LLMAgent:
         Returns:
             因果图推导响应
         """
-        # 第一步：查询本体获取完整信息
-        ontology_response = await self.query_ontology("all")
+        # 第一步：查询本体Schema获取元数据
+        schema_response = await self.query_schema()
         
         # 第二步：构建提示词让LLM推导因果图
         prompt = self._build_derivation_prompt(
             request.scenario_description,
             request.outcome_entity,
-            ontology_response
+            schema_response
         )
         
         # 第三步：调用LLM API推导因果图
-        # 这里暂时返回一个示例响应
-        # 实际使用时需要集成真实的LLM API调用
+        print("[LLM Agent] 调用大模型API推导因果图...")
         
-        causal_graph = {}
-        reasoning = f"""
-        根据场景描述"{request.scenario_description}"和结果实体"{request.outcome_entity}"，
-        从本体中推导出以下因果图：
+        import openai
         
-        本体中包含的实体：
-        {', '.join([f"  - {e.get('name', e.get('id'))} ({e.get('type', 'unknown')})" for e in ontology_response.entities[:5]])}
+        if not self.llm_api_key:
+            raise ValueError("LLM API密钥未配置")
+        if not self.llm_base_url:
+            raise ValueError("LLM Base URL未配置")
+        if not self.llm_model:
+            raise ValueError("LLM Model未配置")
         
-        本体中包含的关系：
-        {', '.join([f"  - {r.get('source', '')} -> {r.get('target', '')} ({r.get('relation_type', 'unknown')})" for r in ontology_response.relations[:5]])}
-        
-        推导的因果图：
-        """
-        
-        # 添加因果链（示例）
-        causal_graph["payment_timeliness"] = ["supplier_efficiency"]
-        causal_graph["supplier_efficiency"] = ["parts_availability", "production_efficiency"]
-        causal_graph["parts_availability"] = ["production_efficiency"]
-        causal_graph["avg_employee_skill"] = ["production_efficiency"]
-        causal_graph["equipment_status"] = ["production_efficiency"]
-        
-        reasoning += """
-        
-        主要因果链：
-        1. 付款及时性 -> 供应商效率 -> 零部件可用性 -> 生产效率
-        2. 员工技能 -> 生产效率
-        3. 设备状态 -> 生产效率
-        
-        建议的数据字段：
-        """
-        
-        suggested_fields = [
-            "payment_timeliness",
-            "supplier_efficiency",
-            "parts_availability",
-            "avg_employee_skill",
-            "equipment_status",
-            "production_efficiency"
-        ]
-        
-        reasoning += """
-        - payment_timeliness (付款及时性)
-        - supplier_efficiency (供应商效率)
-        - parts_availability (零部件可用性)
-        - avg_employee_skill (员工技能水平)
-        - equipment_status (设备状态)
-        - production_efficiency (生产效率)
-        """
-        
-        return CausalGraphDerivationResponse(
-            causal_graph=causal_graph,
-            reasoning=reasoning,
-            suggested_data_fields=suggested_fields,
-            required_entities=list(causal_graph.keys())
-        )
+        try:
+            client = openai.OpenAI(
+                api_key=self.llm_api_key,
+                base_url=self.llm_base_url
+            )
+            
+            print(f"[LLM Agent] 调用大模型API...")
+            completion = client.chat.completions.create(
+                model=self.llm_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            
+            print(f"[LLM Agent] 大模型API调用成功")
+            
+            response_text = completion.choices[0].message.content
+            print(f"[LLM Agent] 响应长度: {len(response_text)} 字符")
+            
+            import json
+            llm_result = json.loads(response_text)
+            
+            causal_graph = llm_result.get("causal_graph", {})
+            reasoning = llm_result.get("reasoning", "")
+            suggested_fields = llm_result.get("suggested_data_fields", [])
+            required_entities = llm_result.get("required_entities", [])
+            
+            print(f"[LLM Agent] 因果图节点数: {len(causal_graph)}")
+            print(f"[LLM Agent] 建议数据字段数: {len(suggested_fields)}")
+            
+            return CausalGraphDerivationResponse(
+                causal_graph=causal_graph,
+                reasoning=reasoning,
+                suggested_data_fields=suggested_fields,
+                required_entities=required_entities
+            )
+            
+        except Exception as e:
+            print(f"[LLM Agent] 调用大模型API失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            raise
     
     def _build_derivation_prompt(self, 
                                 scenario_description: str,
                                 outcome_entity: str,
-                                ontology_response: OntologyQueryResponse) -> str:
+                                schema_response: dict) -> str:
         """
         构建因果图推导的提示词
         
         Args:
             scenario_description: 场景描述
             outcome_entity: 结果实体
-            ontology_response: 本体查询响应
+            schema_response: Schema响应（包含entity_types, relation_types, metric_definitions）
             
         Returns:
             提示词字符串
         """
-        prompt = f"""你是一个专业的因果分析专家。请根据以下信息推导出因果图。
+        prompt = f"""你是一个专业的因果分析专家。请根据以下本体Schema信息和业务场景，推导出合理的因果图。
 
 ## 场景描述
 {scenario_description}
@@ -215,41 +252,63 @@ class LLMAgent:
 ## 结果实体
 {outcome_entity}
 
-## 本体信息
+## 本体Schema信息
 
-### 可用实体
+### 实体类型及其属性
 """
         
-        for entity in ontology_response.entities[:10]:
-            prompt += f"- **{entity.get('name', entity.get('id'))}** ({entity.get('type', 'unknown')})\n"
-            if entity.get('description'):
-                prompt += f"  描述: {entity.get('description')}\n"
-            if entity.get('attributes'):
-                prompt += f"  属性: {', '.join(entity.get('attributes', {}).keys())}\n"
+        for entity_type in schema_response.get("entity_types", []):
+            prompt += f"""
+**{entity_type['name']}** ({entity_type['id']})
+- 描述: {entity_type['description']}
+- 属性:
+"""
+            for attr in entity_type.get("attributes", []):
+                prompt += f"  - {attr['name']} ({attr['type']}): {attr['description']}\n"
         
         prompt += """
-### 可用关系
+### 关系类型
 """
         
-        for relation in ontology_response.relations[:10]:
-            prompt += f"- {relation.get('source', '')} -> {relation.get('target', '')} ({relation.get('relation_type', 'unknown')})\n"
-            if relation.get('description'):
-                prompt += f"  描述: {relation.get('description')}\n"
+        for relation_type in schema_response.get("relation_types", []):
+            source_types = ", ".join(relation_type.get("source_types", []))
+            target_types = ", ".join(relation_type.get("target_types", []))
+            prompt += f"""
+**{relation_type['name']}** ({relation_type['id']})
+- 描述: {relation_type['description']}
+- 源类型: {source_types}
+- 目标类型: {target_types}
+"""
+        
+        prompt += """
+### 指标定义（从实体属性派生）
+"""
+        
+        for metric in schema_response.get("metric_definitions", []):
+            prompt += f"""
+**{metric['name']}** ({metric['id']})
+- 描述: {metric['description']}
+- 源实体类型: {metric.get('source_entity_type', 'N/A')}
+- 目标实体类型: {metric.get('target_entity_type', 'N/A')}
+- 源关系类型: {metric.get('source_relation', 'N/A')}
+- 指标类型: {metric.get('type', 'N/A')}
+"""
         
         prompt += """
 ## 任务
-请根据场景描述和本体信息，推导出合理的因果图。
+请根据场景描述和本体Schema信息，推导出合理的因果图。
 
 要求：
 1. 因果图必须包含结果实体"{outcome_entity}"
-2. 因果图中的节点必须来自本体中的实体
-3. 因果图中的边必须来自本体中的关系或合理的推导
-4. 返回格式：JSON格式的邻接表 {{"source": ["target1", "target2"]}
+2. 因果图中的节点必须来自指标定义中的metric_id
+3. 因果图中的边必须反映合理的因果关系（如：A影响B，B影响C）
+4. 考虑实体类型和关系类型来推导因果关系
+5. 返回格式：JSON格式的邻接表 {{"source": ["target1", "target2"]}
 
 请以JSON格式返回你的推导结果，包含：
 - causal_graph: 因果图邻接表
 - reasoning: 推导过程说明
-- suggested_data_fields: 建议需要收集的数据字段
+- suggested_data_fields: 建议需要收集的数据字段列表
 - required_entities: 因果图中涉及的实体ID列表
 """
         
@@ -261,118 +320,99 @@ class LLMAgent:
 class LLMAgentSync(LLMAgent):
     """LLM Agent同步版本"""
     
-    def __init__(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None):
-        super().__init__(ontology_api_url, llm_api_key)
+    def __init__(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None, llm_base_url: str = None, llm_model: str = None):
+        super().__init__(ontology_api_url, llm_api_key, llm_base_url, llm_model)
     
     def query_ontology(self, query_type: str = "all") -> OntologyQueryResponse:
         """同步版本的本体查询"""
         import httpx
         
         try:
+            entities = []
+            relations = []
+            attributes = []
+            
             if query_type in ["all", "entities"]:
-                # 查询所有类型的端点
-                entities = []
-                relations = []
-                attributes = []
-                
-                if query_type in ["all", "entities"]:
-                    response = httpx.get(f"{self.ontology_api_url}/entities", timeout=30.0)
-                    response.raise_for_status()
-                    entities = response.json()
-                
-                if query_type in ["all", "relations"]:
-                    response = httpx.get(f"{self.ontology_api_url}/relations", timeout=30.0)
-                    response.raise_for_status()
-                    relations = response.json()
-                
-                if query_type in ["all", "attributes"]:
-                    response = httpx.get(f"{self.ontology_api_url}/attributes", timeout=30.0)
-                    response.raise_for_status()
-                    attributes = response.json()
-                
-                if query_type == "all":
-                    # 如果是all，从/ontology端点获取完整数据
-                    try:
-                        response = httpx.get(f"{self.ontology_api_url}/ontology", timeout=30.0)
-                        response.raise_for_status()
-                        data = response.json()
-                        entities = data.get("entities", [])
-                        relations = data.get("relations", [])
-                        attributes = data.get("attributes", [])
-                    except Exception:
-                        pass
-                
-                return OntologyQueryResponse(
-                    entities=entities,
-                    relations=relations,
-                    attributes=attributes
-                )
-                
-            elif query_type == "relations":
+                response = httpx.get(f"{self.ontology_api_url}/entities", timeout=30.0)
+                response.raise_for_status()
+                entities = response.json()
+            
+            if query_type in ["all", "relations"]:
                 response = httpx.get(f"{self.ontology_api_url}/relations", timeout=30.0)
                 response.raise_for_status()
-                data = response.json()
-                
-                return OntologyQueryResponse(
-                    entities=[],
-                    relations=data if isinstance(data, list) else data.get("relations", []),
-                    attributes=[]
-                )
+                relations = response.json()
             
-            elif query_type == "attributes":
+            if query_type in ["all", "attributes"]:
                 response = httpx.get(f"{self.ontology_api_url}/attributes", timeout=30.0)
                 response.raise_for_status()
-                data = response.json()
-                
-                return OntologyQueryResponse(
-                    entities=[],
-                    relations=[],
-                    attributes=data if isinstance(data, list) else data.get("attributes", [])
-                )
+                attributes = response.json()
+            
+            if query_type == "all":
+                try:
+                    response = httpx.get(f"{self.ontology_api_url}/ontology", timeout=30.0)
+                    response.raise_for_status()
+                    data = response.json()
+                    entities = data.get("entities", [])
+                    relations = data.get("relations", [])
+                    attributes = data.get("attributes", [])
+                except Exception:
+                    pass
+            
+            return OntologyQueryResponse(
+                entities=entities,
+                relations=relations,
+                attributes=attributes
+            )
                 
         except Exception as e:
             print(f"[LLM Agent Sync] 查询本体API失败: {str(e)}")
+            raise
+    
+    def query_schema(self) -> dict:
+        """同步版本的Schema查询"""
+        import httpx
+        
+        try:
+            response = httpx.get(
+                f"{self.ontology_api_url}/schema",
+                timeout=30.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            print(f"[LLM Agent Sync] Schema查询成功")
+            return data
+            
+        except Exception as e:
+            print(f"[LLM Agent Sync] 查询Schema失败: {str(e)}")
             raise
     
     def derive_causal_graph(self, request: CausalGraphDerivationRequest) -> CausalGraphDerivationResponse:
         """同步版本的因果图推导 - 直接实现不使用super()"""
         import httpx
         
-        # 第一步：查询本体获取完整信息
-        print(f"[LLM Agent Sync] 正在查询本体...")
+        # 第一步：查询本体Schema获取元数据
+        print(f"[LLM Agent Sync] 正在查询本体Schema...")
         
         try:
-            # 直接查询本体API
-            response = httpx.get(
-                f"{self.ontology_api_url}/ontology",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            ontology_response = OntologyQueryResponse(
-                entities=data.get("entities", []),
-                relations=data.get("relations", []),
-                attributes=data.get("attributes", [])
-            )
-            
-            print(f"[LLM Agent Sync] 查询到 {len(ontology_response.entities)} 个实体, {len(ontology_response.relations)} 个关系")
+            schema_response = self.query_schema()
+            print(f"[LLM Agent Sync] 查询到 {len(schema_response.get('entity_types', []))} 个实体类型, {len(schema_response.get('relation_types', []))} 个关系类型")
             
         except Exception as e:
-            print(f"[LLM Agent Sync] 查询本体失败: {str(e)}, 将使用默认逻辑")
+            print(f"[LLM Agent Sync] 查询Schema失败: {str(e)}, 将使用默认逻辑")
             # 使用默认响应
-            ontology_response = OntologyQueryResponse(
-                entities=[],
-                relations=[],
-                attributes=[]
-            )
+            schema_response = {
+                "entity_types": [],
+                "relation_types": [],
+                "metric_definitions": []
+            }
         
         # 第二步：构建提示词（直接使用基类的方法）
         print(f"[LLM Agent Sync] 正在构建提示词...")
         prompt = self._build_derivation_prompt(
             request.scenario_description,
             request.outcome_entity,
-            ontology_response
+            schema_response
         )
         
         # 保存提示词
@@ -391,54 +431,88 @@ class LLMAgentSync(LLMAgent):
         
         print(f"[LLM Agent Sync] 提示词已保存到: {prompt_file}")
         
-        # 第三步：返回示例响应（简化版，不调用LLM）
-        print(f"[LLM Agent Sync] 正在推导因果图（使用内部逻辑...")
+        # 第三步：调用LLM API推导因果图
+        print(f"[LLM Agent Sync] 正在调用大模型API推导因果图...")
         
-        causal_graph = {}
-        reasoning = f"""
-        根据场景描述"{request.scenario_description}"和结果实体"{request.outcome_entity}"，
-        从本体中推导出以下因果图：
+        import openai
         
-        本体中包含的实体：
-        {', '.join([f"  - {e.get('name', e.get('id'))} ({e.get('type', 'unknown')})" for e in ontology_response.entities[:5]])}
+        if not self.llm_api_key:
+            raise ValueError("LLM API密钥未配置")
+        if not self.llm_base_url:
+            raise ValueError("LLM Base URL未配置")
+        if not self.llm_model:
+            raise ValueError("LLM Model未配置")
         
-        推导的因果图：
-        """
-        
-        # 添加因果链（示例）
-        causal_graph["payment_timeliness"] = ["supplier_efficiency"]
-        causal_graph["supplier_efficiency"] = ["parts_availability", "production_efficiency"]
-        causal_graph["parts_availability"] = ["production_efficiency"]
-        causal_graph["avg_employee_skill"] = ["production_efficiency"]
-        causal_graph["equipment_status"] = ["production_efficiency"]
-        
-        reasoning += """
-        
-        主要因果链：
-        1. 付款及时性 -> 供应商效率 -> 零部件可用性 -> 生产效率
-        2. 员工技能 -> 生产效率
-        3. 设备状态 -> 生产效率
-        
-        建议的数据字段：
-        """
-        
-        suggested_fields = [
-            "payment_timeliness",
-            "supplier_efficiency",
-            "parts_availability",
-            "avg_employee_skill",
-            "equipment_status",
-            "production_efficiency"
-        ]
-        
-        reasoning += """
-        - payment_timeliness (付款及时性)
-        - supplier_efficiency (供应商效率)
-        - parts_availability (零部件可用性)
-        - avg_employee_skill (员工技能水平)
-        - equipment_status (设备状态)
-        - production_efficiency (生产效率)
-        """
+        try:
+            client = openai.OpenAI(
+                api_key=self.llm_api_key,
+                base_url=self.llm_base_url
+            )
+            
+            print(f"[LLM Agent Sync] 调用大模型API...")
+            completion = client.chat.completions.create(
+                model=self.llm_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            
+            print(f"[LLM Agent Sync] 大模型API调用成功")
+            
+            response_text = completion.choices[0].message.content
+            print(f"[LLM Agent Sync] 响应长度: {len(response_text)} 字符")
+            print(f"[LLM Agent Sync] 响应内容前500字符: {response_text[:500]}")
+            
+            import json
+            
+            # 去除可能的代码块标记
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
+            llm_result = json.loads(response_text)
+            
+            causal_graph = llm_result.get("causal_graph", {})
+            reasoning = llm_result.get("reasoning", "")
+            suggested_fields_raw = llm_result.get("suggested_data_fields", [])
+            required_entities = llm_result.get("required_entities", [])
+            
+            # 处理suggested_data_fields：可能是字符串列表或字典列表
+            suggested_fields = []
+            for field in suggested_fields_raw:
+                if isinstance(field, str):
+                    suggested_fields.append(field)
+                elif isinstance(field, dict):
+                    # 如果是字典，提取metric_id或field_name
+                    metric_id = field.get("metric_id", field.get("field_name", ""))
+                    if metric_id:
+                        suggested_fields.append(metric_id)
+            
+            print(f"[LLM Agent Sync] 因果图节点数: {len(causal_graph)}")
+            print(f"[LLM Agent Sync] 建议数据字段数: {len(suggested_fields)}")
+            
+            return CausalGraphDerivationResponse(
+                causal_graph=causal_graph,
+                reasoning=reasoning,
+                suggested_data_fields=suggested_fields,
+                required_entities=required_entities
+            )
+            
+        except Exception as e:
+            print(f"[LLM Agent Sync] 调用大模型API失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            raise
         
         print(f"[LLM Agent Sync] 因果图推导完成！")
         

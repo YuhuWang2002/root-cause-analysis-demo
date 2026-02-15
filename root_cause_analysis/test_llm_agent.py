@@ -19,17 +19,51 @@ def test_llm_agent():
     
     try:
         print("\n1. 初始化LLM Agent...")
+        
+        # 从web/modelkey.cfg读取配置
+        import os
+        modelkey_path = os.path.join(os.path.dirname(__file__), "web", "modelkey.cfg")
+        api_key = None
+        base_url = None
+        model = None
+        
+        with open(modelkey_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # 解析配置
+            for line in content.split('\n'):
+                line = line.strip()
+                if line.startswith('API Key:'):
+                    api_key = line.split(':', 1)[1].strip()
+                elif line.startswith('Base URL:'):
+                    base_url = line.split(':', 1)[1].strip()
+                elif line.startswith('Model:'):
+                    model = line.split(':', 1)[1].strip()
+        
+        if not api_key:
+            raise ValueError("无法从modelkey.cfg文件中读取API密钥")
+        if not base_url:
+            raise ValueError("无法从modelkey.cfg文件中读取Base URL")
+        if not model:
+            raise ValueError("无法从modelkey.cfg文件中读取Model")
+        
+        print(f"   - API Key: {api_key[:20]}...")
+        print(f"   - Base URL: {base_url}")
+        print(f"   - Model: {model}")
+        
         agent = LLMAgentSync(
             ontology_api_url="http://localhost:8000",
-            llm_api_key="test_key"
+            llm_api_key=api_key,
+            llm_base_url=base_url,
+            llm_model=model
         )
         print("✅ LLM Agent初始化成功！")
         
-        print("\n2. 测试查询本体...")
-        ontology_response = agent.query_ontology("all")
+        print("\n2. 测试查询本体Schema...")
+        schema_response = agent.query_schema()
         print(f"✅ 本体查询成功！")
-        print(f"   - 实体数量: {len(ontology_response.entities)}")
-        print(f"   - 关系数量: {len(ontology_response.relations)}")
+        print(f"   - 实体类型数: {len(schema_response.get('entity_types', []))}")
+        print(f"   - 关系类型数: {len(schema_response.get('relation_types', []))}")
+        print(f"   - 指标定义数: {len(schema_response.get('metric_definitions', []))}")
         
         print("\n3. 测试推导因果图...")
         request = CausalGraphDerivationRequest(

@@ -2,10 +2,9 @@
 本体管理模块
 
 提供本体信息的读取和管理接口，支持：
-- 本体对象（实体）管理
-- 本体属性管理
-- 本体关系管理
-- 因果图构建
+- 业务实体管理
+- 业务关系管理
+- 实体属性管理（包含指标属性）
 - 数据生成配置
 """
 
@@ -16,28 +15,28 @@ from dataclasses import dataclass, field
 
 @dataclass
 class OntologyEntity:
-    """本体实体类"""
+    """本体实体类 - 代表现实世界中的业务对象"""
     id: str
     name: str
-    type: str
+    type: str  # "factory", "supplier", "metric" 等
     description: str = ""
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: Dict[str, Any] = field(default_factory=dict)  # 实体的属性，包括指标属性
     relationships: List[Dict[str, str]] = field(default_factory=list)
 
 
 @dataclass
 class OntologyRelation:
-    """本体关系类"""
+    """本体关系类 - 代表业务实体之间的业务关系"""
     source: str
     target: str
-    relation_type: str
+    relation_type: str  # "influences", "causes", "related_to" 等
     weight: float = 1.0
     description: str = ""
 
 
 @dataclass
 class OntologyAttribute:
-    """本体属性类"""
+    """本体属性类 - 定义属性的元信息"""
     name: str
     type: str
     description: str = ""
@@ -60,7 +59,6 @@ class OntologyManager:
         self.entities: Dict[str, OntologyEntity] = {}
         self.relations: List[OntologyRelation] = []
         self.attributes: Dict[str, OntologyAttribute] = {}
-        self.causal_graph: Dict[str, List[str]] = {}
         
         if ontology_file:
             self.load_ontology(ontology_file)
@@ -95,7 +93,7 @@ class OntologyManager:
                     relation = OntologyRelation(
                         source=rel_data['source'],
                         target=rel_data['target'],
-                        relation_type=rel_data.get('type', 'causes'),
+                        relation_type=rel_data.get('type', rel_data.get('relation_type', 'related_to')),
                         weight=rel_data.get('weight', 1.0),
                         description=rel_data.get('description', '')
                     )
@@ -114,24 +112,11 @@ class OntologyManager:
                     )
                     self.attributes[attr_data['name']] = attribute
             
-            # 构建因果图
-            self._build_causal_graph()
-            
             print(f"[Ontology] 成功加载本体: {len(self.entities)} 个实体, {len(self.relations)} 个关系")
             
         except Exception as e:
             print(f"[Ontology] 加载本体失败: {str(e)}")
             raise
-    
-    def _build_causal_graph(self):
-        """构建因果图（邻接表）"""
-        self.causal_graph = {}
-        
-        for relation in self.relations:
-            if relation.relation_type == 'causes':
-                if relation.source not in self.causal_graph:
-                    self.causal_graph[relation.source] = []
-                self.causal_graph[relation.source].append(relation.target)
     
     def get_entity(self, entity_id: str) -> Optional[OntologyEntity]:
         """
@@ -157,45 +142,17 @@ class OntologyManager:
         """
         return [e for e in self.entities.values() if e.type == entity_type]
     
-    def get_causal_graph(self) -> Dict[str, List[str]]:
+    def get_relations_by_type(self, relation_type: str) -> List[OntologyRelation]:
         """
-        获取因果图
-        
-        Returns:
-            因果图邻接表 {source: [targets]}
-        """
-        return self.causal_graph
-    
-    def get_causal_chain(self, start_entity: str, end_entity: str) -> List[str]:
-        """
-        获取两个实体之间的因果链
+        按类型获取关系列表
         
         Args:
-            start_entity: 起始实体
-            end_entity: 结束实体
+            relation_type: 关系类型
             
         Returns:
-            因果链路径（实体ID列表）
+            关系列表
         """
-        # 使用BFS查找最短路径
-        from collections import deque
-        
-        queue = deque([(start_entity, [start_entity])])
-        visited = {start_entity}
-        
-        while queue:
-            current, path = queue.popleft()
-            
-            if current == end_entity:
-                return path
-            
-            if current in self.causal_graph:
-                for neighbor in self.causal_graph[current]:
-                    if neighbor not in visited:
-                        visited.add(neighbor)
-                        queue.append((neighbor, path + [neighbor]))
-        
-        return []
+        return [r for r in self.relations if r.relation_type == relation_type]
     
     def get_data_generation_config(self) -> Dict[str, Any]:
         """
@@ -247,18 +204,19 @@ class OntologyManager:
         """
         description_lines = []
         
-        description_lines.append("## 本体结构\n")
+        description_lines.append("## 业务本体结构\n")
         description_lines.append("### 实体列表\n")
         
         for entity in self.entities.values():
-            description_lines.append(f"- **{entity.name}** ({entity.id})")
-            description_lines.append(f"  - 类型: {entity.type}")
+            description_lines.append(f"- **{entity.name}** ({entity.id}, 类型: {entity.type})")
             if entity.description:
                 description_lines.append(f"  - 描述: {entity.description}")
             if entity.attributes:
-                description_lines.append(f"  - 属性: {', '.join(entity.attributes.keys())}")
+                description_lines.append(f"  - 属性:")
+                for attr_name, attr_value in entity.attributes.items():
+                    description_lines.append(f"    - {attr_name}: {attr_value}")
         
-        description_lines.append("\n### 因果关系\n")
+        description_lines.append("\n### 业务关系\n")
         
         for relation in self.relations:
             source_entity = self.get_entity(relation.source)
@@ -266,7 +224,7 @@ class OntologyManager:
             
             if source_entity and target_entity:
                 description_lines.append(
-                    f"- {source_entity.name} → {target_entity.name}"
+                    f"- {source_entity.name} → {relation.relation_type} → {target_entity.name}"
                 )
                 if relation.description:
                     description_lines.append(f"  - 描述: {relation.description}")
@@ -323,272 +281,243 @@ class OntologyManager:
 
 def create_manufacturing_ontology() -> OntologyManager:
     """
-    创建制造企业场景的本体
+    创建制造企业场景的本体Schema（元数据）
+    只定义实体类型、关系类型、属性类型，不包含具体实体实例
+    
+    Agent读取这个schema后，可以根据业务场景推断因果关系
     
     Returns:
         本体管理器实例
     """
     ontology_data = {
-        "entities": [
+        "entity_types": [
+            {
+                "id": "factory",
+                "name": "工厂",
+                "description": "制造企业中的生产工厂",
+                "attributes": [
+                    {
+                        "name": "capacity",
+                        "type": "integer",
+                        "description": "工厂产能"
+                    },
+                    {
+                        "name": "equipment_age",
+                        "type": "integer",
+                        "description": "设备使用年限"
+                    },
+                    {
+                        "name": "location",
+                        "type": "string",
+                        "description": "工厂位置"
+                    }
+                ]
+            },
+            {
+                "id": "supplier",
+                "name": "供应商",
+                "description": "提供零部件的供应商",
+                "attributes": [
+                    {
+                        "name": "base_efficiency",
+                        "type": "float",
+                        "description": "基础效率"
+                    },
+                    {
+                        "name": "location",
+                        "type": "string",
+                        "description": "供应商位置"
+                    }
+                ]
+            },
+            {
+                "id": "employee",
+                "name": "员工",
+                "description": "工厂员工",
+                "attributes": [
+                    {
+                        "name": "skill_level",
+                        "type": "float",
+                        "description": "技能水平"
+                    },
+                    {
+                        "name": "experience_years",
+                        "type": "integer",
+                        "description": "工作年限"
+                    },
+                    {
+                        "name": "team_size",
+                        "type": "integer",
+                        "description": "团队规模"
+                    }
+                ]
+            },
+            {
+                "id": "product",
+                "name": "产品",
+                "description": "工厂生产的产品",
+                "attributes": [
+                    {
+                        "name": "complexity",
+                        "type": "string",
+                        "description": "产品复杂度"
+                    },
+                    {
+                        "name": "target_efficiency",
+                        "type": "float",
+                        "description": "目标效率"
+                    }
+                ]
+            },
+            {
+                "id": "part",
+                "name": "零部件",
+                "description": "产品所需的零部件",
+                "attributes": [
+                    {
+                        "name": "criticality",
+                        "type": "string",
+                        "description": "关键程度"
+                    },
+                    {
+                        "name": "lead_time",
+                        "type": "integer",
+                        "description": "交货周期"
+                    }
+                ]
+            }
+        ],
+        "relation_types": [
+            {
+                "id": "contains",
+                "name": "包含",
+                "description": "实体包含关系（工厂包含员工、产品包含零部件）",
+                "source_types": ["factory", "product"],
+                "target_types": ["employee", "part"]
+            },
+            {
+                "id": "supplies",
+                "name": "供货",
+                "description": "供应商向工厂供货",
+                "source_types": ["supplier"],
+                "target_types": ["factory"]
+            },
+            {
+                "id": "provides",
+                "name": "提供",
+                "description": "供应商提供零部件",
+                "source_types": ["supplier"],
+                "target_types": ["part"]
+            },
+            {
+                "id": "produces",
+                "name": "生产",
+                "description": "工厂生产产品",
+                "source_types": ["factory"],
+                "target_types": ["product"]
+            }
+        ],
+        "metric_definitions": [
             {
                 "id": "payment_timeliness",
                 "name": "付款及时性",
-                "type": "metric",
                 "description": "企业向供应商付款的及时程度",
-                "attributes": {
-                    "base_value": 0.85,
-                    "variance": 0.1
-                }
+                "source_relation": "supplies",
+                "source_entity_type": "factory",
+                "target_entity_type": "supplier"
             },
             {
                 "id": "supplier_efficiency",
                 "name": "供应商效率",
-                "type": "metric",
                 "description": "供应商的生产和交付效率",
-                "attributes": {
-                    "base_value": 0.80,
-                    "variance": 0.15
-                }
+                "source_entity_type": "supplier"
             },
             {
                 "id": "parts_availability",
                 "name": "零部件可用性",
-                "type": "metric",
                 "description": "零部件的供应及时性和充足性",
-                "attributes": {
-                    "base_value": 0.85,
-                    "variance": 0.1
-                }
-            },
-            {
-                "id": "production_efficiency",
-                "name": "生产效率",
-                "type": "outcome",
-                "description": "企业的整体生产效率",
-                "attributes": {
-                    "target_value": 0.85,
-                    "acceptable_range": [0.75, 0.95]
-                }
+                "source_relation": "provides",
+                "source_entity_type": "supplier",
+                "target_entity_type": "part"
             },
             {
                 "id": "avg_employee_skill",
                 "name": "员工技能水平",
-                "type": "metric",
                 "description": "员工的平均技能熟练度",
-                "attributes": {
-                    "base_value": 0.70,
-                    "variance": 0.15
-                }
+                "source_entity_type": "employee"
             },
             {
                 "id": "equipment_status",
                 "name": "设备状态",
-                "type": "metric",
                 "description": "生产设备的运行状态",
-                "attributes": {
-                    "base_value": 0.85,
-                    "variance": 0.1
-                }
+                "source_entity_type": "factory"
             },
             {
                 "id": "capacity_utilization",
                 "name": "产能利用率",
-                "type": "metric",
                 "description": "工厂产能的利用程度",
-                "attributes": {
-                    "base_value": 0.80,
-                    "variance": 0.15
-                }
+                "source_entity_type": "factory"
             },
             {
-                "id": "supplier_base_efficiency",
-                "name": "供应商基础效率",
-                "type": "factor",
-                "description": "供应商的基础生产能力",
-                "attributes": {
-                    "base_value": 0.85,
-                    "variance": 0.1
-                }
-            },
-            {
-                "id": "equipment_age",
-                "name": "设备年龄",
-                "type": "factor",
-                "description": "设备的使用年限",
-                "attributes": {
-                    "base_value": 3.0,
-                    "variance": 2.0
-                }
-            },
-            {
-                "id": "factory_capacity",
-                "name": "工厂产能",
-                "type": "factor",
-                "description": "工厂的设计产能",
-                "attributes": {
-                    "base_value": 1000,
-                    "variance": 200
-                }
-            }
-        ],
-        "relations": [
-            {
-                "source": "payment_timeliness",
-                "target": "supplier_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "付款不及时会降低供应商的生产积极性"
-            },
-            {
-                "source": "supplier_efficiency",
-                "target": "parts_availability",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "供应商效率低会导致零部件供应不足"
-            },
-            {
-                "source": "parts_availability",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "零部件不足直接影响生产效率"
-            },
-            {
-                "source": "avg_employee_skill",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "员工技能水平直接影响生产效率"
-            },
-            {
-                "source": "equipment_status",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "设备状态影响生产能力"
-            },
-            {
-                "source": "capacity_utilization",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "产能利用率影响整体效率"
-            },
-            {
-                "source": "supplier_efficiency",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 0.5,
-                "description": "供应商效率也直接影响生产效率"
-            },
-            {
-                "source": "payment_timeliness",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 0.3,
-                "description": "付款及时性对生产效率有间接影响"
-            },
-            {
-                "source": "supplier_base_efficiency",
-                "target": "supplier_efficiency",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "供应商基础效率决定其整体效率"
-            },
-            {
-                "source": "equipment_age",
-                "target": "equipment_status",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "设备年龄影响设备状态"
-            },
-            {
-                "source": "factory_capacity",
-                "target": "capacity_utilization",
-                "type": "causes",
-                "weight": 1.0,
-                "description": "工厂产能影响产能利用率"
-            },
-            {
-                "source": "factory_capacity",
-                "target": "production_efficiency",
-                "type": "causes",
-                "weight": 0.5,
-                "description": "工厂产能也直接影响生产效率"
-            }
-        ],
-        "attributes": [
-            {
-                "name": "payment_delay_days",
-                "type": "float",
-                "description": "付款延迟天数",
-                "default_value": 0.0,
-                "range": [0.0, 30.0]
-            },
-            {
-                "name": "skill_level",
-                "type": "string",
-                "description": "员工技能等级",
-                "default_value": "中级",
-                "enum_values": ["初级", "中级", "高级", "专家"]
-            },
-            {
-                "name": "equipment_failure",
-                "type": "boolean",
-                "description": "设备是否故障",
-                "default_value": False
-            },
-            {
-                "name": "is_anomaly_month",
-                "type": "boolean",
-                "description": "是否为异常月份",
-                "default_value": False
+                "id": "production_efficiency",
+                "name": "生产效率",
+                "description": "企业的整体生产效率",
+                "type": "outcome",
+                "source_entity_type": "factory"
             }
         ]
     }
     
     manager = OntologyManager()
-    
-    # 从字典加载
-    manager.entities = {}
-    manager.relations = []
-    manager.attributes = {}
-    
-    for entity_data in ontology_data['entities']:
-        entity = OntologyEntity(
-            id=entity_data['id'],
-            name=entity_data['name'],
-            type=entity_data.get('type', 'default'),
-            description=entity_data.get('description', ''),
-            attributes=entity_data.get('attributes', {}),
-            relationships=entity_data.get('relationships', [])
-        )
-        manager.entities[entity.id] = entity
-    
-    for rel_data in ontology_data['relations']:
-        relation = OntologyRelation(
-            source=rel_data['source'],
-            target=rel_data['target'],
-            relation_type=rel_data.get('type', 'causes'),
-            weight=rel_data.get('weight', 1.0),
-            description=rel_data.get('description', '')
-        )
-        manager.relations.append(relation)
-    
-    for attr_data in ontology_data['attributes']:
-        attribute = OntologyAttribute(
-            name=attr_data['name'],
-            type=attr_data.get('type', 'string'),
-            description=attr_data.get('description', ''),
-            default_value=attr_data.get('default_value'),
-            range=tuple(attr_data['range']) if 'range' in attr_data else None,
-            enum_values=attr_data.get('enum_values')
-        )
-        manager.attributes[attr_data['name']] = attribute
-    
-    manager._build_causal_graph()
+    manager.schema = ontology_data
     
     return manager
+
+
+def save_ontology_schema(manager: OntologyManager, output_file: str = "web/ontology_schema.json"):
+    """
+    保存本体Schema到JSON文件
+    
+    Args:
+        manager: 本体管理器实例
+        output_file: 输出文件路径
+    """
+    import json
+    from datetime import datetime
+    
+    schema_data = {
+        "entity_types": manager.schema.get("entity_types", []),
+        "relation_types": manager.schema.get("relation_types", []),
+        "metric_definitions": manager.schema.get("metric_definitions", []),
+        "metadata": {
+            "created_at": datetime.now().isoformat(),
+            "description": "制造企业业务本体Schema"
+        }
+    }
+    
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(schema_data, f, ensure_ascii=False, indent=2)
+    
+    print(f"[Ontology] Schema已保存到: {output_file}")
+
+
+def load_ontology_schema(schema_file: str) -> dict:
+    """
+    从文件加载本体Schema
+    
+    Args:
+        schema_file: Schema文件路径
+        
+    Returns:
+        Schema字典
+    """
+    import json
+    
+    with open(schema_file, 'r', encoding='utf-8') as f:
+        schema = json.load(f)
+    
+    print(f"[Ontology] Schema已从 {schema_file} 加载")
+    return schema
 
 
 def load_ontology_from_file(ontology_file: str) -> OntologyManager:

@@ -109,6 +109,10 @@ class RootCauseAnalysisWebApp:
             st.session_state.llm_agent = None
         if 'causal_graph_derived' not in st.session_state:
             st.session_state.causal_graph_derived = None
+        if 'agent_outcome_entity' not in st.session_state:
+            st.session_state.agent_outcome_entity = None
+        if 'causal_graph_result' not in st.session_state:
+            st.session_state.causal_graph_result = None
         
         self.data = st.session_state.data
         self.anomaly_factors = st.session_state.anomaly_factors
@@ -118,6 +122,7 @@ class RootCauseAnalysisWebApp:
         self.llm_explanation = st.session_state.llm_explanation
         self.llm_agent = st.session_state.llm_agent
         self.causal_graph_derived = st.session_state.causal_graph_derived
+        self.agent_outcome_entity = st.session_state.agent_outcome_entity
         
     def _save_state(self):
         """保存状态到 session_state"""
@@ -127,6 +132,9 @@ class RootCauseAnalysisWebApp:
         st.session_state.pipeline = self.pipeline
         st.session_state.llm_explainer = self.llm_explainer
         st.session_state.llm_explanation = self.llm_explanation
+        st.session_state.llm_agent = self.llm_agent
+        st.session_state.causal_graph_derived = self.causal_graph_derived
+        # 注意：agent_outcome_entity由Streamlit自动管理，不需要手动保存
         
     def load_data(self):
         """加载数据"""
@@ -181,21 +189,33 @@ class RootCauseAnalysisWebApp:
             except Exception as e:
                 st.warning(f"⚠️ 保存数据到CSV失败: {str(e)}")
     
-    def init_llm_agent(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None):
+    def init_llm_agent(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None, llm_base_url: str = None, llm_model: str = None):
         """
         初始化LLM Agent
         
         Args:
             ontology_api_url: 本体API地址
             llm_api_key: 大模型API密钥
+            llm_base_url: 大模型API基础URL
+            llm_model: 大模型名称
         """
         if not llm_api_key:
             st.warning("⚠️ 请输入LLM API密钥")
             return False
         
         try:
-            self.llm_agent = LLMAgent(ontology_api_url=ontology_api_url, llm_api_key=llm_api_key)
+            from llm_agent import LLMAgentSync
+            self.llm_agent = LLMAgentSync(
+                ontology_api_url=ontology_api_url, 
+                llm_api_key=llm_api_key,
+                llm_base_url=llm_base_url,
+                llm_model=llm_model
+            )
+            # 保存状态到会话
+            self._save_state()
             st.success(f"✅ LLM Agent已初始化，连接到本体API: {ontology_api_url}")
+            if llm_model:
+                st.info(f"📝 使用模型: {llm_model}")
             return True
         except Exception as e:
             st.error(f"❌ 初始化LLM Agent失败: {str(e)}")
@@ -517,47 +537,112 @@ class RootCauseAnalysisWebApp:
         
         st.sidebar.markdown("### 大模型配置")
         with st.sidebar.expander("配置大模型API"):
-            api_type = "siliconflow"
-            st.info("当前使用 SiliconFlow API")
+            st.info("从 modelkey.cfg 文件读取默认配置，可以手动修改")
             
+            # 读取modelkey.cfg文件获取默认值
+            modelkey_path = os.path.join(os.path.dirname(__file__), "modelkey.cfg")
+            default_api_key = None
+            default_base_url = None
+            default_model = None
+            
+            if os.path.exists(modelkey_path):
+                with open(modelkey_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if line.startswith('API Key:'):
+                            default_api_key = line.split(':', 1)[1].strip()
+                        elif line.startswith('Base URL:'):
+                            default_base_url = line.split(':', 1)[1].strip()
+                        elif line.startswith('Model:'):
+                            default_model = line.split(':', 1)[1].strip()
+                
+                if default_api_key:
+                    st.info(f"✅ 默认API Key: {default_api_key[:20]}...")
+                else:
+                    st.warning("⚠️ 未找到默认API Key")
+                
+                if default_base_url:
+                    st.info(f"📡 默认Base URL: {default_base_url}")
+                else:
+                    st.warning("⚠️ 未找到默认Base URL")
+                
+                if default_model:
+                    st.info(f"📝 默认Model: {default_model}")
+                else:
+                    st.warning("⚠️ 未找到默认Model")
+            else:
+                st.error("❌ modelkey.cfg 文件不存在")
+            
+            # 用户可以手动输入配置
             api_key = st.text_input(
                 "API密钥",
+                value=default_api_key,
                 type="password",
-                help="输入您的SiliconFlow API密钥"
+                help="输入您的API密钥（留空使用默认值）"
             )
             
             base_url = st.text_input(
-                "API Base URL（可选）",
+                "API Base URL",
+                value=default_base_url,
                 placeholder="默认: https://api.siliconflow.cn/v1",
-                help="自定义API端点，留空使用默认值"
+                help="自定义API端点（留空使用默认值）"
             )
             
             model = st.text_input(
-                "模型名称（可选）",
+                "模型名称",
+                value=default_model,
                 placeholder="默认: Qwen/Qwen2.5-7B-Instruct",
-                help="留空使用默认模型"
+                help="输入模型名称（留空使用默认值）"
             )
             
-            if st.button("初始化大模型"):
-                if api_key:
-                    with st.spinner("正在初始化并测试连接..."):
-                        self.init_llm_explainer(
-                            api_type, 
-                            api_key, 
-                            model if model else None,
-                            base_url if base_url else None
-                        )
-                        
-                        success, message = self.llm_explainer.test_connection()
-                        
-                        if success:
-                            st.success(f"✅ {message}")
-                            st.rerun()
-                        else:
-                            st.error(f"❌ {message}")
-                            st.info("请检查配置后重试，或使用规则解释功能")
-                else:
-                    st.warning("请输入API密钥")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("测试大模型连接"):
+                    print(f"[APP] 用户点击了'测试大模型连接'按钮")
+                    if api_key:
+                        with st.spinner("正在测试大模型连接..."):
+                            try:
+                                print(f"[APP] 开始初始化LLM Agent...")
+                                success = self.init_llm_agent(
+                                    "http://localhost:8000",
+                                    api_key,
+                                    base_url,
+                                    model
+                                )
+                                
+                                print(f"[APP] init_llm_agent返回: {success}")
+                                
+                                if success:
+                                    st.success("✅ 大模型连接测试成功！")
+                                    st.session_state.llm_agent_initialized = True
+                                else:
+                                    st.error("❌ 大模型连接测试失败！")
+                            except Exception as e:
+                                print(f"[APP] 初始化LLM Agent时发生异常: {str(e)}")
+                                st.error(f"❌ 大模型连接测试失败: {str(e)}")
+                    else:
+                        st.warning("请输入API密钥")
+            with col2:
+                if st.button("初始化大模型解释器"):
+                    print(f"[APP] 用户点击了'初始化大模型解释器'按钮")
+                    if api_key:
+                        with st.spinner("正在初始化大模型解释器..."):
+                            try:
+                                print(f"[APP] 开始初始化LLM Explainer...")
+                                self.init_llm_explainer(
+                                    "siliconflow",
+                                    api_key,
+                                    model,
+                                    base_url
+                                )
+                                st.success("✅ 大模型解释器初始化成功！")
+                                st.session_state.llm_explainer_initialized = True
+                            except Exception as e:
+                                print(f"[APP] 初始化LLM Explainer时发生异常: {str(e)}")
+                                st.error(f"❌ 大模型解释器初始化失败: {str(e)}")
+                    else:
+                        st.warning("请输入API密钥")
         
         st.sidebar.markdown("### 关于系统")
         st.sidebar.info(
@@ -805,9 +890,17 @@ class RootCauseAnalysisWebApp:
         # 步骤2：选择结果实体
         st.markdown("### 步骤2：选择结果实体")
         
+        # 从session_state恢复outcome_entity
+        if st.session_state.agent_outcome_entity is not None:
+            outcome_entity = st.session_state.agent_outcome_entity
+            print(f"[APP] 从session_state恢复outcome_entity: {outcome_entity}")
+        else:
+            outcome_entity = None
+        
         if self.llm_agent:
             outcome_entity = st.selectbox(
                 "选择结果实体（要分析的目标）",
+                index=["production_efficiency", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status"].index(outcome_entity) if outcome_entity else 0,
                 options=["production_efficiency", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status"],
                 format_func=lambda x: {
                     "production_efficiency": "生产效率",
@@ -816,105 +909,251 @@ class RootCauseAnalysisWebApp:
                     "avg_employee_skill": "员工技能水平",
                     "equipment_status": "设备状态"
                 }[x],
-                help="选择要分析的结果实体"
+                help="选择要分析的结果实体",
+                key="agent_outcome_entity"
             )
         else:
             st.warning("⚠️ 请先初始化LLM Agent")
+            outcome_entity = None
         
         # 步骤3：推导因果图
         st.markdown("### 步骤3：推导因果图")
         
-        if outcome_entity and self.llm_agent:
+        # 从会话状态获取最新的outcome_entity
+        current_outcome_entity = st.session_state.agent_outcome_entity
+        
+        if current_outcome_entity and self.llm_agent:
+            # 推导因果图按钮
             if st.button("推导因果图", type="primary"):
                 with st.spinner("LLM正在推导因果图，请稍候..."):
                     from llm_agent import CausalGraphDerivationRequest
                     
                     request = CausalGraphDerivationRequest(
                         scenario_description=scenario_description,
-                        outcome_entity=outcome_entity
+                        outcome_entity=current_outcome_entity
                     )
                     
                     result = self.llm_agent.derive_causal_graph(request)
                     
                     if result:
+                        # 保存结果到会话状态
+                        st.session_state.causal_graph_result = result
                         st.success("✅ 因果图推导完成！")
-                        
-                        # 展示推导结果
-                        st.markdown("#### 📊 推导结果")
-                        
-                        col1, col2 = st.columns([2, 1])
-                        
-                        with col1:
-                            st.markdown("**因果图结构**")
-                            
-                            # 显示因果图
-                            causal_graph = result.causal_graph
-                            for source, targets in causal_graph.items():
-                                if len(targets) > 0:
-                                    st.markdown(f"- {source} → {', '.join(targets)}")
-                            
-                            # 显示推理过程
-                            st.markdown("**推理过程**")
-                            st.markdown(result.reasoning)
-                            
-                            # 显示建议的数据字段
-                            st.markdown("**建议的数据字段**")
-                            for field in result.suggested_data_fields:
-                                st.markdown(f"- {field}")
-                            
-                            # 显示需要的实体
-                            st.markdown("**需要的实体**")
-                            for entity_id in result.required_entities:
-                                st.markdown(f"- {entity_id}")
-                        
-                        with col2:
-                            st.markdown("**下一步操作**")
-                            st.info("""
-                            1. 系统将根据推导的因果图生成数据
-                            2. 自动运行DoWhy因果分析
-                            3. 生成分析报告
-                            """)
-                            
-                            # 自动生成数据并分析
-                            if st.button("生成数据并分析", type="primary"):
-                                self._generate_data_from_agent(result)
                     else:
                         st.error("❌ 推导因果图失败")
+                        # 清除失败的结果
+                        st.session_state.causal_graph_result = None
+            
+            # 基于会话状态显示因果图结果（持久化显示）
+            if st.session_state.causal_graph_result:
+                result = st.session_state.causal_graph_result
+                
+                # 展示推导结果
+                st.markdown("#### 📊 推导结果")
+                
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.markdown("**因果图结构**")
+                    
+                    # 显示因果图
+                    causal_graph = result.causal_graph
+                    
+                    # 文本格式展示
+                    st.subheader("文本格式")
+                    for source, targets in causal_graph.items():
+                        if len(targets) > 0:
+                            st.markdown(f"- {source} → {', '.join(targets)}")
+                    
+                    # 图形化展示
+                    st.subheader("图形化展示")
+                    try:
+                        import networkx as nx
+                        import matplotlib.pyplot as plt
+                        import io
+                        import base64
+                        
+                        # 创建有向图
+                        G = nx.DiGraph()
+                        
+                        # 添加节点和边
+                        for source, targets in causal_graph.items():
+                            for target in targets:
+                                G.add_edge(source, target)
+                        
+                        # 设置图形大小
+                        plt.figure(figsize=(12, 8))
+                        
+                        # 使用spring布局
+                        pos = nx.spring_layout(G, k=0.3, iterations=50)
+                        
+                        # 绘制节点
+                        nx.draw_networkx_nodes(G, pos, node_size=800, node_color='#6495ED', alpha=0.8)
+                        
+                        # 绘制边
+                        nx.draw_networkx_edges(G, pos, edge_color='#888888', arrowsize=20, width=1.5)
+                        
+                        # 绘制节点标签
+                        nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', font_family='SimHei')
+                        
+                        # 美化图形
+                        plt.title('因果关系图', fontsize=16, fontweight='bold')
+                        plt.axis('off')
+                        plt.tight_layout()
+                        
+                        # 保存到内存
+                        buf = io.BytesIO()
+                        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                        buf.seek(0)
+                        
+                        # 转换为base64
+                        image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+                        plt.close()
+                        
+                        # 在Streamlit中显示
+                        st.image(f"data:image/png;base64,{image_base64}")
+                    except Exception as e:
+                        st.warning(f"图形化展示失败: {str(e)}")
+                        st.info("将使用文本格式展示因果图")
+                    
+                    # 显示推理过程
+                    st.markdown("**推理过程**")
+                    st.markdown(result.reasoning)
+                    
+                    # 显示建议的数据字段
+                    st.markdown("**建议的数据字段**")
+                    for field in result.suggested_data_fields:
+                        st.markdown(f"- {field}")
+                    
+                    # 显示需要的实体
+                    st.markdown("**需要的实体**")
+                    for entity_id in result.required_entities:
+                        st.markdown(f"- {entity_id}")
+                
+                with col2:
+                    st.markdown("**下一步操作**")
+                    st.info("""
+                    1. 系统将根据推导的因果图生成数据
+                    2. 自动运行DoWhy因果分析
+                    3. 生成智能分析报告
+                    """)
         else:
             st.info("👆 请先完成步骤1和步骤2")
+            # 清除因果图结果
+            st.session_state.causal_graph_result = None
+        
+        # 步骤4：数据分析与智能解释
+        st.markdown("---")
+        st.markdown("### 步骤4：数据分析与智能解释")
+        
+        if st.session_state.causal_graph_result:
+            st.info("基于因果图推导结果，系统将生成数据并运行完整的分析流程。")
+            
+            if st.button("开始数据分析与智能解释", type="primary"):
+                self._generate_data_from_agent(st.session_state.causal_graph_result)
+            
+            # 基于会话状态显示DoWhy分析结果（持久化显示）
+            if self.analysis_results is not None:
+                st.markdown("#### 📊 DoWhy分析结果")
+                
+                with st.expander("查看指标对比分析", expanded=True):
+                    comparison_df = self.analysis_results['comparison']
+                    st.dataframe(comparison_df.style.format({
+                        'normal_mean': '{:.3f}',
+                        'anomaly_mean': '{:.3f}',
+                        'change_percent': '{:.2f}%',
+                        'abs_change': '{:.2f}%'
+                    }))
+                
+                with st.expander("查看因果效应分析"):
+                    causal_df = self.analysis_results['causal_analysis']
+                    valid_causal = causal_df[causal_df['causal_effect'].notna()]
+                    st.dataframe(valid_causal.style.format({
+                        'causal_effect': '{:.4f}'
+                    }))
+                
+                with st.expander("查看分析总结"):
+                    st.markdown(self.analysis_results['summary'])
+            
+            # 步骤4.2：生成大模型智能解释
+            st.markdown("---")
+            st.markdown("### 步骤4.2：生成大模型智能解释")
+            
+            if self.llm_explainer is None:
+                st.warning("⚠️ 请先在侧边栏配置SiliconFlow API密钥并初始化大模型解释器")
+                st.info("""
+                **配置步骤：**
+                
+                1. 在侧边栏输入您的SiliconFlow API密钥
+                2. （可选）输入自定义的Base URL
+                3. （可选）输入模型名称
+                4. 点击"初始化大模型解释器"按钮
+                
+                **支持的模型：**
+                - Qwen/Qwen2.5-7B-Instruct（默认）
+                - Qwen/Qwen2.5-72B-Instruct
+                - deepseek-ai/DeepSeek-V2.5
+                
+                **注意：** 如果未配置API，可以点击下方按钮使用规则解释。
+                """)
+                
+                if st.button("使用规则解释（无需API）"):
+                    self.llm_explainer = LLMExplainer()
+                    self._save_state()
+                    st.success("✅ 规则解释器已初始化！")
+                    st.rerun()
+            
+            # 生成大模型解释
+            if self.llm_explainer is not None:
+                st.info(f"当前使用: **{self.llm_explainer.model}** 模型")
+                
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("生成大模型解释", type="primary"):
+                        print("[APP] 用户点击了'生成大模型解释'按钮")
+                        
+                        with st.spinner("大模型正在生成解释，请稍候..."):
+                            explanation = self.generate_llm_explanation()
+                        
+                        print(f"[APP] 获取到的解释: {explanation is not None}")
+                        
+                        if explanation:
+                            st.markdown("#### 📊 AI生成的根因分析报告")
+                            st.markdown(explanation)
+                            
+                            st.download_button(
+                                label="下载报告",
+                                data=explanation,
+                                file_name="根因分析报告.md",
+                                mime="text/markdown"
+                            )
+                        else:
+                            st.error("生成解释失败，请检查API配置或查看终端日志")
+                with col2:
+                    if st.button("重新生成解释"):
+                        self.llm_explanation = None
+                        self._save_state()
+                        st.success("✅ 已清除旧解释，请点击'生成大模型解释'")
+                        st.rerun()
+        else:
+            st.info("👆 请先完成步骤3，推导因果图")
     
     def _generate_data_from_agent(self, causal_graph_result):
         """根据Agent推导的因果图生成数据并分析"""
         try:
-            # 这里暂时使用现有的数据生成逻辑
-            # 实际使用时，应该根据causal_graph_result动态生成数据
-            with st.spinner("正在生成数据并运行分析..."):
+            # 步骤1：生成数据并运行DoWhy分析
+            with st.spinner("正在生成数据并运行DoWhy分析..."):
                 self.data, self.anomaly_factors = create_demo_scenario()
                 self.pipeline = RootCauseAnalysisPipeline(self.data)
                 self.analysis_results = self.pipeline.run_full_analysis()
                 self._save_state()
             
-            st.success("✅ 数据生成和分析完成！")
-            
-            # 显示分析结果摘要
-            st.markdown("#### 📊 分析结果摘要")
-            
-            if self.analysis_results:
-                st.markdown(f"- **数据记录数**: {len(self.data)}")
-                st.markdown(f"- **因果效应分析**: {len(self.analysis_results['causal_analysis'])} 个因素")
-                
-                # 显示主要发现
-                causal_df = self.analysis_results['causal_analysis']
-                top_causes = causal_df[causal_df['causal_effect'].notna()].head(3)
-                
-                st.markdown("**主要影响因素（按因果效应排序）：**")
-                for _, row in top_causes.iterrows():
-                    st.markdown(f"- {row['cause']}: {row['causal_effect']:.4f}")
-            
-            st.info("💡 提示：您现在可以查看其他分析页面了解详细信息")
+            st.success("✅ 数据生成和DoWhy分析完成！")
             
         except Exception as e:
             st.error(f"❌ 生成数据和分析失败: {str(e)}")
+    
+
     
     def render_llm_explanation_page(self):
         """渲染大模型解释页面"""
@@ -996,14 +1235,14 @@ class RootCauseAnalysisWebApp:
             st.markdown("### 步骤2：配置大模型")
             
             if self.llm_explainer is None:
-                st.warning("⚠️ 请先在侧边栏配置SiliconFlow API密钥并初始化大模型")
+                st.warning("⚠️ 请先在侧边栏配置SiliconFlow API密钥并初始化大模型解释器")
                 st.info("""
                 **配置步骤：**
                 
                 1. 在侧边栏输入您的SiliconFlow API密钥
                 2. （可选）输入自定义的Base URL
                 3. （可选）输入模型名称
-                4. 点击"初始化大模型"按钮
+                4. 点击"初始化大模型解释器"按钮
                 
                 **支持的模型：**
                 - Qwen/Qwen2.5-7B-Instruct（默认）
@@ -1055,151 +1294,9 @@ class RootCauseAnalysisWebApp:
                         st.success("✅ 已清除旧解释，请点击'生成大模型解释'")
                         st.rerun()
         else:
-            st.info("👆 请先点击「运行DoWhy分析」按钮")
+            st.info("👆 请先运行DoWhy分析获取分析结果")
     
-    def render_agent_analysis_page(self):
-        """渲染Agent分析页面"""
-        st.header("🤖 Agent智能分析")
-        
-        st.markdown("""
-        <div class="llm-box">
-        <h4>Agent驱动的因果分析</h4>
-        <p>通过LLM理解本体并推导因果图，实现智能的根因分析流程。</p>
-        <p><strong>操作步骤：</strong></p>
-        <ol>
-            <li>输入场景描述</li>
-            <li>选择结果实体</li>
-            <li>点击"推导因果图"按钮</li>
-            <li>查看推导结果</li>
-            <li>系统自动生成数据并分析</li>
-        </ol>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 步骤1：输入场景描述
-        st.markdown("---")
-        st.markdown("### 步骤1：输入场景描述")
-        
-        scenario_description = st.text_area(
-            "场景描述",
-            placeholder="例如：某制造企业在2024年12月发现生产效率相比11月显著下降，需要分析原因并提出改进措施。",
-            height=100,
-            help="描述您遇到的问题场景，LLM将根据描述和本体信息推导因果图"
-        )
-        
-        # 步骤2：选择结果实体
-        st.markdown("### 步骤2：选择结果实体")
-        
-        if self.llm_agent:
-            outcome_entity = st.selectbox(
-                "选择结果实体（要分析的目标）",
-                options=["production_efficiency", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status"],
-                format_func=lambda x: {
-                    "production_efficiency": "生产效率",
-                    "supplier_efficiency": "供应商效率",
-                    "parts_availability": "零部件可用性",
-                    "avg_employee_skill": "员工技能水平",
-                    "equipment_status": "设备状态"
-                }[x],
-                help="选择要分析的结果实体"
-            )
-        else:
-            st.warning("⚠️ 请先初始化LLM Agent")
-        
-        # 步骤3：推导因果图
-        st.markdown("### 步骤3：推导因果图")
-        
-        if outcome_entity and self.llm_agent:
-            if st.button("推导因果图", type="primary"):
-                with st.spinner("LLM正在推导因果图，请稍候..."):
-                    from llm_agent import CausalGraphDerivationRequest
-                    
-                    request = CausalGraphDerivationRequest(
-                        scenario_description=scenario_description,
-                        outcome_entity=outcome_entity
-                    )
-                    
-                    result = self.llm_agent.derive_causal_graph(request)
-                    
-                    if result:
-                        st.success("✅ 因果图推导完成！")
-                        
-                        # 展示推导结果
-                        st.markdown("#### 📊 推导结果")
-                        
-                        col1, col2 = st.columns([2, 1])
-                        
-                        with col1:
-                            st.markdown("**因果图结构**")
-                            
-                            # 显示因果图
-                            causal_graph = result.causal_graph
-                            for source, targets in causal_graph.items():
-                                if len(targets) > 0:
-                                    st.markdown(f"- {source} → {', '.join(targets)}")
-                            
-                            # 显示推理过程
-                            st.markdown("**推理过程**")
-                            st.markdown(result.reasoning)
-                            
-                            # 显示建议的数据字段
-                            st.markdown("**建议的数据字段**")
-                            for field in result.suggested_data_fields:
-                                st.markdown(f"- {field}")
-                            
-                            # 显示需要的实体
-                            st.markdown("**需要的实体**")
-                            for entity_id in result.required_entities:
-                                st.markdown(f"- {entity_id}")
-                        
-                        with col2:
-                            st.markdown("**下一步操作**")
-                            st.info("""
-                            1. 系统将根据推导的因果图生成数据
-                            2. 自动运行DoWhy因果分析
-                            3. 生成分析报告
-                            """)
-                            
-                            # 自动生成数据并分析
-                            if st.button("生成数据并分析", type="primary"):
-                                self._generate_data_from_agent(result)
-                    else:
-                        st.error("❌ 推导因果图失败")
-        else:
-            st.info("👆 请先完成步骤1和步骤2")
-    
-    def _generate_data_from_agent(self, causal_graph_result):
-        """根据Agent推导的因果图生成数据并分析"""
-        try:
-            # 这里暂时使用现有的数据生成逻辑
-            # 实际使用时，应该根据causal_graph_result动态生成数据
-            with st.spinner("正在生成数据并运行分析..."):
-                self.data, self.anomaly_factors = create_demo_scenario()
-                self.pipeline = RootCauseAnalysisPipeline(self.data)
-                self.analysis_results = self.pipeline.run_full_analysis()
-                self._save_state()
-            
-            st.success("✅ 数据生成和分析完成！")
-            
-            # 显示分析结果摘要
-            st.markdown("#### 📊 分析结果摘要")
-            
-            if self.analysis_results:
-                st.markdown(f"- **数据记录数**: {len(self.data)}")
-                st.markdown(f"- **因果效应分析**: {len(self.analysis_results['causal_analysis'])} 个因素")
-                
-                # 显示主要发现
-                causal_df = self.analysis_results['causal_analysis']
-                top_causes = causal_df[causal_df['causal_effect'].notna()].head(3)
-                
-                st.markdown("**主要影响因素（按因果效应排序）：**")
-                for _, row in top_causes.iterrows():
-                    st.markdown(f"- {row['cause']}: {row['causal_effect']:.4f}")
-            
-            st.info("💡 提示：您现在可以查看其他分析页面了解详细信息")
-            
-        except Exception as e:
-            st.error(f"❌ 生成数据和分析失败: {str(e)}")
+
     
     def run(self):
         """运行应用"""
