@@ -922,6 +922,15 @@ class RootCauseAnalysisWebApp:
                         entity_map[entity_id] = entity_name
                         G.add_node(entity_id, type='entity', name=entity_name)
                     
+                    # 添加指标节点
+                    metric_map = {}
+                    for metric in schema.get('metric_definitions', []):
+                        metric_id = metric.get('id')
+                        metric_name = metric.get('name', metric_id)
+                        metric_map[metric_id] = metric_name
+                        # 添加指标节点，类型为'metric'
+                        G.add_node(metric_id, type='metric', name=metric_name)
+                    
                     # 添加关系边
                     for relation_type in schema.get('relation_types', []):
                         relation_id = relation_type.get('id')
@@ -935,14 +944,30 @@ class RootCauseAnalysisWebApp:
                                 if source_type in entity_map and target_type in entity_map:
                                     G.add_edge(source_type, target_type, label=relation_name)
                     
+                    # 添加指标与实体之间的边
+                    for metric in schema.get('metric_definitions', []):
+                        metric_id = metric.get('id')
+                        source_entity_type = metric.get('source_entity_type')
+                        
+                        # 将指标连接到其源实体类型
+                        if metric_id in metric_map and source_entity_type in entity_map:
+                            G.add_edge(source_entity_type, metric_id, label="has_metric")
+                    
                     # 设置图形大小
                     plt.figure(figsize=(12, 8))
                     
                     # 使用spring布局
                     pos = nx.spring_layout(G, k=0.3, iterations=50)
                     
-                    # 绘制节点
-                    nx.draw_networkx_nodes(G, pos, node_size=1000, node_color='#6495ED', alpha=0.8)
+                    # 分离实体节点和指标节点
+                    entity_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'entity']
+                    metric_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'metric']
+                    
+                    # 绘制实体节点（蓝色）
+                    nx.draw_networkx_nodes(G, pos, nodelist=entity_nodes, node_size=1000, node_color='#6495ED', alpha=0.8, node_shape='o')
+                    
+                    # 绘制指标节点（红色，使用不同形状）
+                    nx.draw_networkx_nodes(G, pos, nodelist=metric_nodes, node_size=800, node_color='#DC143C', alpha=0.8, node_shape='s')  # s表示正方形
                     
                     # 绘制边
                     nx.draw_networkx_edges(G, pos, edge_color='#888888', arrowsize=20, width=1.5)
@@ -951,12 +976,30 @@ class RootCauseAnalysisWebApp:
                     edge_labels = nx.get_edge_attributes(G, 'label')
                     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, font_family='Arial Unicode MS')
                     
-                    # 绘制节点标签（使用实体名称）
-                    node_labels = {entity_id: entity_name for entity_id, entity_name in entity_map.items()}
+                    # 准备所有节点的标签
+                    node_labels = {}
+                    # 添加实体标签
+                    for entity_id, entity_name in entity_map.items():
+                        node_labels[entity_id] = entity_name
+                    # 添加指标标签
+                    for metric_id, metric_name in metric_map.items():
+                        node_labels[metric_id] = metric_name
+                    
+                    # 绘制节点标签
                     nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=10, font_weight='bold', font_family='Arial Unicode MS')
                     
+                    # 添加图例
+                    plt.legend(
+                        handles=[
+                            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#6495ED', markersize=10, label='实体'),
+                            plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#DC143C', markersize=10, label='指标')
+                        ],
+                        loc='best',
+                        prop={'family': 'Arial Unicode MS'}
+                    )
+                    
                     # 美化图形
-                    plt.title('本体关系图', fontsize=16, fontweight='bold')
+                    plt.title('本体关系与指标图', fontsize=16, fontweight='bold')
                     plt.axis('off')
                     plt.tight_layout()
                     

@@ -59,6 +59,7 @@ class OntologyManager:
         self.entities: Dict[str, OntologyEntity] = {}
         self.relations: List[OntologyRelation] = []
         self.attributes: Dict[str, OntologyAttribute] = {}
+        self.schema: Dict[str, Any] = {}  # 添加schema属性
         
         if ontology_file:
             self.load_ontology(ontology_file)
@@ -111,6 +112,14 @@ class OntologyManager:
                         enum_values=attr_data.get('enum_values')
                     )
                     self.attributes[attr_data['name']] = attribute
+            
+            # 加载schema（如果存在）
+            if 'entity_types' in data:
+                self.schema['entity_types'] = data['entity_types']
+            if 'relation_types' in data:
+                self.schema['relation_types'] = data['relation_types']
+            if 'metric_definitions' in data:
+                self.schema['metric_definitions'] = data['metric_definitions']
             
             print(f"[Ontology] 成功加载本体: {len(self.entities)} 个实体, {len(self.relations)} 个关系")
             
@@ -270,7 +279,11 @@ class OntologyManager:
                     'enum_values': a.enum_values
                 }
                 for a in self.attributes.values()
-            ]
+            ],
+            # 保存schema
+            'entity_types': self.schema.get('entity_types', []),
+            'relation_types': self.schema.get('relation_types', []),
+            'metric_definitions': self.schema.get('metric_definitions', [])
         }
         
         with open(output_file, 'w', encoding='utf-8') as f:
