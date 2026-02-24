@@ -251,7 +251,22 @@ class LLMExplainer:
 ### 2. 主要下降指标
 """
         
-        metric_names = {
+        # 动态生成指标名称映射，优先使用本体中的名称，否则使用默认转换
+        metric_names = {}
+        
+        # 如果有本体管理器，从本体中获取指标名称
+        if self.ontology:
+            try:
+                # 从本体中获取所有指标定义
+                if hasattr(self.ontology, 'schema') and self.ontology.schema:
+                    for entity_type in self.ontology.schema.get('entity_types', []):
+                        for metric in entity_type.get('metrics', []):
+                            metric_names[metric.get('name')] = metric.get('display_name', metric.get('name'))
+            except Exception as e:
+                print(f"[LLM] 从本体获取指标名称失败: {e}")
+        
+        # 添加默认映射作为 fallback
+        default_metric_names = {
             'production_efficiency': '生产效率',
             'payment_timeliness': '付款及时性',
             'supplier_efficiency': '供应商效率',
@@ -260,6 +275,9 @@ class LLMExplainer:
             'equipment_status': '设备状态',
             'capacity_utilization': '产能利用率'
         }
+        
+        # 更新默认映射，保留本体中的名称
+        metric_names.update(default_metric_names)
         
         for _, row in top_declines.iterrows():
             metric_name = metric_names.get(row['metric'], row['metric'])
