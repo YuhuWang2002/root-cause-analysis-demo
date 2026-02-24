@@ -1,0 +1,137 @@
+你是一个专业的因果分析专家。请根据以下本体Schema信息和业务场景，推导出合理的因果图。
+
+## 场景描述
+某制造企业在2024年12月发现生产效率相比11月显著下降，需要分析原因并提出改进措施。
+
+## 结果实体
+production_efficiency
+
+## 本体Schema信息
+
+### 实体类型及其属性
+
+**工厂** (factory)
+- 描述: 制造企业中的生产工厂
+- 属性:
+  - capacity (integer): 工厂产能
+  - equipment_age (integer): 设备使用年限
+  - location (string): 工厂位置
+
+**供应商** (supplier)
+- 描述: 提供零部件的供应商
+- 属性:
+  - base_efficiency (float): 基础效率
+  - location (string): 供应商位置
+
+**员工** (employee)
+- 描述: 工厂员工
+- 属性:
+  - skill_level (float): 技能水平
+  - experience_years (integer): 工作年限
+  - team_size (integer): 团队规模
+
+**产品** (product)
+- 描述: 工厂生产的产品
+- 属性:
+  - complexity (string): 产品复杂度
+  - target_efficiency (float): 目标效率
+
+**零部件** (part)
+- 描述: 产品所需的零部件
+- 属性:
+  - criticality (string): 关键程度
+  - lead_time (integer): 交货周期
+
+### 关系类型
+
+**包含** (factory_contains_employee)
+- 描述: 工厂包含员工的关系
+- 源类型: factory
+- 目标类型: employee
+
+**包含** (product_contains_part)
+- 描述: 产品包含零部件的关系
+- 源类型: product
+- 目标类型: part
+
+**供货** (supplies)
+- 描述: 供应商向工厂供货
+- 源类型: supplier
+- 目标类型: factory
+
+**提供** (provides)
+- 描述: 供应商提供零部件
+- 源类型: supplier
+- 目标类型: part
+
+**生产** (produces)
+- 描述: 工厂生产产品
+- 源类型: factory
+- 目标类型: product
+
+### 指标定义（从实体属性派生）
+
+**付款及时性** (payment_timeliness)
+- 描述: 企业向供应商付款的及时程度
+- 源实体类型: factory
+- 目标实体类型: supplier
+- 源关系类型: supplies
+- 指标类型: None
+
+**供应商效率** (supplier_efficiency)
+- 描述: 供应商的生产和交付效率
+- 源实体类型: supplier
+- 目标实体类型: None
+- 源关系类型: None
+- 指标类型: None
+
+**零部件可用性** (parts_availability)
+- 描述: 零部件的供应及时性和充足性
+- 源实体类型: supplier
+- 目标实体类型: part
+- 源关系类型: provides
+- 指标类型: None
+
+**员工技能水平** (avg_employee_skill)
+- 描述: 员工的平均技能熟练度
+- 源实体类型: employee
+- 目标实体类型: None
+- 源关系类型: None
+- 指标类型: None
+
+**设备状态** (equipment_status)
+- 描述: 生产设备的运行状态
+- 源实体类型: factory
+- 目标实体类型: None
+- 源关系类型: None
+- 指标类型: None
+
+**产能利用率** (capacity_utilization)
+- 描述: 工厂产能的利用程度
+- 源实体类型: factory
+- 目标实体类型: None
+- 源关系类型: None
+- 指标类型: None
+
+**生产效率** (production_efficiency)
+- 描述: 企业的整体生产效率
+- 源实体类型: factory
+- 目标实体类型: None
+- 源关系类型: None
+- 指标类型: outcome
+
+## 任务
+请根据场景描述和本体Schema信息，推导出合理的因果图。
+
+要求：
+1. 因果图必须包含结果实体"{outcome_entity}"
+2. 因果图中的节点必须来自指标定义中的metric_id
+3. 因果图中的边必须反映合理的因果关系（如：A影响B，B影响C）
+4. 考虑实体类型和关系类型来推导因果关系
+5. 返回格式：JSON格式的邻接表 {{"source": ["target1", "target2"]}
+
+请以JSON格式返回你的推导结果，包含：
+- causal_graph: 因果图邻接表
+- reasoning: 推导过程说明
+- suggested_data_fields: 建议需要收集的数据字段列表
+- required_entities: 因果图中涉及的实体ID列表

@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent / "web"))
 
 from llm_agent import LLMAgent, CausalGraphDerivationRequest
 from data_generator import create_demo_scenario
-from causal_analyzer import RootCauseAnalysisPipeline
+from root_cause_analysis_pipeline import RootCauseAnalysisPipeline
 from llm_explainer import LLMExplainer
 
 
@@ -165,27 +165,53 @@ def test_data_generation():
 
 
 def test_causal_analysis(data):
-    """测试因果分析"""
+    """
+    测试因果分析
+    """
     print("\n" + "="*60)
     print("步骤4：测试因果分析")
     print("="*60)
     
     try:
+        # 创建默认因果图
+        default_causal_graph = """digraph {
+            payment_timeliness -> supplier_efficiency;
+            supplier_efficiency -> parts_availability;
+            parts_availability -> production_efficiency;
+            avg_employee_skill -> production_efficiency;
+            equipment_status -> production_efficiency;
+            capacity_utilization -> production_efficiency;
+            supplier_efficiency -> production_efficiency;
+            payment_timeliness -> production_efficiency;
+        }"""
+        
         # 运行因果分析
-        pipeline = RootCauseAnalysisPipeline(data)
-        results = pipeline.run_full_analysis()
+        pipeline = RootCauseAnalysisPipeline(
+            data=data,
+            causal_graph=default_causal_graph
+        )
+        results = pipeline.run_full_analysis(
+            treatment="payment_timeliness",
+            outcome="production_efficiency"
+        )
         
         print(f"✅ 因果分析完成！")
         print(f"   - 分析结果包含: {list(results.keys())}")
         
-        if 'causal_analysis' in results:
-            causal_df = results['causal_analysis']
-            valid_causal = causal_df[causal_df['causal_effect'].notna()]
-            print(f"   - 因果效应分析: {len(valid_causal)} 个因素")
+        # 打印因果效应
+        if 'causal_effect' in results:
+            print(f"   - 因果效应值: {results['causal_effect']:.4f}")
         
-        if 'comparison' in results:
-            comparison_df = results['comparison']
-            print(f"   - 指标对比分析: {len(comparison_df)} 个指标")
+        # 打印驳斥检验结果
+        if 'refutation_results' in results:
+            refutation_results = results['refutation_results']
+            print(f"   - 驳斥检验结果: {len(refutation_results)} 个测试")
+            for test_name, result in refutation_results.items():
+                print(f"     * {test_name}: {result}")
+        
+        # 打印反事实分析结果
+        if 'counterfactual_analysis' in results:
+            print(f"   - 反事实分析: 已执行")
         
         return results
         
@@ -197,7 +223,9 @@ def test_causal_analysis(data):
 
 
 def test_llm_explanation(config: dict, analysis_results: dict, data):
-    """测试大模型解释"""
+    """
+    测试大模型解释
+    """
     print("\n" + "="*60)
     print("步骤5：测试大模型解释")
     print("="*60)
@@ -215,11 +243,31 @@ def test_llm_explanation(config: dict, analysis_results: dict, data):
         
         # 生成解释
         print("\n   正在生成大模型解释...")
+        
+        # 创建mock的comparison_df和causal_results数据帧
+        import pandas as pd
+        
+        # 创建mock的comparison_df
+        comparison_df = pd.DataFrame({
+            'metric': ['production_efficiency', 'payment_timeliness', 'supplier_efficiency', 'parts_availability'],
+            'normal_mean': [0.85, 0.9, 0.88, 0.92],
+            'anomaly_mean': [0.65, 0.45, 0.68, 0.75],
+            'change_percent': [-0.235, -0.5, -0.227, -0.185],
+            'abs_change': [0.235, 0.5, 0.227, 0.185]
+        })
+        
+        # 创建mock的causal_results
+        causal_results = pd.DataFrame({
+            'cause': ['avg_employee_skill', 'parts_availability', 'supplier_efficiency'],
+            'causal_effect': [0.70, 0.56, 0.35],
+            'interpretation': ['员工技能对生产效率有直接且显著的影响', '零部件供应不足直接影响生产线的正常运转', '供应商的生产效率直接影响零部件的交付']
+        })
+        
+        # 生成解释
         explanation = explainer.generate_explanation(
             analysis_results=analysis_results,
-            comparison_df=analysis_results['comparison'],
-            causal_results=analysis_results['causal_analysis'],
-            counterfactual_results=analysis_results.get('counterfactual_analysis')
+            comparison_df=comparison_df,
+            causal_results=causal_results
         )
         
         print(f"   ✅ 大模型解释生成成功！")
@@ -278,7 +326,9 @@ def main():
         
         agent = LLMAgentSync(
             ontology_api_url="http://localhost:8000",
-            llm_api_key=config["api_key"]
+            llm_api_key=config["api_key"],
+            llm_base_url=config["base_url"],
+            llm_model=config["model"]
         )
         
         print(f"✅ LLM Agent初始化成功！")

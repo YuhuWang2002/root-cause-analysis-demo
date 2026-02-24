@@ -1,0 +1,200 @@
+{
+  "entity_types": [
+    {
+      "id": "factory",
+      "name": "工厂",
+      "description": "制造企业中的生产工厂",
+      "attributes": [
+        {
+          "name": "capacity",
+          "type": "integer",
+          "description": "工厂产能"
+        },
+        {
+          "name": "equipment_age",
+          "type": "integer",
+          "description": "设备使用年限"
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "description": "工厂位置"
+        }
+      ]
+    },
+    {
+      "id": "supplier",
+      "name": "供应商",
+      "description": "提供零部件的供应商",
+      "attributes": [
+        {
+          "name": "base_efficiency",
+          "type": "float",
+          "description": "基础效率"
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "description": "供应商位置"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "name": "员工",
+      "description": "工厂员工",
+      "attributes": [
+        {
+          "name": "skill_level",
+          "type": "float",
+          "description": "技能水平"
+        },
+        {
+          "name": "experience_years",
+          "type": "integer",
+          "description": "工作年限"
+        },
+        {
+          "name": "team_size",
+          "type": "integer",
+          "description": "团队规模"
+        }
+      ]
+    },
+    {
+      "id": "product",
+      "name": "产品",
+      "description": "工厂生产的产品",
+      "attributes": [
+        {
+          "name": "complexity",
+          "type": "string",
+          "description": "产品复杂度"
+        },
+        {
+          "name": "target_efficiency",
+          "type": "float",
+          "description": "目标效率"
+        }
+      ]
+    },
+    {
+      "id": "part",
+      "name": "零部件",
+      "description": "产品所需的零部件",
+      "attributes": [
+        {
+          "name": "criticality",
+          "type": "string",
+          "description": "关键程度"
+        },
+        {
+          "name": "lead_time",
+          "type": "integer",
+          "description": "交货周期"
+        }
+      ]
+    }
+  ],
+  "relation_types": [
+    {
+      "id": "contains",
+      "name": "包含",
+      "description": "实体包含关系（工厂包含员工、产品包含零部件）",
+      "source_types": [
+        "factory",
+        "product"
+      ],
+      "target_types": [
+        "employee",
+        "part"
+      ]
+    },
+    {
+      "id": "supplies",
+      "name": "供货",
+      "description": "供应商向工厂供货",
+      "source_types": [
+        "supplier"
+      ],
+      "target_types": [
+        "factory"
+      ]
+    },
+    {
+      "id": "provides",
+      "name": "提供",
+      "description": "供应商提供零部件",
+      "source_types": [
+        "supplier"
+      ],
+      "target_types": [
+        "part"
+      ]
+    },
+    {
+      "id": "produces",
+      "name": "生产",
+      "description": "工厂生产产品",
+      "source_types": [
+        "factory"
+      ],
+      "target_types": [
+        "product"
+      ]
+    }
+  ],
+  "metric_definitions": [
+    {
+      "id": "payment_timeliness",
+      "name": "付款及时性",
+      "description": "企业向供应商付款的及时程度",
+      "source_relation": "supplies",
+      "source_entity_type": "factory",
+      "target_entity_type": "supplier"
+    },
+    {
+      "id": "supplier_efficiency",
+      "name": "供应商效率",
+      "description": "供应商的生产和交付效率",
+      "source_entity_type": "supplier"
+    },
+    {
+      "id": "parts_availability",
+      "name": "零部件可用性",
+      "description": "零部件的供应及时性和充足性",
+      "source_relation": "provides",
+      "source_entity_type": "supplier",
+      "target_entity_type": "part"
+    },
+    {
+      "id": "avg_employee_skill",
+      "name": "员工技能水平",
+      "description": "员工的平均技能熟练度",
+      "source_entity_type": "employee"
+    },
+    {
+      "id": "equipment_status",
+      "name": "设备状态",
+      "description": "生产设备的运行状态",
+      "source_entity_type": "factory"
+    },
+    {
+      "id": "capacity_utilization",
+      "name": "产能利用率",
+      "description": "工厂产能的利用程度",
+      "source_entity_type": "factory"
+    },
+    {
+      "id": "production_efficiency",
+      "name": "生产效率",
+      "description": "企业的整体生产效率",
+      "type": "outcome",
+      "source_entity_type": "factory"
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-02-17T22:29:57.315649",
+    "description": "制造企业业务本体Schema"
+  }
+}

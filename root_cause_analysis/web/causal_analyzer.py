@@ -1,7 +1,11 @@
 """
-制造企业根因分析 - DoWhy因果分析模块（Web版本，本体驱动版本）
+因果分析器模块
 
-因果图结构：从本体动态读取
+提供通用的DoWhy因果分析功能，支持：
+- 因果模型创建
+- 因果效应估计
+- 驳斥检验
+- 结果反事实分析
 """
 
 import pandas as pd
@@ -12,61 +16,28 @@ warnings.filterwarnings('ignore')
 
 import dowhy
 from dowhy import CausalModel
-from ontology_manager import OntologyManager
 
 
 class CausalAnalyzer:
-    """因果分析器（本体驱动版本）"""
+    """因果分析器（通用版本）"""
     
-    def __init__(self, data: pd.DataFrame, ontology_manager: Optional[OntologyManager] = None):
+    def __init__(self, data: pd.DataFrame):
         """
         初始化因果分析器
         
         Args:
-            data: 数据
-            ontology_manager: 本体管理器，如果为None则不使用本体
+            data: 分析数据
         """
         self.data = data
-        self.ontology = ontology_manager
         self.model = None
         self.identified_estimand = None
         self.estimate = None
         self.refutation_results = {}
-        
-    def build_causal_graph(self) -> str:
-        """
-        构建因果图的DOT格式定义
-        
-        Returns:
-            因果图的DOT格式字符串
-        """
-        # 如果有本体，从本体关系构建因果图
-        if self.ontology:
-            edges = []
-            for relation in self.ontology.relations:
-                if relation.relation_type in ['influences', 'causes', 'related_to']:
-                    edges.append(f"    {relation.source} -> {relation.target};")
-            
-            if edges:
-                causal_graph = "digraph {\n" + "\n".join(edges) + "\n}"
-                return causal_graph
-        
-        # 使用默认因果图
-        causal_graph = """digraph {
-            payment_timeliness -> supplier_efficiency;
-            supplier_efficiency -> parts_availability;
-            parts_availability -> production_efficiency;
-            avg_employee_skill -> production_efficiency;
-            equipment_status -> production_efficiency;
-            capacity_utilization -> production_efficiency;
-            supplier_efficiency -> production_efficiency;
-            payment_timeliness -> production_efficiency;
-        }"""
-        return causal_graph
     
     def create_causal_model(self, 
                             treatment: str, 
                             outcome: str,
+                            causal_graph: str,
                             confounders: List[str] = None) -> CausalModel:
         """
         创建因果模型
@@ -74,10 +45,9 @@ class CausalAnalyzer:
         Args:
             treatment: 处理变量
             outcome: 结果变量
+            causal_graph: 因果图（DOT格式字符串）
             confounders: 混淆变量列表
         """
-        causal_graph = self.build_causal_graph()
-        
         data_subset = self.data.copy()
         
         if confounders is None:
@@ -94,7 +64,9 @@ class CausalAnalyzer:
         return self.model
     
     def identify_effect(self) -> object:
-        """识别因果效应"""
+        """
+        识别因果效应
+        """
         if self.model is None:
             raise ValueError("请先创建因果模型")
         
@@ -159,299 +131,122 @@ class CausalAnalyzer:
         self.refutation_results = results
         return results
     
-    def analyze_root_cause(self, 
-                           target_variable: str = "production_efficiency",
-                           potential_causes: List[str] = None) -> pd.DataFrame:
-        """
-        分析根因 - 对多个潜在原因进行因果分析
-        
-        Args:
-            target_variable: 目标变量
-            potential_causes: 潜在原因列表
-        """
-        if potential_causes is None:
-            potential_causes = [
-                "payment_timeliness",
-                "supplier_efficiency",
-                "parts_availability",
-                "avg_employee_skill",
-                "equipment_status",
-                "capacity_utilization"
-            ]
-        
-        results = []
-        
-        for cause in potential_causes:
-            try:
-                self.create_causal_model(
-                    treatment=cause,
-                    outcome=target_variable
-                )
-                
-                self.identify_effect()
-                
-                estimate = self.estimate_effect()
-                
-                results.append({
-                    "cause": cause,
-                    "causal_effect": estimate.value,
-                    "interpretation": self._interpret_effect(cause, estimate.value)
-                })
-                
-            except Exception as e:
-                results.append({
-                    "cause": cause,
-                    "causal_effect": None,
-                    "interpretation": f"分析失败: {str(e)}"
-                })
-        
-        return pd.DataFrame(results).sort_values(
-            by="causal_effect", 
-            key=lambda x: abs(x) if x.notna().all() else x,
-            ascending=False
-        )
-    
     def counterfactual_analysis(self, 
-                                target_variable: str = "production_efficiency",
-                                improvement_levels: Dict = None) -> pd.DataFrame:
+                                treatment: str,
+                                outcome: str,
+                                target_outcome: float,
+                                causal_graph: str) -> Dict:
         """
-        反事实分析 - 计算如果改善某个因素，预期效率提升多少
+        结果反事实分析 - 计算达到目标结果需要的原因变量变化
         
         Args:
-            target_variable: 目标变量
-            improvement_levels: 各因素的改善程度，例如：
-                {
-                    "payment_timeliness": 0.2,  # 付款及时性提升20%
-                    "supplier_efficiency": 0.15   # 供应商效率提升15%
-                }
-                
-        Returns:
-            反事实分析结果
+            treatment: 处理变量（原因）
+            outcome: 结果变量
+            target_outcome: 目标结果值
+            causal_graph: 因果图（DOT格式字符串）
         """
-        if improvement_levels is None:
-            improvement_levels = {
-                "payment_timeliness": 0.2,
-                "supplier_efficiency": 0.15,
-                "parts_availability": 0.1,
-                "avg_employee_skill": 0.05,
-                "equipment_status": 0.05
-            }
+        # 创建因果模型
+        self.create_causal_model(
+            treatment=treatment,
+            outcome=outcome,
+            causal_graph=causal_graph
+        )
         
+        # 识别因果效应
+        self.identify_effect()
+        
+        # 估计因果效应
+        estimate = self.estimate_effect()
+        
+        # 计算当前结果的基线值
+        current_outcome = self.data[outcome].mean()
+        
+        # 计算目标结果与基线值的差异
+        outcome_diff = target_outcome - current_outcome
+        
+        # 根据因果效应，计算需要的原因变量变化
+        if estimate.value != 0:
+            required_treatment_change = outcome_diff / estimate.value
+        else:
+            required_treatment_change = float('inf')  # 无法计算
+        
+        # 计算当前原因变量的基线值
+        current_treatment = self.data[treatment].mean()
+        
+        # 计算目标原因变量值
+        target_treatment = current_treatment + required_treatment_change
+        
+        # 验证可行性
+        treatment_min = self.data[treatment].min()
+        treatment_max = self.data[treatment].max()
+        
+        feasibility = "high"
+        if required_treatment_change == float('inf'):
+            feasibility = "impossible"
+        elif target_treatment < treatment_min or target_treatment > treatment_max:
+            feasibility = "low"
+        elif abs(required_treatment_change) > current_treatment * 0.5:
+            feasibility = "medium"
+        
+        # 返回结构化的反事实分析结果
+        return {
+            "treatment": treatment,
+            "outcome": outcome,
+            "current_treatment": current_treatment,
+            "target_treatment": target_treatment,
+            "required_treatment_change": required_treatment_change,
+            "current_outcome": current_outcome,
+            "target_outcome": target_outcome,
+            "outcome_diff": outcome_diff,
+            "causal_effect": estimate.value,
+            "feasibility": feasibility,
+            "treatment_range": {
+                "min": treatment_min,
+                "max": treatment_max
+            }
+        }
+    
+    def analyze_causal_effects(self, 
+                              causal_graph: str,
+                              treatments: List[str],
+                              outcome: str) -> pd.DataFrame:
+        """
+        分析多个处理变量对结果变量的因果效应
+        
+        Args:
+            causal_graph: 因果图（DOT格式字符串）
+            treatments: 处理变量列表
+            outcome: 结果变量
+        """
         results = []
         
-        for cause, improvement in improvement_levels.items():
+        for treatment in treatments:
             try:
+                # 创建因果模型
                 self.create_causal_model(
-                    treatment=cause,
-                    outcome=target_variable
+                    treatment=treatment,
+                    outcome=outcome,
+                    causal_graph=causal_graph
                 )
                 
+                # 识别因果效应
                 self.identify_effect()
                 
+                # 估计因果效应
                 estimate = self.estimate_effect()
                 
-                expected_efficiency_gain = estimate.value * improvement
-                
                 results.append({
-                    "factor": cause,
+                    "treatment": treatment,
                     "causal_effect": estimate.value,
-                    "improvement_level": improvement,
-                    "expected_efficiency_gain": expected_efficiency_gain,
-                    "interpretation": self._interpret_counterfactual(
-                        cause, expected_efficiency_gain, improvement
-                    )
+                    "success": True
                 })
                 
             except Exception as e:
                 results.append({
-                    "factor": cause,
+                    "treatment": treatment,
                     "causal_effect": None,
-                    "improvement_level": improvement,
-                    "expected_efficiency_gain": None,
-                    "interpretation": f"反事实分析失败: {str(e)}"
+                    "success": False,
+                    "error": str(e)
                 })
         
-        return pd.DataFrame(results).sort_values(
-            by="expected_efficiency_gain",
-            key=lambda x: abs(x) if x.notna().all() else x,
-            ascending=False
-        )
-    
-    def _interpret_counterfactual(self, factor: str, expected_gain: float, improvement: float) -> str:
-        """解释反事实分析结果"""
-        if expected_gain is None:
-            return "无法计算"
-        
-        factor_names = {
-            "payment_timeliness": "付款及时性",
-            "supplier_efficiency": "供应商效率",
-            "parts_availability": "零部件可用性",
-            "avg_employee_skill": "员工技能水平",
-            "equipment_status": "设备状态",
-            "capacity_utilization": "产能利用率"
-        }
-        
-        factor_name = factor_names.get(factor, factor)
-        gain_percent = expected_gain * 100
-        
-        return f"如果{factor_name}提升{improvement*100:.0f}%，预计生产效率提升{gain_percent:.1f}%"
-    
-    def _interpret_effect(self, cause: str, effect: float) -> str:
-        """解释因果效应"""
-        if effect is None:
-            return "无法计算"
-        
-        abs_effect = abs(effect)
-        
-        if abs_effect > 0.3:
-            strength = "强"
-        elif abs_effect > 0.1:
-            strength = "中等"
-        else:
-            strength = "弱"
-        
-        direction = "正向" if effect > 0 else "负向"
-        
-        cause_names = {
-            "payment_timeliness": "付款及时性",
-            "supplier_efficiency": "供应商效率",
-            "parts_availability": "零部件可用性",
-            "avg_employee_skill": "员工技能水平",
-            "equipment_status": "设备状态",
-            "capacity_utilization": "产能利用率"
-        }
-        
-        cause_name = cause_names.get(cause, cause)
-        
-        return f"{cause_name}对生产效率有{strength}的{direction}影响 (效应值: {effect:.4f})"
-
-
-class RootCauseAnalysisPipeline:
-    """根因分析流水线（本体驱动版本）"""
-    
-    def __init__(self, data: pd.DataFrame, ontology_manager: Optional[OntologyManager] = None):
-        """
-        初始化根因分析流水线
-        
-        Args:
-            data: 数据
-            ontology_manager: 本体管理器，如果为None则不使用本体
-        """
-        self.data = data
-        self.analyzer = CausalAnalyzer(data, ontology_manager)
-        self.analysis_results = None
-        self.counterfactual_results = None
-        
-    def run_full_analysis(self) -> Dict:
-        """运行完整的根因分析"""
-        print("制造企业生产效率根因分析")
-        
-        print("\n第一步：数据概览")
-        self._print_data_overview()
-        
-        print("\n第二步：对比分析（正常月份 vs 异常月份）")
-        comparison = self._compare_periods()
-        
-        print("\n第三步：因果分析")
-        self.analysis_results = self.analyzer.analyze_root_cause()
-        
-        print("\n第四步：反事实分析（预期改进效果）")
-        self.counterfactual_results = self.analyzer.counterfactual_analysis()
-        
-        print("\n第五步：根因总结")
-        summary = self._generate_summary(comparison)
-        
-        return {
-            "comparison": comparison,
-            "causal_analysis": self.analysis_results,
-            "counterfactual_analysis": self.counterfactual_results,
-            "summary": summary
-        }
-    
-    def _print_data_overview(self):
-        """打印数据概览"""
-        print(f"数据记录数: {len(self.data)}")
-        print(f"时间范围: {self.data['date'].min()} 到 {self.data['date'].max()}")
-        print(f"工厂数量: {self.data['factory_id'].nunique()}")
-        print(f"供应商数量: {self.data['supplier_id'].nunique()}")
-        
-        monthly_stats = self.data.groupby(['year', 'month'])['production_efficiency'].agg(['mean', 'std', 'min', 'max'])
-        print(monthly_stats)
-    
-    def _compare_periods(self) -> pd.DataFrame:
-        """对比正常月份和异常月份"""
-        normal_data = self.data[~self.data['is_anomaly_month']]
-        anomaly_data = self.data[self.data['is_anomaly_month']]
-        
-        metrics = [
-            'production_efficiency',
-            'payment_timeliness',
-            'supplier_efficiency',
-            'parts_availability',
-            'avg_employee_skill',
-            'equipment_status',
-            'capacity_utilization'
-        ]
-        
-        comparison = []
-        for metric in metrics:
-            normal_mean = normal_data[metric].mean()
-            anomaly_mean = anomaly_data[metric].mean()
-            change = (anomaly_mean - normal_mean) / normal_mean * 100
-            
-            comparison.append({
-                'metric': metric,
-                'normal_mean': normal_mean,
-                'anomaly_mean': anomaly_mean,
-                'change_percent': change,
-                'abs_change': abs(change)
-            })
-        
-        comparison_df = pd.DataFrame(comparison).sort_values('abs_change', ascending=False)
-        
-        print("\n指标对比：")
-        print(comparison_df.to_string(index=False))
-        
-        return comparison_df
-    
-    def _generate_summary(self, comparison: pd.DataFrame) -> str:
-        """生成根因分析总结"""
-        summary_lines = []
-        summary_lines.append("\n" + "="*70)
-        summary_lines.append("根因分析总结")
-        summary_lines.append("="*70)
-        
-        efficiency_change = comparison[comparison['metric'] == 'production_efficiency']['change_percent'].values[0]
-        summary_lines.append(f"\n生产效率变化: {efficiency_change:.2f}%")
-        
-        if efficiency_change < 0:
-            summary_lines.append("\n主要下降原因（按影响程度排序）：")
-            
-            top_causes = comparison[
-                (comparison['metric'] != 'production_efficiency') & 
-                (comparison['change_percent'] < 0)
-            ].head(3)
-            
-            for idx, row in top_causes.iterrows():
-                summary_lines.append(f"  - {row['metric']}: 下降 {abs(row['change_percent']):.2f}%")
-        
-        if self.analysis_results is not None and len(self.analysis_results) > 0:
-            summary_lines.append("\n因果效应分析结果：")
-            for _, row in self.analysis_results.head(3).iterrows():
-                if row['causal_effect'] is not None:
-                    summary_lines.append(f"  - {row['interpretation']}")
-        
-        summary_lines.append("\n建议措施：")
-        if len(comparison[comparison['metric'] == 'payment_timeliness']) > 0:
-            payment_change = comparison[comparison['metric'] == 'payment_timeliness']['change_percent'].values[0]
-            if payment_change < -5:
-                summary_lines.append("  1. 优化付款流程，缩短付款周期，提高供应商合作积极性")
-        
-        if len(comparison[comparison['metric'] == 'supplier_efficiency']) > 0:
-            supplier_change = comparison[comparison['metric'] == 'supplier_efficiency']['change_percent'].values[0]
-            if supplier_change < -5:
-                summary_lines.append("  2. 加强供应商管理，建立备选供应商机制")
-        
-        summary_lines.append("  3. 建立实时监控预警系统，及时发现效率异常")
-        
-        return "\n".join(summary_lines)
+        return pd.DataFrame(results)

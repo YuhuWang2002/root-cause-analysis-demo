@@ -45,6 +45,21 @@ class CausalGraphDerivationResponse(BaseModel):
     required_entities: List[str]
 
 
+class AnalysisResultsExplanationRequest(BaseModel):
+    """分析结果解释请求"""
+    analysis_results: Dict[str, Any]
+    scenario_description: Optional[str] = None
+
+
+class AnalysisResultsExplanationResponse(BaseModel):
+    """分析结果解释响应"""
+    root_cause_analysis: str
+    impact_mechanism: str
+    improvement_suggestions: str
+    expected_effect: str
+    reasoning: str
+
+
 class LLMAgent:
     """LLM Agent - 支持本体查询和因果图推导"""
     
@@ -235,12 +250,12 @@ class LLMAgent:
                                 schema_response: dict) -> str:
         """
         构建因果图推导的提示词
-        
+
         Args:
             scenario_description: 场景描述
             outcome_entity: 结果实体
             schema_response: Schema响应（包含entity_types, relation_types, metric_definitions）
-            
+
         Returns:
             提示词字符串
         """
@@ -310,6 +325,154 @@ class LLMAgent:
 - reasoning: 推导过程说明
 - suggested_data_fields: 建议需要收集的数据字段列表
 - required_entities: 因果图中涉及的实体ID列表
+"""
+        
+        return prompt
+    
+    async def explain_analysis_results(self, request: AnalysisResultsExplanationRequest) -> AnalysisResultsExplanationResponse:
+        """
+        解释分析结果
+
+        Args:
+            request: 分析结果解释请求
+
+        Returns:
+            分析结果解释响应
+        """
+        # 构建提示词让LLM解释分析结果
+        prompt = self._build_explanation_prompt(
+            request.analysis_results,
+            request.scenario_description
+        )
+        
+        # 调用LLM API解释分析结果
+        print("[LLM Agent] 调用大模型API解释分析结果...")
+        
+        import openai
+        
+        if not self.llm_api_key:
+            raise ValueError("LLM API密钥未配置")
+        if not self.llm_base_url:
+            raise ValueError("LLM Base URL未配置")
+        if not self.llm_model:
+            raise ValueError("LLM Model未配置")
+        
+        try:
+            client = openai.OpenAI(
+                api_key=self.llm_api_key,
+                base_url=self.llm_base_url
+            )
+            
+            print(f"[LLM Agent] 调用大模型API...")
+            completion = client.chat.completions.create(
+                model=self.llm_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            
+            print(f"[LLM Agent] 大模型API调用成功")
+            
+            response_text = completion.choices[0].message.content
+            print(f"[LLM Agent] 响应长度: {len(response_text)} 字符")
+            
+            import json
+            llm_result = json.loads(response_text)
+            
+            root_cause_analysis = llm_result.get("root_cause_analysis", "")
+            impact_mechanism = llm_result.get("impact_mechanism", "")
+            improvement_suggestions = llm_result.get("improvement_suggestions", "")
+            expected_effect = llm_result.get("expected_effect", "")
+            reasoning = llm_result.get("reasoning", "")
+            
+            return AnalysisResultsExplanationResponse(
+                root_cause_analysis=root_cause_analysis,
+                impact_mechanism=impact_mechanism,
+                improvement_suggestions=improvement_suggestions,
+                expected_effect=expected_effect,
+                reasoning=reasoning
+            )
+            
+        except Exception as e:
+            print(f"[LLM Agent] 调用大模型API失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            raise
+    
+    def _build_explanation_prompt(self, 
+                                analysis_results: Dict[str, Any],
+                                scenario_description: Optional[str] = None) -> str:
+        """
+        构建分析结果解释的提示词
+
+        Args:
+            analysis_results: 分析结果字典
+            scenario_description: 场景描述（可选）
+
+        Returns:
+            提示词字符串
+        """
+        prompt = f"""你是一个专业的因果分析专家。请根据以下DoWhy因果分析结果，生成详细的根因分析报告。
+
+## 场景描述
+{scenario_description or "通用因果分析场景"}
+
+## DoWhy分析结果
+
+### 因果效应
+"""
+        
+        causal_effect = analysis_results.get("causal_effect")
+        prompt += f"因果效应值: {causal_effect:.4f}\n" if causal_effect is not None else "因果效应值: 未计算\n"
+        
+        prompt += """
+
+### 驳斥检验结果
+"""
+        
+        refutation_results = analysis_results.get("refutation_results", {})
+        for test_name, result in refutation_results.items():
+            prompt += f"{test_name}: {result}\n"
+        
+        prompt += """
+
+### 反事实分析结果
+"""
+        
+        counterfactual_analysis = analysis_results.get("counterfactual_analysis", {})
+        if counterfactual_analysis:
+            prompt += f"反事实分析: {counterfactual_analysis}\n"
+        else:
+            prompt += "反事实分析: 未计算\n"
+        
+        prompt += """
+
+## 任务
+请基于以上DoWhy分析结果，生成详细的根因分析报告，包括：
+
+1. **根本原因分析**：基于因果效应值和驳斥检验结果，分析影响结果变量的主要因素
+2. **影响机制**：解释这些因素如何影响结果变量的机制
+3. **改进建议**：基于分析结果，提出具体的改进措施
+4. **预期效果**：评估改进措施实施后的预期效果
+
+要求：
+- 分析要基于实际的DoWhy计算结果，不要凭空猜测
+- 语言要专业、客观、准确
+- 建议要具体、可操作
+- 预期效果要合理、可衡量
+
+请以JSON格式返回你的分析结果，包含：
+- root_cause_analysis: 根本原因分析
+- impact_mechanism: 影响机制
+- improvement_suggestions: 改进建议
+- expected_effect: 预期效果
+- reasoning: 分析过程说明
 """
         
         return prompt
@@ -522,3 +685,111 @@ class LLMAgentSync(LLMAgent):
             suggested_data_fields=suggested_fields,
             required_entities=list(causal_graph.keys())
         )
+    
+    def explain_analysis_results(self, request: AnalysisResultsExplanationRequest) -> AnalysisResultsExplanationResponse:
+        """
+        同步版本的分析结果解释
+
+        Args:
+            request: 分析结果解释请求
+
+        Returns:
+            分析结果解释响应
+        """
+        print(f"[LLM Agent Sync] 正在解释分析结果...")
+        
+        # 构建提示词
+        print(f"[LLM Agent Sync] 正在构建提示词...")
+        prompt = self._build_explanation_prompt(
+            request.analysis_results,
+            request.scenario_description
+        )
+        
+        # 保存提示词
+        import os
+        from datetime import datetime
+        
+        prompt_dir = "prompts"
+        if not os.path.exists(prompt_dir):
+            os.makedirs(prompt_dir)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        prompt_file = os.path.join(prompt_dir, f"explanation_prompt_{timestamp}.txt")
+        
+        with open(prompt_file, 'w', encoding='utf-8') as f:
+            f.write(prompt)
+        
+        print(f"[LLM Agent Sync] 提示词已保存到: {prompt_file}")
+        
+        # 调用LLM API解释分析结果
+        print(f"[LLM Agent Sync] 正在调用大模型API解释分析结果...")
+        
+        import openai
+        
+        if not self.llm_api_key:
+            raise ValueError("LLM API密钥未配置")
+        if not self.llm_base_url:
+            raise ValueError("LLM Base URL未配置")
+        if not self.llm_model:
+            raise ValueError("LLM Model未配置")
+        
+        try:
+            client = openai.OpenAI(
+                api_key=self.llm_api_key,
+                base_url=self.llm_base_url
+            )
+            
+            print(f"[LLM Agent Sync] 调用大模型API...")
+            completion = client.chat.completions.create(
+                model=self.llm_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            
+            print(f"[LLM Agent Sync] 大模型API调用成功")
+            
+            response_text = completion.choices[0].message.content
+            print(f"[LLM Agent Sync] 响应长度: {len(response_text)} 字符")
+            print(f"[LLM Agent Sync] 响应内容前500字符: {response_text[:500]}")
+            
+            import json
+            
+            # 去除可能的代码块标记
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
+            llm_result = json.loads(response_text)
+            
+            root_cause_analysis = llm_result.get("root_cause_analysis", "")
+            impact_mechanism = llm_result.get("impact_mechanism", "")
+            improvement_suggestions = llm_result.get("improvement_suggestions", "")
+            expected_effect = llm_result.get("expected_effect", "")
+            reasoning = llm_result.get("reasoning", "")
+            
+            print(f"[LLM Agent Sync] 分析结果解释完成！")
+            
+            return AnalysisResultsExplanationResponse(
+                root_cause_analysis=root_cause_analysis,
+                impact_mechanism=impact_mechanism,
+                improvement_suggestions=improvement_suggestions,
+                expected_effect=expected_effect,
+                reasoning=reasoning
+            )
+            
+        except Exception as e:
+            print(f"[LLM Agent Sync] 调用大模型API失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            raise
