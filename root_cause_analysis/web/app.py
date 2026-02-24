@@ -1044,15 +1044,19 @@ class RootCauseAnalysisWebApp:
                     metric_definitions = schema.get('metric_definitions', [])
                     
                     # 添加节点
+                    entity_map = {}
                     for i, entity_type in enumerate(entity_types):
                         entity_id = entity_type.get('id', entity_type.get('name', f'entity_{i}'))
                         entity_name = entity_type.get('name', entity_id)
+                        entity_map[entity_id] = entity_name
                         G.add_node(entity_id, type='entity', name=entity_name)
                     
                     # 添加指标定义节点
+                    metric_map = {}
                     for i, metric in enumerate(metric_definitions):
                         metric_id = metric.get('id', metric.get('name', f'metric_{i}'))
                         metric_name = metric.get('name', metric_id)
+                        metric_map[metric_id] = metric_name
                         G.add_node(metric_id, type='metric', name=metric_name)
                     
                     # 添加关系类型边
@@ -1071,17 +1075,10 @@ class RootCauseAnalysisWebApp:
                     for metric in metric_definitions:
                         metric_id = metric.get('id', metric.get('name'))
                         source_entity = metric.get('source_entity_type')
-                        target_entity = metric.get('target_entity_type')
-                        source_relation = metric.get('source_relation')
                         
                         # 连接指标与相关实体
-                        if metric_id in G.nodes:
-                            # 根据source_relation添加连线，名称为"has_metric"
-                            if source_entity and source_entity in G.nodes:
-                                edge_label = 'has_metric' if source_relation else 'measures'
-                                G.add_edge(source_entity, metric_id, label=edge_label)
-                            if target_entity and target_entity in G.nodes:
-                                G.add_edge(metric_id, target_entity, label='affects')
+                        if metric_id in G.nodes and source_entity and source_entity in G.nodes:
+                            G.add_edge(source_entity, metric_id, label="has_metric")
                     
                     # 使用更智能的布局算法
                     if len(G.nodes) > 0:
@@ -1090,7 +1087,7 @@ class RootCauseAnalysisWebApp:
                             pos = nx.kamada_kawai_layout(G)
                         except:
                             # 如果失败，使用spring_layout
-                            pos = nx.spring_layout(G, k=0.8, iterations=200)
+                            pos = nx.spring_layout(G, k=0.3, iterations=50)
                     else:
                         pos = {}
                     
@@ -1143,7 +1140,7 @@ class RootCauseAnalysisWebApp:
                     # 创建边轨迹
                     edge_trace = go.Scatter(
                         x=edge_x, y=edge_y,
-                        line=dict(width=1.8, color='#666'),
+                        line=dict(width=1.5, color='#888888'),
                         hoverinfo='text',
                         mode='lines'
                     )
@@ -1183,59 +1180,104 @@ class RootCauseAnalysisWebApp:
                         hoverinfo='none'
                     )
                     
-                    # 创建节点轨迹
-                    node_x = []
-                    node_y = []
-                    node_texts = []
-                    node_colors = []
-                    node_symbols = []
-                    node_sizes = []
+                    # 分离实体和指标节点
+                    entity_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'entity']
+                    metric_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'metric']
+                    other_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') not in ['entity', 'metric']]
                     
-                    for node in G.nodes():
+                    # 创建实体节点轨迹
+                    entity_x = []
+                    entity_y = []
+                    entity_texts = []
+                    for node in entity_nodes:
                         x, y = pos[node]
-                        node_x.append(x)
-                        node_y.append(y)
-                        
-                        node_type = G.nodes[node].get('type')
-                        node_name = G.nodes[node].get('name', node)
-                        
-                        if node_type == 'entity':
-                            node_texts.append(f"{node_name}\n(实体类型)")
-                            node_colors.append('#2E86AB')  # 实体类型用蓝色
-                            node_symbols.append('circle')  # 实体类型用圆形
-                            node_sizes.append(30)  # 实体类型节点大小
-                        elif node_type == 'metric':
-                            node_texts.append(f"{node_name}\n(指标定义)")
-                            node_colors.append('#A23B72')  # 指标定义用紫色
-                            node_symbols.append('diamond')  # 指标定义用菱形
-                            node_sizes.append(35)  # 指标定义节点更大
-                        else:
-                            node_texts.append(node_name)
-                            node_colors.append('#666666')
-                            node_symbols.append('circle')
-                            node_sizes.append(25)
+                        entity_x.append(x)
+                        entity_y.append(y)
+                        entity_texts.append(G.nodes[node].get('name', node))
                     
-                    # 创建节点轨迹
-                    node_trace = go.Scatter(
-                        x=node_x,
-                        y=node_y,
+                    entity_trace = go.Scatter(
+                        x=entity_x,
+                        y=entity_y,
                         mode='markers+text',
-                        text=node_texts,
+                        text=entity_texts,
                         textposition="top center",
                         marker=dict(
                             showscale=False,
-                            color=node_colors,
-                            size=node_sizes,
+                            color='#6495ED',  # 实体类型用蓝色
+                            size=30,  # 实体类型节点大小
                             line_width=2,
-                            symbol=node_symbols
+                            symbol='circle'  # 实体类型用圆形
                         ),
-                        hoverinfo='text'
+                        hoverinfo='text',
+                        name='实体类型 (蓝色圆形)'
+                    )
+                    
+                    # 创建指标节点轨迹
+                    metric_x = []
+                    metric_y = []
+                    metric_texts = []
+                    for node in metric_nodes:
+                        x, y = pos[node]
+                        metric_x.append(x)
+                        metric_y.append(y)
+                        metric_texts.append(G.nodes[node].get('name', node))
+                    
+                    metric_trace = go.Scatter(
+                        x=metric_x,
+                        y=metric_y,
+                        mode='markers+text',
+                        text=metric_texts,
+                        textposition="top center",
+                        marker=dict(
+                            showscale=False,
+                            color='#DC143C',  # 指标定义用红色
+                            size=25,  # 指标定义节点大小
+                            line_width=2,
+                            symbol='square'  # 指标定义用正方形
+                        ),
+                        hoverinfo='text',
+                        name='指标定义 (红色正方形)'
+                    )
+                    
+                    # 创建其他节点轨迹
+                    other_x = []
+                    other_y = []
+                    other_texts = []
+                    for node in other_nodes:
+                        x, y = pos[node]
+                        other_x.append(x)
+                        other_y.append(y)
+                        other_texts.append(G.nodes[node].get('name', node))
+                    
+                    other_trace = go.Scatter(
+                        x=other_x,
+                        y=other_y,
+                        mode='markers+text',
+                        text=other_texts,
+                        textposition="top center",
+                        marker=dict(
+                            showscale=False,
+                            color='#666666',
+                            size=20,
+                            line_width=2,
+                            symbol='circle'
+                        ),
+                        hoverinfo='text',
+                        name='其他节点'
                     )
                     
                     # 创建图表
-                    fig = go.Figure(data=[edge_trace, arrow_trace, node_trace],
+                    data = [edge_trace, arrow_trace]
+                    if entity_nodes:
+                        data.append(entity_trace)
+                    if metric_nodes:
+                        data.append(metric_trace)
+                    if other_nodes:
+                        data.append(other_trace)
+                    
+                    fig = go.Figure(data=data,
                                    layout=go.Layout(
-                                       title=dict(text='本体概念图谱', font=dict(size=18, weight='bold')),
+                                       title=dict(text='本体关系与指标图', font=dict(size=16, weight='bold')),
                                        showlegend=True,
                                        hovermode='closest',
                                        margin=dict(b=40, l=40, r=40, t=80),
