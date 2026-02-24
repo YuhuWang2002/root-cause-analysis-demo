@@ -164,7 +164,8 @@ class LLMExplainer:
                             analysis_results: Dict,
                             comparison_df: pd.DataFrame,
                             causal_results: pd.DataFrame,
-                            counterfactual_results: pd.DataFrame = None) -> str:
+                            counterfactual_results: pd.DataFrame = None,
+                            causal_graph: str = None) -> str:
         """
         生成根因分析解释
         
@@ -173,15 +174,16 @@ class LLMExplainer:
             comparison_df: 指标对比数据
             causal_results: 因果分析结果
             counterfactual_results: 反事实分析结果（预期改进效果）
+            causal_graph: 因果图（DOT格式字符串）
             
         Returns:
             大模型生成的解释文本
         """
-        prompt = self._build_prompt(analysis_results, comparison_df, causal_results, counterfactual_results)
+        prompt = self._build_prompt(analysis_results, comparison_df, causal_results, counterfactual_results, causal_graph)
         
         if not self.client:
-            print("[LLM] 客户端未初始化，使用规则解释")
-            return self._generate_rule_based_explanation(analysis_results, comparison_df, causal_results, counterfactual_results)
+            print("[LLM] 客户端未初始化，无法生成解释")
+            return "错误：大模型客户端未初始化，请检查API配置"
         
         try:
             print(f"[LLM] 生成解释...")
@@ -206,7 +208,7 @@ class LLMExplainer:
             print(f"  - API Key: {self.api_key[:20]}...{self.api_key[-10:]}")
             print(f"  - Base URL: {self.base_url or 'https://api.siliconflow.cn/v1'}")
             print(f"  - Model: {self.model}")
-            return self._generate_rule_based_explanation(analysis_results, comparison_df, causal_results)
+            return f"错误：调用大模型API失败 - {str(e)}"
     
     def _build_causal_graph_description(self) -> str:
         """构建因果图描述（基于本体）"""
@@ -245,7 +247,8 @@ class LLMExplainer:
                       analysis_results: Dict,
                       comparison_df: pd.DataFrame,
                       causal_results: pd.DataFrame,
-                      counterfactual_results: pd.DataFrame = None) -> str:
+                      counterfactual_results: pd.DataFrame = None,
+                      causal_graph: str = None) -> str:
         """构建提示词"""
         
         efficiency_change = comparison_df[comparison_df['metric'] == 'production_efficiency']['change_percent'].values[0]
@@ -258,12 +261,20 @@ class LLMExplainer:
         valid_causal = causal_results[causal_results['causal_effect'].notna()]
         top_causes = valid_causal.head(3)
         
+        # 构建因果图描述
+        if causal_graph:
+            # 使用实际的因果图
+            causal_graph_description = f"## 因果图结构（实际分析使用的因果图）\n\n```\n{causal_graph}\n```\n\n"
+        else:
+            # 使用默认的因果图描述
+            causal_graph_description = self._build_causal_graph_description()
+        
         prompt = f"""你是一个专业的制造企业生产管理顾问。请根据以下数据分析结果，给出详细的根因分析和改进建议。
 
 ## 场景背景
 某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。
 
-{self._build_causal_graph_description()}
+{causal_graph_description}
 
 ## 数据分析结果
 
@@ -293,8 +304,18 @@ class LLMExplainer:
             cause_name = metric_names.get(row['cause'], row['cause'])
             prompt += f"- {cause_name}: 因果效应值 {row['causal_effect']:.4f}\n"
         
+        # 检查是否有根因分析结果
+        if analysis_results and 'root_cause_analysis' in analysis_results:
+            root_cause_results = analysis_results['root_cause_analysis']
+            if root_cause_results:
+                prompt += "\n### 4. 根因分析排序结果\n"
+                prompt += "以下是按因果效应绝对值排序的根因分析结果：\n"
+                for i, item in enumerate(root_cause_results[:5], 1):
+                    cause_name = metric_names.get(item['treatment'], item['treatment'])
+                    prompt += f"{i}. {cause_name}: 因果效应值 {item['causal_effect']:.4f} (排名: {item['rank']})\n"
+        
         if counterfactual_results is not None and len(counterfactual_results) > 0:
-            prompt += "\n### 4. DoWhy反事实分析结果（预期改进效果）\n"
+            prompt += "\n### 5. DoWhy反事实分析结果（预期改进效果）\n"
             prompt += "以下是通过DoWhy因果推断计算出的真实预期改进效果：\n"
             
             valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
@@ -313,6 +334,8 @@ class LLMExplainer:
 
 4. **引用分析结果**：在回答中，请引用以下信息：
    - 引用因果图中的因果关系路径
+   - 引用因果效应分析结果
+   - 引用根因分析排序结果
    - 引用DoWhy反事实分析的预期改进效果数据（不要自己猜测改进效果）
 
 请用专业但易懂的语言回答，适合企业管理层阅读。
@@ -322,168 +345,7 @@ class LLMExplainer:
         
         return prompt
     
-    def _generate_rule_based_explanation(self,
-                                         analysis_results: Dict,
-                                         comparison_df: pd.DataFrame,
-                                         causal_results: pd.DataFrame,
-                                         counterfactual_results: pd.DataFrame = None) -> str:
-        """基于规则生成解释（当大模型不可用时）"""
-        
-        efficiency_change = comparison_df[comparison_df['metric'] == 'production_efficiency']['change_percent'].values[0]
-        
-        top_declines = comparison_df[
-            (comparison_df['metric'] != 'production_efficiency') & 
-            (comparison_df['change_percent'] < 0)
-        ].head(3)
-        
-        valid_causal = causal_results[causal_results['causal_effect'].notna()]
-        top_causes = valid_causal.head(3)
-        
-        explanation = f"""
-## 根因分析报告
 
-### 1. 生产效率变化概况
-
-根据数据分析，2024年12月的生产效率相比前两个月下降了 **{abs(efficiency_change):.2f}%**，这是一个显著的下降，需要立即关注和处理。
-
-### 2. 主要下降因素分析
-
-通过对比分析，发现以下指标出现了显著下降：
-
-"""
-        
-        metric_names = {
-            'production_efficiency': '生产效率',
-            'payment_timeliness': '付款及时性',
-            'supplier_efficiency': '供应商效率',
-            'parts_availability': '零部件可用性',
-            'avg_employee_skill': '员工技能水平',
-            'equipment_status': '设备状态',
-            'capacity_utilization': '产能利用率'
-        }
-        
-        for i, (_, row) in enumerate(top_declines.iterrows(), 1):
-            metric_name = metric_names.get(row['metric'], row['metric'])
-            explanation += f"**{i}. {metric_name}**\n"
-            explanation += f"- 下降幅度: {abs(row['change_percent']):.2f}%\n"
-            explanation += f"- 正常月份均值: {row['normal_mean']:.3f}\n"
-            explanation += f"- 异常月份均值: {row['anomaly_mean']:.3f}\n\n"
-        
-        explanation += "### 3. 因果效应分析结果\n\n"
-        explanation += "通过DoWhy因果推断分析，识别出以下关键影响因素：\n\n"
-        
-        for i, (_, row) in enumerate(top_causes.iterrows(), 1):
-            effect_strength = "强" if abs(row['causal_effect']) > 0.3 else "中等" if abs(row['causal_effect']) > 0.1 else "弱"
-            cause_name = metric_names.get(row['cause'], row['cause'])
-            explanation += f"**{i}. {cause_name}**\n"
-            explanation += f"- 因果效应值: {row['causal_effect']:.4f}\n"
-            explanation += f"- 影响强度: {effect_strength}\n"
-            explanation += f"- 解释: {row['interpretation']}\n\n"
-        
-        if counterfactual_results is not None and len(counterfactual_results) > 0:
-            explanation += "### 4. DoWhy反事实分析结果（预期改进效果）\n\n"
-            explanation += "以下是通过DoWhy因果推断计算出的真实预期改进效果：\n\n"
-            
-            valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
-            for i, (_, row) in enumerate(valid_counterfactual.iterrows(), 1):
-                gain_percent = row['expected_efficiency_gain'] * 100
-                factor_name = metric_names.get(row['factor'], row['factor'])
-                explanation += f"**{i}. {factor_name}**\n"
-                explanation += f"- 改善程度: {row['improvement_level']*100:.0f}%\n"
-                explanation += f"- 预计效率提升: {gain_percent:.1f}%\n"
-                explanation += f"- 解释: {row['interpretation']}\n\n"
-        
-        explanation += """
-### 5. 根本原因分析
-
-根据因果效应分析，**员工技能水平**和**零部件可用性**是影响生产效率的最关键因素：
-
-1. **员工技能水平**（因果效应: 0.70）
-   - 这是最强的影响因素，说明员工技能对生产效率有直接且显著的影响
-   - 建议加强员工培训，提升技能水平
-
-2. **零部件可用性**（因果效应: 0.56）
-   - 零部件供应不足直接影响生产线的正常运转
-   - 需要优化供应链管理，确保零部件及时供应
-
-3. **供应商效率**（因果效应: 0.35）
-   - 供应商的生产效率直接影响零部件的交付
-   - 建议建立供应商绩效评估体系
-
-### 6. 改进建议
-
-#### 短期措施（1-3个月）
-
-1. **优化付款流程**
-   - 建立供应商付款预警机制
-   - 简化审批流程，缩短付款周期
-   - 对核心供应商实施预付款政策
-
-2. **加强供应商管理**
-   - 建立供应商绩效评估体系
-   - 发展备选供应商，降低依赖风险
-   - 定期与供应商沟通，了解生产状况
-
-#### 中期措施（3-6个月）
-
-1. **员工技能提升**
-   - 建立系统化的培训体系
-   - 实施技能等级认证制度
-   - 激励高技能员工，减少流失
-
-2. **设备管理优化**
-   - 建立设备维护保养计划
-   - 考虑设备更新换代
-   - 实施预测性维护
-
-#### 长期措施（6-12个月）
-
-1. **建立监控系统**
-   - 实时监控生产效率指标
-   - 建立异常预警机制
-   - 定期进行根因分析
-
-2. **数字化转型**
-   - 引入智能制造系统
-   - 建立数据驱动的决策机制
-   - 优化生产流程
-
-### 7. 预期效果（基于DoWhy反事实分析）
-
-"""
-        
-        if counterfactual_results is not None and len(counterfactual_results) > 0:
-            valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
-            total_gain = valid_counterfactual['expected_efficiency_gain'].sum()
-            total_gain_percent = total_gain * 100
-            
-            explanation += f"如果能够有效实施上述改进措施，预计：\n\n"
-            explanation += f"- **短期**（改善付款及时性和供应商效率）: 生产效率提升{total_gain_percent * 0.6:.1f}%\n"
-            explanation += f"- **中期**（改善员工技能和设备状态）: 生产效率累计提升{total_gain_percent:.1f}%\n"
-            explanation += f"- **长期**：建立持续改进机制，实现生产效率的稳步提升\n\n"
-        else:
-            explanation += """如果能够有效实施上述改进措施，预计：
-
-- **短期**：生产效率恢复到正常水平（提升20-25%）
-- **中期**：生产效率提升5-10%，超过历史平均水平
-- **长期**：建立持续改进机制，实现生产效率的稳步提升
-
-"""
-        
-        explanation += """
-### 8. 风险提示
-
-1. 改进措施需要管理层的全力支持
-2. 需要投入一定的资源和成本
-3. 员工培训和技能提升需要时间
-4. 供应链优化可能面临市场波动风险
-
----
-
-**总结**：通过本次根因分析，我们识别出了导致生产效率下降的关键因素，并提出了针对性的改进措施。建议立即启动短期措施，同时制定中长期改进计划，确保生产效率的持续提升。
-"""
-        
-        return explanation
 
 
 def create_explainer(api_type: str = "siliconflow", api_key: str = None, model: str = None, base_url: str = None) -> LLMExplainer:
