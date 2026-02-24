@@ -210,39 +210,7 @@ class LLMExplainer:
             print(f"  - Model: {self.model}")
             return f"错误：调用大模型API失败 - {str(e)}"
     
-    def _build_causal_graph_description(self) -> str:
-        """构建因果图描述（基于本体）"""
-        # 如果有本体，使用本体描述
-        if self.ontology:
-            return self.ontology.get_ontology_description()
-        
-        # 如果没有本体，使用默认描述
-        return """## 因果图结构（根据DoWhy因果推断框架定义）
 
-以下是各因素之间的因果关系路径：
-
-### 主要因果链
-1. **付款及时性** → **供应商效率** → **零部件可用性** → **生产效率**
-   - 付款不及时会降低供应商效率
-   - 供应商效率降低会导致零部件供应不足
-   - 零部件不足直接影响生产效率
-
-2. **员工技能** → **生产效率**
-   - 员工技能水平直接影响生产效率
-
-3. **设备状态** → **生产效率**
-   - 设备状态好坏直接影响生产效率
-
-4. **产能利用率** → **生产效率**
-   - 产能利用率过高或过低都会影响生产效率
-
-### 其他因果关系
-- **供应商基础效率** → **供应商效率**
-- **设备年龄** → **设备状态**
-- **工厂产能** → **产能利用率**
-- **工厂产能** → **生产效率**
-"""
-    
     def _build_prompt(self, 
                       analysis_results: Dict,
                       comparison_df: pd.DataFrame,
@@ -250,6 +218,10 @@ class LLMExplainer:
                       counterfactual_results: pd.DataFrame = None,
                       causal_graph: str = None) -> str:
         """构建提示词"""
+        
+        # 检查是否提供了因果图
+        if not causal_graph:
+            raise ValueError("错误：未提供因果图，无法生成解释")
         
         efficiency_change = comparison_df[comparison_df['metric'] == 'production_efficiency']['change_percent'].values[0]
         
@@ -261,13 +233,8 @@ class LLMExplainer:
         valid_causal = causal_results[causal_results['causal_effect'].notna()]
         top_causes = valid_causal.head(3)
         
-        # 构建因果图描述
-        if causal_graph:
-            # 使用实际的因果图
-            causal_graph_description = f"## 因果图结构（实际分析使用的因果图）\n\n```\n{causal_graph}\n```\n\n"
-        else:
-            # 使用默认的因果图描述
-            causal_graph_description = self._build_causal_graph_description()
+        # 使用实际的因果图
+        causal_graph_description = f"## 因果图结构（实际分析使用的因果图）\n\n```\n{causal_graph}\n```\n\n"
         
         prompt = f"""你是一个专业的制造企业生产管理顾问。请根据以下数据分析结果，给出详细的根因分析和改进建议。
 

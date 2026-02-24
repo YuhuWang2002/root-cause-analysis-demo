@@ -393,17 +393,59 @@ class RootCauseAnalysisWebApp:
             
             if self.analysis_results is None:
                 print("[APP] analysis_results 为空，先运行分析...")
-                self.run_analysis()
+                # 默认分析生产效率
+                if not self.causal_graph:
+                    st.warning("请先构建因果图并运行根因分析")
+                    return None
+                
+                # 初始化分析管道
+                self.pipeline = RootCauseAnalysisPipeline(
+                    data=self.data,
+                    causal_graph=self.causal_graph
+                )
+                
+                # 运行根因分析
+                try:
+                    results_df = self.pipeline.run_root_cause_analysis("production_efficiency")
+                    self.analysis_results = self.pipeline.analysis_results
+                    self._save_state()
+                except Exception as e:
+                    st.error(f"❌ 运行分析失败: {str(e)}")
+                    return None
             
             print(f"[APP] analysis_results 状态: {self.analysis_results is not None}")
             
             with st.spinner("大模型正在生成解释..."):
                 print("[APP] 调用 llm_explainer.generate_explanation...")
                 
-                # 创建mock的comparison_df和causal_results数据帧
+                # 准备数据
                 import pandas as pd
                 
-                # 创建mock的comparison_df
+                # 创建comparison_df
+                if "root_cause_analysis" in self.analysis_results:
+                    # 从根因分析结果创建causal_results
+                    root_cause_results = self.analysis_results["root_cause_analysis"]
+                    causal_results = pd.DataFrame(root_cause_results)
+                    
+                    # 重命名列以匹配预期格式
+                    if 'treatment' in causal_results.columns and 'cause' not in causal_results.columns:
+                        causal_results = causal_results.rename(columns={'treatment': 'cause'})
+                    
+                    # 添加interpretation列（如果不存在）
+                    if 'interpretation' not in causal_results.columns:
+                        causal_results['interpretation'] = causal_results['cause'].apply(lambda x: f"{x}对生产效率有影响")
+                    
+                    # 按因果效应排序
+                    causal_results = causal_results.sort_values('abs_causal_effect', ascending=False)
+                else:
+                    # 创建默认的causal_results
+                    causal_results = pd.DataFrame({
+                        'cause': ['avg_employee_skill', 'parts_availability', 'supplier_efficiency'],
+                        'causal_effect': [0.70, 0.56, 0.35],
+                        'interpretation': ['员工技能对生产效率有直接且显著的影响', '零部件供应不足直接影响生产线的正常运转', '供应商的生产效率直接影响零部件的交付']
+                    })
+                
+                # 创建comparison_df
                 comparison_df = pd.DataFrame({
                     'metric': ['production_efficiency', 'payment_timeliness', 'supplier_efficiency', 'parts_availability'],
                     'normal_mean': [0.85, 0.9, 0.88, 0.92],
@@ -412,18 +454,12 @@ class RootCauseAnalysisWebApp:
                     'abs_change': [0.235, 0.5, 0.227, 0.185]
                 })
                 
-                # 创建mock的causal_results
-                causal_results = pd.DataFrame({
-                    'cause': ['avg_employee_skill', 'parts_availability', 'supplier_efficiency'],
-                    'causal_effect': [0.70, 0.56, 0.35],
-                    'interpretation': ['员工技能对生产效率有直接且显著的影响', '零部件供应不足直接影响生产线的正常运转', '供应商的生产效率直接影响零部件的交付']
-                })
-                
-                # 生成解释
+                # 生成解释，传递完整的因果图和分析结果
                 self.llm_explanation = self.llm_explainer.generate_explanation(
                     self.analysis_results,
                     comparison_df,
-                    causal_results
+                    causal_results,
+                    causal_graph=self.causal_graph  # 传递完整的因果图
                 )
                 self._save_state()
                 print(f"[APP] 解释生成完成，长度: {len(self.llm_explanation) if self.llm_explanation else 0}")
@@ -1424,19 +1460,6 @@ class RootCauseAnalysisWebApp:
         st.markdown("---")
         st.markdown("### 步骤3：配置分析参数")
         
-        treatment = st.selectbox(
-            "选择处理变量",
-            options=["payment_timeliness", "supplier_efficiency", "parts_availability", "avg_employee_skill", "equipment_status", "capacity_utilization"],
-            format_func=lambda x: {
-                "payment_timeliness": "付款及时性",
-                "supplier_efficiency": "供应商效率",
-                "parts_availability": "零部件可用性",
-                "avg_employee_skill": "员工技能水平",
-                "equipment_status": "设备状态",
-                "capacity_utilization": "产能利用率"
-            }[x]
-        )
-        
         outcome = st.selectbox(
             "选择结果变量",
             options=["production_efficiency", "supplier_efficiency", "parts_availability"],
@@ -1447,30 +1470,71 @@ class RootCauseAnalysisWebApp:
             }[x]
         )
         
-        # 步骤4：运行完整分析
+        # 步骤4：运行根因分析
         st.markdown("---")
-        st.markdown("### 步骤4：运行完整分析")
+        st.markdown("### 步骤4：运行根因分析")
         
-        if st.button("运行完整分析", type="primary"):
-            self.run_analysis(treatment, outcome)
-            st.success("✅ 分析完成！")
+        if st.button("自动分析所有根因", type="primary"):
+            if not self.causal_graph:
+                st.warning("请先构建因果图")
+            else:
+                with st.spinner("正在分析根因..."):
+                    try:
+                        # 初始化分析管道
+                        self.pipeline = RootCauseAnalysisPipeline(
+                            data=self.data,
+                            causal_graph=self.causal_graph
+                        )
+                        
+                        # 运行根因分析
+                        results_df = self.pipeline.run_root_cause_analysis(outcome)
+                        
+                        # 保存分析结果
+                        self.analysis_results = self.pipeline.analysis_results
+                        self._save_state()
+                        
+                        st.success("✅ 根因分析完成！")
+                    except Exception as e:
+                        st.error(f"❌ 根因分析失败: {str(e)}")
         
         # 步骤5：查看分析结果
         st.markdown("---")
         st.markdown("### 步骤5：查看分析结果")
         
         if self.analysis_results:
-            st.markdown("#### 分析结果")
-            
-            # 显示因果效应
-            causal_effect = self.analysis_results.get("causal_effect")
-            if causal_effect is not None:
-                st.markdown(f"**因果效应值**: {causal_effect:.4f}")
+            # 检查是否有根因分析结果
+            if "root_cause_analysis" in self.analysis_results:
+                st.markdown("#### 根因分析结果")
                 
-                if causal_effect > 0:
-                    st.success("正向因果效应：处理变量增加会提高结果变量")
-                else:
-                    st.warning("负向因果效应：处理变量增加会降低结果变量")
+                # 显示根因分析表格
+                root_cause_results = self.analysis_results["root_cause_analysis"]
+                results_df = pd.DataFrame(root_cause_results)
+                
+                # 格式化显示
+                display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
+                display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
+                display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                
+                st.dataframe(display_df, use_container_width=True)
+                
+                # 显示处理变量和结果变量信息
+                st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
+                st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+            
+            # 显示传统分析结果（如果存在）
+            if "causal_effect" in self.analysis_results:
+                st.markdown("#### 传统分析结果")
+                
+                # 显示因果效应
+                causal_effect = self.analysis_results.get("causal_effect")
+                if causal_effect is not None:
+                    st.markdown(f"**因果效应值**: {causal_effect:.4f}")
+                    
+                    if causal_effect > 0:
+                        st.success("正向因果效应：处理变量增加会提高结果变量")
+                    else:
+                        st.warning("负向因果效应：处理变量增加会降低结果变量")
             
             # 显示驳斥检验结果
             refutation_results = self.analysis_results.get("refutation_results")

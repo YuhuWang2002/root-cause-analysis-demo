@@ -104,6 +104,80 @@ class RootCauseAnalysisPipeline:
         
         return results_df
     
+    def extract_treatments_from_graph(self, outcome: str) -> List[str]:
+        """
+        从因果图中提取所有可能的处理变量
+        
+        Args:
+            outcome: 结果变量
+            
+        Returns:
+            处理变量列表
+        """
+        import re
+        
+        # 解析DOT格式的因果图
+        treatments = set()
+        
+        # 提取所有边
+        edges = re.findall(r'\s*(\w+)\s*->\s*(\w+)\s*;', self.causal_graph)
+        
+        # 构建有向图
+        graph = {}
+        for source, target in edges:
+            if source not in graph:
+                graph[source] = []
+            graph[source].append(target)
+        
+        # 找到所有指向结果变量的路径
+        visited = set()
+        
+        def find_ancestors(node):
+            for source, targets in graph.items():
+                if node in targets and source not in visited:
+                    visited.add(source)
+                    treatments.add(source)
+                    find_ancestors(source)
+        
+        find_ancestors(outcome)
+        
+        return list(treatments)
+    
+    def run_root_cause_analysis(self, outcome: str) -> pd.DataFrame:
+        """
+        运行根因分析 - 自动从因果图中提取处理变量并分析
+        
+        Args:
+            outcome: 结果变量
+            
+        Returns:
+            根因分析结果数据框
+        """
+        # 从因果图中提取处理变量
+        treatments = self.extract_treatments_from_graph(outcome)
+        
+        if not treatments:
+            raise ValueError(f"无法从因果图中提取到指向{outcome}的处理变量")
+        
+        print(f"从因果图中提取到 {len(treatments)} 个处理变量: {treatments}")
+        
+        # 分析多个处理变量
+        results_df = self.analyze_multiple_treatments(treatments, outcome)
+        
+        # 按因果效应绝对值排序，识别主要根因
+        results_df['abs_causal_effect'] = results_df['causal_effect'].abs()
+        results_df = results_df.sort_values('abs_causal_effect', ascending=False)
+        
+        # 添加排名
+        results_df['rank'] = range(1, len(results_df) + 1)
+        
+        # 保存分析结果
+        self.analysis_results['root_cause_analysis'] = results_df.to_dict('records')
+        self.analysis_results['treatments'] = treatments
+        self.analysis_results['outcome'] = outcome
+        
+        return results_df
+    
     def get_analysis_summary(self) -> Dict:
         """
         获取分析结果摘要
@@ -114,7 +188,8 @@ class RootCauseAnalysisPipeline:
         summary = {
             "causal_effect": self.analysis_results.get("causal_effect"),
             "has_refutation_results": "refutation_results" in self.analysis_results,
-            "has_counterfactual_analysis": "counterfactual_analysis" in self.analysis_results
+            "has_counterfactual_analysis": "counterfactual_analysis" in self.analysis_results,
+            "has_root_cause_analysis": "root_cause_analysis" in self.analysis_results
         }
         
         # 添加反事实分析摘要（如果存在）
@@ -127,6 +202,14 @@ class RootCauseAnalysisPipeline:
                 "target_outcome": cf_result["target_outcome"],
                 "required_treatment_change": cf_result["required_treatment_change"],
                 "feasibility": cf_result["feasibility"]
+            }
+        
+        # 添加根因分析摘要（如果存在）
+        if "root_cause_analysis" in self.analysis_results:
+            root_cause_results = self.analysis_results["root_cause_analysis"]
+            summary["root_cause_summary"] = {
+                "top_causes": [item["treatment"] for item in root_cause_results[:3]],
+                "total_treatments": len(root_cause_results)
             }
         
         return summary
