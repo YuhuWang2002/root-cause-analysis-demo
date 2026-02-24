@@ -1082,12 +1082,21 @@ class RootCauseAnalysisWebApp:
                     
                     # 使用更智能的布局算法
                     if len(G.nodes) > 0:
+                        print(f"[DEBUG] 节点数量: {len(G.nodes)}")
+                        print(f"[DEBUG] 实体节点: {len(entity_nodes)}")
+                        print(f"[DEBUG] 指标节点: {len(metric_nodes)}")
+                        print(f"[DEBUG] 其他节点: {len(other_nodes)}")
                         # 尝试使用kamada_kawai_layout，它会根据节点间的关系自动调整布局
                         try:
+                            print("[DEBUG] 使用 kamada_kawai_layout")
                             pos = nx.kamada_kawai_layout(G)
-                        except:
+                        except Exception as e:
+                            print(f"[DEBUG] kamada_kawai_layout 失败: {e}")
                             # 如果失败，使用spring_layout，调整参数避免节点重叠
-                            pos = nx.spring_layout(G, k=0.5, iterations=100, seed=42)
+                            print("[DEBUG] 使用 spring_layout")
+                            pos = nx.spring_layout(G, k=0.8, iterations=200, seed=42)
+                        # 打印布局结果
+                        print(f"[DEBUG] 布局完成，节点位置数量: {len(pos)}")
                     else:
                         pos = {}
                     
@@ -1201,6 +1210,7 @@ class RootCauseAnalysisWebApp:
                         mode='markers+text',
                         text=entity_texts,
                         textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
                         marker=dict(
                             showscale=False,
                             color='#6495ED',  # 实体类型用蓝色
@@ -1228,6 +1238,7 @@ class RootCauseAnalysisWebApp:
                         mode='markers+text',
                         text=metric_texts,
                         textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
                         marker=dict(
                             showscale=False,
                             color='#DC143C',  # 指标定义用红色
@@ -1255,6 +1266,7 @@ class RootCauseAnalysisWebApp:
                         mode='markers+text',
                         text=other_texts,
                         textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
                         marker=dict(
                             showscale=False,
                             color='#666666',
