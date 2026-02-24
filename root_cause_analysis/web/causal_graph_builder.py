@@ -67,29 +67,32 @@ class CausalGraphBuilder:
                       llm_agent: object) -> str:
         """
         使用大模型从本体schema智能推导因果图
-
+        
         Args:
             ontology_schema: 本体schema字典
-            llm_agent: LLM代理实例，需要提供推导因果图的方法
-
+            llm_agent: LLM代理实例，需要提供推理方法
+        
         Returns:
             标准的DoWhy因果图格式字符串
         """
         try:
-            # 构建因果图推导请求
+            # 导入必要的模型
             from llm_agent import CausalGraphDerivationRequest
             
+            # 构建因果图推导请求
             request = CausalGraphDerivationRequest(
-                scenario_description="通用因果分析场景",
-                outcome_entity="production_efficiency"
+                scenario_description="制造企业生产效率分析",
+                outcome_entity="production_efficiency",
+                ontology_info=ontology_schema
             )
             
-            # 使用LLM代理推导因果图
+            # 使用LLM推导因果图
             response = llm_agent.derive_causal_graph(request)
             
             # 从响应构建因果图
             causal_graph_dict = response.causal_graph
             edges = []
+            
             for source, targets in causal_graph_dict.items():
                 for target in targets:
                     edges.append(f"    {source} -> {target};")
@@ -97,8 +100,11 @@ class CausalGraphBuilder:
             if edges:
                 causal_graph = "digraph {\n" + "\n".join(edges) + "\n}"
                 return causal_graph
+            
         except Exception as e:
-            print(f"[CausalGraphBuilder] 使用LLM构建因果图失败: {str(e)}")
+            print(f"[CausalGraphBuilder] 使用大模型构建因果图失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
         
         # 如果LLM推导失败，返回默认因果图
         return self.get_default_causal_graph()

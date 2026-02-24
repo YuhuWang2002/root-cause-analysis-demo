@@ -98,18 +98,17 @@
   ],
   "relation_types": [
     {
-      "id": "factory_contains_employee",
+      "id": "contains",
       "name": "包含",
-      "description": "工厂包含员工的关系",
-      "source_types": ["factory"],
-      "target_types": ["employee"]
-    },
-    {
-      "id": "product_contains_part",
-      "name": "包含",
-      "description": "产品包含零部件的关系",
-      "source_types": ["product"],
-      "target_types": ["part"]
+      "description": "实体包含关系（工厂包含员工、产品包含零部件）",
+      "source_types": [
+        "factory",
+        "product"
+      ],
+      "target_types": [
+        "employee",
+        "part"
+      ]
     },
     {
       "id": "supplies",
@@ -195,7 +194,7 @@
     }
   ],
   "metadata": {
-    "created_at": "2026-02-15T11:31:54.376927",
+    "created_at": "2026-02-24T15:27:02.866017",
     "description": "制造企业业务本体Schema"
   }
 }

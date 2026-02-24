@@ -202,16 +202,45 @@ class RootCauseAnalysisWebApp:
                 st.warning(f"⚠️ 保存数据到CSV失败: {str(e)}")
     
     def init_ontology_manager(self):
-        """初始化本体管理器"""
+        """
+        初始化本体管理器 - 从ontology_api读取schema信息
+        """
         if not self.ontology_manager:
             try:
-                from ontology_manager import OntologyManager, create_manufacturing_ontology
-                self.ontology_manager = create_manufacturing_ontology()
+                import httpx
+                
+                # 从ontology_api读取schema信息
+                st.info("正在从ontology_api读取schema信息...")
+                
+                # 只读取schema端点，因为其他端点返回空数据
+                schema_response = httpx.get("http://localhost:8000/schema", timeout=10.0)
+                schema_response.raise_for_status()
+                schema_data = schema_response.json()
+                
+                # 创建本体管理器实例
+                from ontology_manager import OntologyManager
+                self.ontology_manager = OntologyManager()
+                
+                # 设置schema数据
+                self.ontology_manager.schema = schema_data
+                
+                # 创建因果图构建器
                 self.causal_graph_builder = CausalGraphBuilder(self.ontology_manager)
+                
+                # 统计schema中的元素数量
+                entity_types_count = len(schema_data.get('entity_types', []))
+                relation_types_count = len(schema_data.get('relation_types', []))
+                metric_definitions_count = len(schema_data.get('metric_definitions', []))
+                
                 st.success("✅ 本体管理器初始化成功！")
+                st.success(f"📊 读取到 {entity_types_count} 个实体类型, {relation_types_count} 个关系类型, {metric_definitions_count} 个指标定义")
+                
+                # 保存状态
                 self._save_state()
+                
             except Exception as e:
                 st.error(f"❌ 初始化本体管理器失败: {str(e)}")
+                st.info("请确保ontology_api服务正在运行: python web/ontology_api.py")
         return self.ontology_manager
     
     def init_llm_agent(self, ontology_api_url: str = "http://localhost:8000", llm_api_key: str = None, llm_base_url: str = None, llm_model: str = None):
@@ -246,7 +275,7 @@ class RootCauseAnalysisWebApp:
             st.error(f"❌ 初始化LLM Agent失败: {str(e)}")
             return False
     
-    def build_causal_graph(self, method: str = "ontology") -> str:
+    def build_causal_graph(self, method: str = "llm") -> str:
         """
         构建因果图
         
@@ -309,6 +338,38 @@ class RootCauseAnalysisWebApp:
                     treatment=treatment,
                     outcome=outcome
                 )
+                
+                # 在控制台打印分析结果
+                print("[APP] 分析结果:")
+                print(f"[APP] 因果效应: {self.analysis_results.get('causal_effect')}")
+                print(f"[APP] 驳斥检验结果: {self.analysis_results.get('refutation_results')}")
+                print(f"[APP] 反事实分析: {self.analysis_results.get('counterfactual_analysis')}")
+                
+                # 在web上展示分析结果
+                st.success("✅ 分析完成！")
+                
+                # 显示因果效应
+                causal_effect = self.analysis_results.get("causal_effect")
+                if causal_effect is not None:
+                    st.markdown(f"**因果效应值**: {causal_effect:.4f}")
+                    
+                    if causal_effect > 0:
+                        st.success("正向因果效应：处理变量增加会提高结果变量")
+                    else:
+                        st.warning("负向因果效应：处理变量增加会降低结果变量")
+                
+                # 显示驳斥检验结果
+                refutation_results = self.analysis_results.get("refutation_results")
+                if refutation_results:
+                    with st.expander("查看驳斥检验结果"):
+                        for test_name, result in refutation_results.items():
+                            st.markdown(f"**{test_name}**: {result}")
+                
+                # 显示反事实分析结果
+                counterfactual_analysis = self.analysis_results.get("counterfactual_analysis")
+                if counterfactual_analysis:
+                    with st.expander("查看反事实分析结果"):
+                        st.json(counterfactual_analysis)
             self._save_state()
         return self.analysis_results
     
@@ -895,7 +956,9 @@ class RootCauseAnalysisWebApp:
                 st.json(counterfactual_analysis)
     
     def render_agent_analysis_page(self):
-        """渲染Agent分析页面"""
+        """
+        渲染Agent分析页面
+        """
         st.header("🤖 Agent智能分析")
         
         st.markdown("""
@@ -904,8 +967,8 @@ class RootCauseAnalysisWebApp:
         <p>通过LLM理解本体并推导因果图，实现智能的根因分析流程。</p>
         <p><strong>操作步骤：</strong></p>
         <ol>
-            <li>初始化本体管理器</li>
-            <li>构建因果图</li>
+            <li>初始化本体管理器（读取并展示本体信息）</li>
+            <li>构建因果图（基于本体信息）</li>
             <li>配置分析参数</li>
             <li>运行完整分析</li>
             <li>查看分析结果</li>
@@ -921,24 +984,435 @@ class RootCauseAnalysisWebApp:
         if st.button("初始化本体管理器", type="primary"):
             self.init_ontology_manager()
         
+        # 显示本体信息图形化展示
+        if self.ontology_manager:
+            st.markdown("#### 📊 本体信息展示")
+            
+            # 显示Schema信息
+            if hasattr(self.ontology_manager, 'schema') and self.ontology_manager.schema:
+                schema = self.ontology_manager.schema
+                
+                # 绘制本体图
+                st.markdown("##### 🎯 本体图形化展示")
+                
+                try:
+                    import networkx as nx
+                    import plotly.graph_objects as go
+                    
+                    # 创建有向图
+                    G = nx.DiGraph()
+                    
+                    # 从schema添加实体类型节点
+                    entity_types = schema.get('entity_types', [])
+                    relation_types = schema.get('relation_types', [])
+                    metric_definitions = schema.get('metric_definitions', [])
+                    
+                    # 添加节点
+                    for i, entity_type in enumerate(entity_types):
+                        entity_id = entity_type.get('id', entity_type.get('name', f'entity_{i}'))
+                        entity_name = entity_type.get('name', entity_id)
+                        G.add_node(entity_id, type='entity', name=entity_name)
+                    
+                    # 添加指标定义节点
+                    for i, metric in enumerate(metric_definitions):
+                        metric_id = metric.get('id', metric.get('name', f'metric_{i}'))
+                        metric_name = metric.get('name', metric_id)
+                        G.add_node(metric_id, type='metric', name=metric_name)
+                    
+                    # 添加关系类型边
+                    for i, relation_type in enumerate(relation_types):
+                        relation_name = relation_type.get('name', f'relation_{i}')
+                        source_types = relation_type.get('source_types', [])
+                        target_types = relation_type.get('target_types', [])
+                        
+                        # 为每种源类型和目标类型的组合添加边
+                        for source_type in source_types:
+                            for target_type in target_types:
+                                if source_type in G.nodes and target_type in G.nodes:
+                                    G.add_edge(source_type, target_type, label=relation_name)
+                    
+                    # 添加指标与实体的关系边
+                    for metric in metric_definitions:
+                        metric_id = metric.get('id', metric.get('name'))
+                        source_entity = metric.get('source_entity_type')
+                        target_entity = metric.get('target_entity_type')
+                        source_relation = metric.get('source_relation')
+                        
+                        # 连接指标与相关实体
+                        if metric_id in G.nodes:
+                            # 根据source_relation添加连线，名称为"has_metric"
+                            if source_entity and source_entity in G.nodes:
+                                edge_label = 'has_metric' if source_relation else 'measures'
+                                G.add_edge(source_entity, metric_id, label=edge_label)
+                            if target_entity and target_entity in G.nodes:
+                                G.add_edge(metric_id, target_entity, label='affects')
+                    
+                    # 使用更智能的布局算法
+                    if len(G.nodes) > 0:
+                        # 尝试使用kamada_kawai_layout，它会根据节点间的关系自动调整布局
+                        try:
+                            pos = nx.kamada_kawai_layout(G)
+                        except:
+                            # 如果失败，使用spring_layout
+                            pos = nx.spring_layout(G, k=0.8, iterations=200)
+                    else:
+                        pos = {}
+                    
+                    # 创建边轨迹
+                    edge_x = []
+                    edge_y = []
+                    edge_hover_text = []
+                    
+                    # 添加边标签
+                    edge_annotations = []
+                    
+                    for edge in G.edges(data=True):
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+                        
+                        label = edge[2].get('label', 'relation')
+                        edge_hover_text.append(label)
+                        
+                        # 添加边标签，确保它们正确显示
+                        x_mid = (x0 + x1) / 2
+                        y_mid = (y0 + y1) / 2
+                        
+                        # 计算标签位置的偏移，避免与边重叠
+                        dx = x1 - x0
+                        dy = y1 - y0
+                        length = (dx**2 + dy**2)**0.5
+                        if length > 0:
+                            # 垂直于边的方向偏移
+                            offset_x = -dy / length * 0.05
+                            offset_y = dx / length * 0.05
+                        else:
+                            offset_x = offset_y = 0
+                        
+                        edge_annotations.append(dict(
+                            x=x_mid + offset_x,
+                            y=y_mid + offset_y,
+                            xref="x",
+                            yref="y",
+                            text=label,
+                            showarrow=False,
+                            font=dict(size=10, color="#333", weight="bold"),
+                            bgcolor="rgba(255, 255, 255, 0.9)",
+                            bordercolor="rgba(0, 0, 0, 0.3)",
+                            borderwidth=1,
+                            borderpad=5
+                        ))
+                    
+                    # 创建边轨迹
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=1.8, color='#666'),
+                        hoverinfo='text',
+                        mode='lines'
+                    )
+                    edge_trace.text = edge_hover_text
+                    
+                    # 创建箭头标记
+                    arrow_x = []
+                    arrow_y = []
+                    arrow_angles = []
+                    
+                    import math
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        
+                        # 计算箭头位置（在边的末端）
+                        arrow_x.append(x1)
+                        arrow_y.append(y1)
+                        
+                        # 计算箭头角度
+                        angle = 180 + (180 / math.pi) * math.atan2(y1 - y0, x1 - x0)
+                        arrow_angles.append(angle)
+                    
+                    # 创建箭头轨迹
+                    arrow_trace = go.Scatter(
+                        x=arrow_x,
+                        y=arrow_y,
+                        mode='markers',
+                        marker=dict(
+                            symbol='arrow',
+                            size=10,
+                            color='#666',
+                            angleref='previous',
+                            angle=[angle for angle in arrow_angles]
+                        ),
+                        hoverinfo='none'
+                    )
+                    
+                    # 创建节点轨迹
+                    node_x = []
+                    node_y = []
+                    node_texts = []
+                    node_colors = []
+                    node_symbols = []
+                    node_sizes = []
+                    
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        
+                        node_type = G.nodes[node].get('type')
+                        node_name = G.nodes[node].get('name', node)
+                        
+                        if node_type == 'entity':
+                            node_texts.append(f"{node_name}\n(实体类型)")
+                            node_colors.append('#2E86AB')  # 实体类型用蓝色
+                            node_symbols.append('circle')  # 实体类型用圆形
+                            node_sizes.append(30)  # 实体类型节点大小
+                        elif node_type == 'metric':
+                            node_texts.append(f"{node_name}\n(指标定义)")
+                            node_colors.append('#A23B72')  # 指标定义用紫色
+                            node_symbols.append('diamond')  # 指标定义用菱形
+                            node_sizes.append(35)  # 指标定义节点更大
+                        else:
+                            node_texts.append(node_name)
+                            node_colors.append('#666666')
+                            node_symbols.append('circle')
+                            node_sizes.append(25)
+                    
+                    # 创建节点轨迹
+                    node_trace = go.Scatter(
+                        x=node_x,
+                        y=node_y,
+                        mode='markers+text',
+                        text=node_texts,
+                        textposition="top center",
+                        marker=dict(
+                            showscale=False,
+                            color=node_colors,
+                            size=node_sizes,
+                            line_width=2,
+                            symbol=node_symbols
+                        ),
+                        hoverinfo='text'
+                    )
+                    
+                    # 创建图表
+                    fig = go.Figure(data=[edge_trace, arrow_trace, node_trace],
+                                   layout=go.Layout(
+                                       title=dict(text='本体概念图谱', font=dict(size=18, weight='bold')),
+                                       showlegend=True,
+                                       hovermode='closest',
+                                       margin=dict(b=40, l=40, r=40, t=80),
+                                       annotations=edge_annotations,
+                                       xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       legend=dict(
+                                           x=0.01,
+                                           y=0.99,
+                                           bgcolor="rgba(255, 255, 255, 0.8)",
+                                           bordercolor="rgba(0, 0, 0, 0.5)",
+                                           borderwidth=1,
+                                           traceorder="normal",
+                                           font=dict(
+                                               family="sans-serif",
+                                               size=12,
+                                               color="#000"
+                                           )
+                                       )
+                                   ))
+                    
+                    # 显示图表
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ 绘制本体图失败: {str(e)}")
+                    
+                # 显示详细信息
+                st.markdown("##### 📋 Schema详细信息")
+                
+                # 实体类型详情
+                if entity_types:
+                    st.info(f"共 {len(entity_types)} 个实体类型")
+                    
+                    with st.expander("查看实体类型详情"):
+                        for entity_type in entity_types:
+                            st.markdown(f"**{entity_type.get('name', 'Unknown')}** ({entity_type.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {entity_type.get('description', '无')}")
+                            attributes = entity_type.get('attributes', [])
+                            if attributes:
+                                st.markdown("- 属性:")
+                                for attr in attributes:
+                                    st.markdown(f"  - {attr.get('name')} ({attr.get('type')}): {attr.get('description')}")
+                            st.markdown("")
+                
+                # 关系类型详情
+                if relation_types:
+                    st.info(f"共 {len(relation_types)} 个关系类型")
+                    
+                    with st.expander("查看关系类型详情"):
+                        for relation_type in relation_types:
+                            st.markdown(f"**{relation_type.get('name', 'Unknown')}** ({relation_type.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {relation_type.get('description', '无')}")
+                            source_types = relation_type.get('source_types', [])
+                            target_types = relation_type.get('target_types', [])
+                            st.markdown(f"- 源类型: {', '.join(source_types)}")
+                            st.markdown(f"- 目标类型: {', '.join(target_types)}")
+                            st.markdown("")
+                
+                # 指标定义详情
+                if metric_definitions:
+                    st.info(f"共 {len(metric_definitions)} 个指标定义")
+                    
+                    with st.expander("查看指标定义详情"):
+                        for metric in metric_definitions:
+                            st.markdown(f"**{metric.get('name', 'Unknown')}** ({metric.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {metric.get('description', '无')}")
+                            st.markdown(f"- 源实体类型: {metric.get('source_entity_type', '无')}")
+                            st.markdown(f"- 目标实体类型: {metric.get('target_entity_type', '无')}")
+                            st.markdown(f"- 源关系: {metric.get('source_relation', '无')}")
+                            st.markdown(f"- 类型: {metric.get('type', '无')}")
+                            st.markdown("")
+            
+            # 显示因果图构建提示
+            st.success("✅ 本体信息已缓存，可用于下一步构建因果图")
+            st.info("这些本体信息将作为因果图构建的输入，帮助系统理解领域知识结构")
+        
         # 步骤2：构建因果图
         st.markdown("---")
         st.markdown("### 步骤2：构建因果图")
         
         if self.causal_graph_builder:
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns([2, 1])
             with col1:
-                if st.button("从本体构建"):
-                    self.build_causal_graph(method="ontology")
-            with col2:
-                if st.button("使用大模型构建"):
+                if st.button("使用大模型构建因果图", type="primary"):
                     if self.llm_agent:
                         self.build_causal_graph(method="llm")
                     else:
-                        st.warning("请先初始化LLM Agent")
-            with col3:
-                if st.button("使用默认因果图"):
-                    self.build_causal_graph(method="default")
+                        st.warning("⚠️ 请先初始化LLM Agent")
+            
+            # 显示因果图可视化
+            if self.causal_graph:
+                st.markdown("#### 🎯 因果图可视化")
+                
+                try:
+                    import networkx as nx
+                    import plotly.graph_objects as go
+                    
+                    # 解析因果图字符串
+                    def parse_causal_graph(graph_str):
+                        G = nx.DiGraph()
+                        # 简单解析digraph格式
+                        lines = graph_str.strip().split('\n')
+                        for line in lines:
+                            line = line.strip()
+                            if '->' in line:
+                                parts = line.split('->')
+                                if len(parts) == 2:
+                                    source = parts[0].strip()
+                                    target = parts[1].strip().rstrip(';').strip()
+                                    G.add_edge(source, target)
+                        return G
+                    
+                    # 解析因果图
+                    G = parse_causal_graph(self.causal_graph)
+                    
+                    # 生成布局
+                    if len(G.nodes) > 0:
+                        try:
+                            pos = nx.kamada_kawai_layout(G)
+                        except:
+                            pos = nx.spring_layout(G, k=0.8, iterations=200)
+                    else:
+                        pos = {}
+                    
+                    # 创建边轨迹
+                    edge_x = []
+                    edge_y = []
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+                    
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=1.5, color='#666'),
+                        hoverinfo='none',
+                        mode='lines'
+                    )
+                    
+                    # 创建箭头标记
+                    arrow_x = []
+                    arrow_y = []
+                    arrow_angles = []
+                    
+                    import math
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        arrow_x.append(x1)
+                        arrow_y.append(y1)
+                        angle = 180 + (180 / math.pi) * math.atan2(y1 - y0, x1 - x0)
+                        arrow_angles.append(angle)
+                    
+                    arrow_trace = go.Scatter(
+                        x=arrow_x,
+                        y=arrow_y,
+                        mode='markers',
+                        marker=dict(
+                            symbol='arrow',
+                            size=8,
+                            color='#666',
+                            angleref='previous',
+                            angle=[angle for angle in arrow_angles]
+                        ),
+                        hoverinfo='none'
+                    )
+                    
+                    # 创建节点轨迹
+                    node_x = []
+                    node_y = []
+                    node_texts = []
+                    
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        node_texts.append(node)
+                    
+                    node_trace = go.Scatter(
+                        x=node_x,
+                        y=node_y,
+                        mode='markers+text',
+                        text=node_texts,
+                        textposition="top center",
+                        marker=dict(
+                            showscale=False,
+                            color='#2E86AB',
+                            size=25,
+                            line_width=2
+                        ),
+                        hoverinfo='text'
+                    )
+                    
+                    # 创建图表
+                    fig = go.Figure(data=[edge_trace, arrow_trace, node_trace],
+                                   layout=go.Layout(
+                                       title=dict(text='因果图可视化', font=dict(size=16)),
+                                       showlegend=False,
+                                       hovermode='closest',
+                                       margin=dict(b=20, l=5, r=5, t=40),
+                                       xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+                                   ))
+                    
+                    # 显示图表
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ 绘制因果图失败: {str(e)}")
             
             if self.causal_graph:
                 st.markdown("#### 因果图结果")
