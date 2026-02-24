@@ -1080,6 +1080,11 @@ class RootCauseAnalysisWebApp:
                         if metric_id in G.nodes and source_entity and source_entity in G.nodes:
                             G.add_edge(source_entity, metric_id, label="has_metric")
                     
+                    # 分离实体和指标节点
+                    entity_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'entity']
+                    metric_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'metric']
+                    other_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') not in ['entity', 'metric']]
+                    
                     # 使用更智能的布局算法
                     if len(G.nodes) > 0:
                         print(f"[DEBUG] 节点数量: {len(G.nodes)}")
@@ -1188,11 +1193,6 @@ class RootCauseAnalysisWebApp:
                         ),
                         hoverinfo='none'
                     )
-                    
-                    # 分离实体和指标节点
-                    entity_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'entity']
-                    metric_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'metric']
-                    other_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') not in ['entity', 'metric']]
                     
                     # 创建实体节点轨迹
                     entity_x = []
