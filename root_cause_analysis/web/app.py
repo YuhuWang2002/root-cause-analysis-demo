@@ -1086,8 +1086,8 @@ class RootCauseAnalysisWebApp:
                         try:
                             pos = nx.kamada_kawai_layout(G)
                         except:
-                            # 如果失败，使用spring_layout
-                            pos = nx.spring_layout(G, k=0.3, iterations=50)
+                            # 如果失败，使用spring_layout，调整参数避免节点重叠
+                            pos = nx.spring_layout(G, k=0.5, iterations=100, seed=42)
                     else:
                         pos = {}
                     
@@ -1200,11 +1200,11 @@ class RootCauseAnalysisWebApp:
                         y=entity_y,
                         mode='markers+text',
                         text=entity_texts,
-                        textposition="top center",
+                        textposition="middle center",
                         marker=dict(
                             showscale=False,
                             color='#6495ED',  # 实体类型用蓝色
-                            size=30,  # 实体类型节点大小
+                            size=35,  # 实体类型节点大小
                             line_width=2,
                             symbol='circle'  # 实体类型用圆形
                         ),
@@ -1227,11 +1227,11 @@ class RootCauseAnalysisWebApp:
                         y=metric_y,
                         mode='markers+text',
                         text=metric_texts,
-                        textposition="top center",
+                        textposition="middle center",
                         marker=dict(
                             showscale=False,
                             color='#DC143C',  # 指标定义用红色
-                            size=25,  # 指标定义节点大小
+                            size=30,  # 指标定义节点大小
                             line_width=2,
                             symbol='square'  # 指标定义用正方形
                         ),
@@ -1254,11 +1254,11 @@ class RootCauseAnalysisWebApp:
                         y=other_y,
                         mode='markers+text',
                         text=other_texts,
-                        textposition="top center",
+                        textposition="middle center",
                         marker=dict(
                             showscale=False,
                             color='#666666',
-                            size=20,
+                            size=25,
                             line_width=2,
                             symbol='circle'
                         ),
