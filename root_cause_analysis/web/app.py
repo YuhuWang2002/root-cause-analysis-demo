@@ -1091,15 +1091,10 @@ class RootCauseAnalysisWebApp:
                         print(f"[DEBUG] 实体节点: {len(entity_nodes)}")
                         print(f"[DEBUG] 指标节点: {len(metric_nodes)}")
                         print(f"[DEBUG] 其他节点: {len(other_nodes)}")
-                        # 尝试使用kamada_kawai_layout，它会根据节点间的关系自动调整布局
-                        try:
-                            print("[DEBUG] 使用 kamada_kawai_layout")
-                            pos = nx.kamada_kawai_layout(G)
-                        except Exception as e:
-                            print(f"[DEBUG] kamada_kawai_layout 失败: {e}")
-                            # 如果失败，使用spring_layout，调整参数避免节点重叠
-                            print("[DEBUG] 使用 spring_layout")
-                            pos = nx.spring_layout(G, k=0.8, iterations=200, seed=42)
+                        # 直接使用spring_layout，调整参数避免节点重叠
+                        print("[DEBUG] 使用 spring_layout")
+                        # 增加k值以增大节点间距，增加迭代次数以提高布局质量
+                        pos = nx.spring_layout(G, k=1.0, iterations=300, seed=42)
                         # 打印布局结果
                         print(f"[DEBUG] 布局完成，节点位置数量: {len(pos)}")
                     else:
