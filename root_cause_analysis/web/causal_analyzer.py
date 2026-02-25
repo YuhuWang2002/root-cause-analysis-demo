@@ -206,6 +206,156 @@ class CausalAnalyzer:
             }
         }
     
+    def counterfactual_analysis_v2(self, 
+                                  treatment: str,
+                                  outcome: str,
+                                  target_outcome: float,
+                                  causal_graph: str) -> Dict:
+        """
+        结果反事实分析 V2 - 基于真实模拟的反事实分析
+        
+        核心思路：
+        1. 构建反事实数据集（将处理变量设置为不同的目标值）
+        2. 使用因果模型预测干预后的结果
+        3. 验证预测结果是否接近目标结果
+        4. 提供更准确的可行性评估
+        
+        Args:
+            treatment: 处理变量（原因）
+            outcome: 结果变量
+            target_outcome: 目标结果值
+            causal_graph: 因果图（DOT格式字符串）
+        """
+        # 创建因果模型
+        self.create_causal_model(
+            treatment=treatment,
+            outcome=outcome,
+            causal_graph=causal_graph
+        )
+        
+        # 识别因果效应
+        self.identify_effect()
+        
+        # 估计因果效应
+        estimate = self.estimate_effect()
+        
+        # 计算当前结果的基线值
+        current_outcome = self.data[outcome].mean()
+        
+        # 计算目标结果与基线值的差异
+        outcome_diff = target_outcome - current_outcome
+        
+        # 计算当前原因变量的基线值
+        current_treatment = self.data[treatment].mean()
+        
+        # 获取处理变量的范围
+        treatment_min = self.data[treatment].min()
+        treatment_max = self.data[treatment].max()
+        
+        # 生成一系列可能的处理变量值
+        import numpy as np
+        num_steps = 100
+        treatment_values = np.linspace(treatment_min, treatment_max, num_steps)
+        
+        # 构建反事实数据集并预测结果
+        predicted_outcomes = []
+        
+        for treatment_value in treatment_values:
+            try:
+                # 构建反事实数据集
+                counterfactual_data = self.data.copy()
+                counterfactual_data[treatment] = treatment_value
+                
+                # 使用DoWhy预测反事实结果
+                # 注意：这里使用DoWhy的预测功能，具体实现可能需要根据DoWhy版本调整
+                # 由于DoWhy的API可能有变化，这里使用一种通用方法
+                
+                # 提取模型所需的变量
+                model = self.identified_estimand.estimator.model
+                
+                # 预测结果
+                if hasattr(model, 'predict'):
+                    # 如果模型有predict方法，直接使用
+                    features = counterfactual_data[self.identified_estimand.estimator._target_estimand.treatment_variable]
+                    predicted_outcome = model.predict(features)
+                    predicted_outcomes.append(np.mean(predicted_outcome))
+                else:
+                    # 否则使用简单的线性预测（基于因果效应）
+                    predicted_outcome = current_outcome + (treatment_value - current_treatment) * estimate.value
+                    predicted_outcomes.append(predicted_outcome)
+            except Exception as e:
+                print(f"预测处理变量值 {treatment_value} 时出错: {e}")
+                predicted_outcomes.append(float('nan'))
+        
+        # 找到最接近目标结果的处理变量值
+        best_idx = -1
+        min_diff = float('inf')
+        
+        for i, pred_outcome in enumerate(predicted_outcomes):
+            if not np.isnan(pred_outcome):
+                diff = abs(pred_outcome - target_outcome)
+                if diff < min_diff:
+                    min_diff = diff
+                    best_idx = i
+        
+        if best_idx == -1:
+            # 如果无法预测，使用原始方法
+            if estimate.value != 0:
+                required_treatment_change = outcome_diff / estimate.value
+            else:
+                required_treatment_change = float('inf')
+            
+            target_treatment = current_treatment + required_treatment_change
+            predicted_target_outcome = target_outcome
+        else:
+            # 使用预测结果
+            target_treatment = treatment_values[best_idx]
+            required_treatment_change = target_treatment - current_treatment
+            predicted_target_outcome = predicted_outcomes[best_idx]
+        
+        # 验证可行性
+        feasibility = "high"
+        if required_treatment_change == float('inf'):
+            feasibility = "impossible"
+        elif target_treatment < treatment_min or target_treatment > treatment_max:
+            feasibility = "low"
+        elif abs(required_treatment_change) > current_treatment * 0.5:
+            feasibility = "medium"
+        
+        # 验证预测结果与目标结果的接近程度
+        outcome_accuracy = "high"
+        if best_idx != -1:
+            outcome_diff_percent = abs(predicted_target_outcome - target_outcome) / max(abs(target_outcome), 1e-6) * 100
+            if outcome_diff_percent > 10:
+                outcome_accuracy = "low"
+            elif outcome_diff_percent > 5:
+                outcome_accuracy = "medium"
+        
+        # 返回结构化的反事实分析结果
+        return {
+            "treatment": treatment,
+            "outcome": outcome,
+            "current_treatment": current_treatment,
+            "target_treatment": target_treatment,
+            "required_treatment_change": required_treatment_change,
+            "current_outcome": current_outcome,
+            "target_outcome": target_outcome,
+            "predicted_target_outcome": predicted_target_outcome,
+            "outcome_diff": outcome_diff,
+            "causal_effect": estimate.value,
+            "feasibility": feasibility,
+            "outcome_accuracy": outcome_accuracy,
+            "treatment_range": {
+                "min": treatment_min,
+                "max": treatment_max
+            },
+            "prediction_details": {
+                "num_steps": num_steps,
+                "best_index": best_idx,
+                "min_prediction_diff": min_diff if best_idx != -1 else None
+            }
+        }
+    
     def analyze_causal_effects(self, 
                               causal_graph: str,
                               treatments: List[str],

@@ -1569,12 +1569,13 @@ class RootCauseAnalysisWebApp:
                         # 保存分析结果
                         self.analysis_results = self.pipeline.analysis_results
                         
-                        # 对每个处理变量运行反事实分析
+                        # 对每个处理变量运行反事实分析（使用V2版本）
                         counterfactual_results = []
                         if self.analysis_results and 'treatments' in self.analysis_results:
                             for treatment in self.analysis_results.get('treatments', []):
                                 try:
-                                    cf_result = self.pipeline.analyzer.counterfactual_analysis(
+                                    # 尝试使用新的反事实分析V2版本
+                                    cf_result = self.pipeline.analyzer.counterfactual_analysis_v2(
                                         treatment=treatment,
                                         outcome=outcome,
                                         target_outcome=target_outcome,
@@ -1582,7 +1583,18 @@ class RootCauseAnalysisWebApp:
                                     )
                                     counterfactual_results.append(cf_result)
                                 except Exception as e:
-                                    print(f"对处理变量 {treatment} 运行反事实分析失败: {e}")
+                                    print(f"对处理变量 {treatment} 运行反事实分析V2失败: {e}")
+                                    # 失败时回退到原始版本
+                                    try:
+                                        cf_result = self.pipeline.analyzer.counterfactual_analysis(
+                                            treatment=treatment,
+                                            outcome=outcome,
+                                            target_outcome=target_outcome,
+                                            causal_graph=self.causal_graph
+                                        )
+                                        counterfactual_results.append(cf_result)
+                                    except Exception as e2:
+                                        print(f"对处理变量 {treatment} 运行反事实分析失败: {e2}")
                         
                         # 保存反事实分析结果
                         if counterfactual_results and self.analysis_results:
@@ -1628,9 +1640,17 @@ class RootCauseAnalysisWebApp:
                     cf_df = pd.DataFrame(cf_results)
                     
                     # 格式化显示
-                    display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
-                    display_cf_df.columns = ['处理变量', '目标值', '可行性']
-                    display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    # 检查是否有 predicted_target_outcome 和 outcome_accuracy 字段（V2版本）
+                    if 'predicted_target_outcome' in cf_df.columns and 'outcome_accuracy' in cf_df.columns:
+                        display_cf_df = cf_df[['treatment', 'target_treatment', 'predicted_target_outcome', 'feasibility', 'outcome_accuracy']].copy()
+                        display_cf_df.columns = ['处理变量', '目标值', '预测结果', '可行性', '预测准确性']
+                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                        display_cf_df['预测结果'] = display_cf_df['预测结果'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    else:
+                        # 原始版本
+                        display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
+                        display_cf_df.columns = ['处理变量', '目标值', '可行性']
+                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
                     
                     st.dataframe(display_cf_df, use_container_width=True)
                 else:
