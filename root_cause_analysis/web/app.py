@@ -1566,26 +1566,27 @@ class RootCauseAnalysisWebApp:
                         # 运行根因分析
                         results_df = self.pipeline.run_root_cause_analysis(outcome)
                         
-                        # 对每个处理变量运行反事实分析
-                        counterfactual_results = []
-                        for treatment in self.analysis_results.get('treatments', []):
-                            try:
-                                cf_result = self.pipeline.analyzer.counterfactual_analysis(
-                                    treatment=treatment,
-                                    outcome=outcome,
-                                    target_outcome=target_outcome,
-                                    causal_graph=self.causal_graph
-                                )
-                                counterfactual_results.append(cf_result)
-                            except Exception as e:
-                                print(f"对处理变量 {treatment} 运行反事实分析失败: {e}")
-                        
-                        # 保存反事实分析结果
-                        if counterfactual_results:
-                            self.analysis_results['counterfactual_analysis'] = counterfactual_results
-                        
                         # 保存分析结果
                         self.analysis_results = self.pipeline.analysis_results
+                        
+                        # 对每个处理变量运行反事实分析
+                        counterfactual_results = []
+                        if self.analysis_results and 'treatments' in self.analysis_results:
+                            for treatment in self.analysis_results.get('treatments', []):
+                                try:
+                                    cf_result = self.pipeline.analyzer.counterfactual_analysis(
+                                        treatment=treatment,
+                                        outcome=outcome,
+                                        target_outcome=target_outcome,
+                                        causal_graph=self.causal_graph
+                                    )
+                                    counterfactual_results.append(cf_result)
+                                except Exception as e:
+                                    print(f"对处理变量 {treatment} 运行反事实分析失败: {e}")
+                        
+                        # 保存反事实分析结果
+                        if counterfactual_results and self.analysis_results:
+                            self.analysis_results['counterfactual_analysis'] = counterfactual_results
                         self._save_state()
                         
                         st.success("✅ 根因分析完成！")
