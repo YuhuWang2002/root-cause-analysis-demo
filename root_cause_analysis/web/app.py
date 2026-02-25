@@ -1503,6 +1503,23 @@ class RootCauseAnalysisWebApp:
             if self.causal_graph:
                 st.markdown("#### 因果图结果")
                 st.code(self.causal_graph, language="python")
+                
+                # 人工修正因果图
+                st.markdown("#### 人工修正因果图")
+                edited_causal_graph = st.text_area(
+                    "编辑因果图（DOT格式）",
+                    value=self.causal_graph,
+                    height=200,
+                    help="可以直接编辑因果图，格式为DOT语言，例如：digraph G { A -> B; B -> C; }"
+                )
+                
+                if st.button("应用修改"):
+                    if edited_causal_graph != self.causal_graph:
+                        self.causal_graph = edited_causal_graph
+                        self._save_state()
+                        st.success("✅ 因果图已更新")
+                        # 重新渲染页面以显示更新后的因果图
+                        st.experimental_rerun()
         else:
             st.warning("请先初始化本体管理器")
         
