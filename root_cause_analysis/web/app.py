@@ -1288,6 +1288,7 @@ class RootCauseAnalysisWebApp:
                                        showlegend=True,
                                        hovermode='closest',
                                        margin=dict(b=40, l=40, r=40, t=80),
+                                       height=800,  # 增加画布高度
                                        annotations=edge_annotations,
                                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
