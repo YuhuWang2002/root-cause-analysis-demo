@@ -207,13 +207,13 @@ class RootCauseAnalysisWebApp:
         """
         if not self.ontology_manager:
             try:
-                import httpx
+                import requests
                 
                 # 从ontology_api读取schema信息
                 st.info("正在从ontology_api读取schema信息...")
                 
                 # 只读取schema端点，因为其他端点返回空数据
-                schema_response = httpx.get("http://localhost:8000/schema", timeout=10.0)
+                schema_response = requests.get("http://localhost:8000/schema", timeout=10.0)
                 schema_response.raise_for_status()
                 schema_data = schema_response.json()
                 
@@ -1541,7 +1541,17 @@ class RootCauseAnalysisWebApp:
         st.markdown("---")
         st.markdown("### 步骤4：运行根因分析")
         
-        if st.button("自动分析所有根因", type="primary"):
+        # 输入目标结果值（用于反事实分析）
+        target_outcome = st.number_input(
+            "目标结果值（用于反事实分析）",
+            min_value=0.0,
+            max_value=100.0,
+            value=85.0,
+            step=0.1,
+            help="设置期望的结果变量目标值，用于计算需要的原因变量变化"
+        )
+        
+        if st.button("自动分析所有根因（含反事实分析）", type="primary"):
             if not self.causal_graph:
                 st.warning("请先构建因果图")
             else:
@@ -1555,6 +1565,24 @@ class RootCauseAnalysisWebApp:
                         
                         # 运行根因分析
                         results_df = self.pipeline.run_root_cause_analysis(outcome)
+                        
+                        # 对每个处理变量运行反事实分析
+                        counterfactual_results = []
+                        for treatment in self.analysis_results.get('treatments', []):
+                            try:
+                                cf_result = self.pipeline.analyzer.counterfactual_analysis(
+                                    treatment=treatment,
+                                    outcome=outcome,
+                                    target_outcome=target_outcome,
+                                    causal_graph=self.causal_graph
+                                )
+                                counterfactual_results.append(cf_result)
+                            except Exception as e:
+                                print(f"对处理变量 {treatment} 运行反事实分析失败: {e}")
+                        
+                        # 保存反事实分析结果
+                        if counterfactual_results:
+                            self.analysis_results['counterfactual_analysis'] = counterfactual_results
                         
                         # 保存分析结果
                         self.analysis_results = self.pipeline.analysis_results
@@ -1588,6 +1616,24 @@ class RootCauseAnalysisWebApp:
                 # 显示处理变量和结果变量信息
                 st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
                 st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+            
+            # 显示反事实分析结果（如果存在）
+            if "counterfactual_analysis" in self.analysis_results:
+                st.markdown("#### 反事实分析结果")
+                
+                cf_results = self.analysis_results["counterfactual_analysis"]
+                if cf_results:
+                    # 创建反事实分析结果表格
+                    cf_df = pd.DataFrame(cf_results)
+                    
+                    # 格式化显示
+                    display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
+                    display_cf_df.columns = ['处理变量', '目标值', '可行性']
+                    display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    
+                    st.dataframe(display_cf_df, use_container_width=True)
+                else:
+                    st.info("没有反事实分析结果")
             
             # 显示传统分析结果（如果存在）
             if "causal_effect" in self.analysis_results:
