@@ -1519,7 +1519,7 @@ class RootCauseAnalysisWebApp:
                         self._save_state()
                         st.success("✅ 因果图已更新")
                         # 重新渲染页面以显示更新后的因果图
-                        st.experimental_rerun()
+                        st.rerun()
         else:
             st.warning("请先初始化本体管理器")
         
