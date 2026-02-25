@@ -672,7 +672,7 @@ class RootCauseAnalysisWebApp:
         
         page = st.sidebar.radio(
             "选择页面",
-            ["场景介绍", "因果图", "数据分析", "因果分析", "AI智能解释", "Agent分析"]
+            ["场景介绍", "因果图", "数据分析", "Agent分析"]
         )
         
         st.sidebar.markdown("### 大模型配置")
@@ -738,10 +738,10 @@ class RootCauseAnalysisWebApp:
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("测试大模型连接"):
-                    print(f"[APP] 用户点击了'测试大模型连接'按钮")
+                if st.button("初始化因果解释器"):
+                    print(f"[APP] 用户点击了'初始化因果解释器'按钮")
                     if api_key:
-                        with st.spinner("正在测试大模型连接..."):
+                        with st.spinner("正在初始化因果解释器..."):
                             try:
                                 print(f"[APP] 开始初始化LLM Agent...")
                                 success = self.init_llm_agent(
@@ -754,13 +754,13 @@ class RootCauseAnalysisWebApp:
                                 print(f"[APP] init_llm_agent返回: {success}")
                                 
                                 if success:
-                                    st.success("✅ 大模型连接测试成功！")
+                                    st.success("✅ 因果解释器初始化成功！")
                                     st.session_state.llm_agent_initialized = True
                                 else:
-                                    st.error("❌ 大模型连接测试失败！")
+                                    st.error("❌ 因果解释器初始化失败！")
                             except Exception as e:
                                 print(f"[APP] 初始化LLM Agent时发生异常: {str(e)}")
-                                st.error(f"❌ 大模型连接测试失败: {str(e)}")
+                                st.error(f"❌ 因果解释器初始化失败: {str(e)}")
                     else:
                         st.warning("请输入API密钥")
             with col2:
@@ -1715,9 +1715,5 @@ if __name__ == "__main__":
         app.render_causal_graph_page()
     elif page == "数据分析":
         app.render_data_analysis_page()
-    elif page == "因果分析":
-        app.render_causal_analysis_page()
-    elif page == "AI智能解释":
-        app.render_llm_explanation_page()
     elif page == "Agent分析":
         app.render_agent_analysis_page()
