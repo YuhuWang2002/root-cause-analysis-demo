@@ -454,11 +454,17 @@ class RootCauseAnalysisWebApp:
                     'abs_change': [0.235, 0.5, 0.227, 0.185]
                 })
                 
-                # 生成解释，传递完整的因果图和分析结果
+                # 准备反事实分析结果
+                counterfactual_results = None
+                if 'counterfactual_analysis' in self.analysis_results:
+                    counterfactual_results = pd.DataFrame(self.analysis_results['counterfactual_analysis'])
+                
+                # 生成解释，传递完整的因果图、分析结果和反事实分析结果
                 self.llm_explanation = self.llm_explainer.generate_explanation(
                     self.analysis_results,
                     comparison_df,
                     causal_results,
+                    counterfactual_results,
                     causal_graph=self.causal_graph  # 传递完整的因果图
                 )
                 self._save_state()

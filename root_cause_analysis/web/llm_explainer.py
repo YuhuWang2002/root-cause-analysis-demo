@@ -84,7 +84,7 @@ class LLMExplainer:
             
             import openai
             import httpx
-            http_client = httpx.Client(proxy=None)
+            http_client = httpx.Client(proxy=None,verify=False)
             
             self.client = openai.OpenAI(
                 api_key=self.api_key, 
@@ -303,10 +303,24 @@ class LLMExplainer:
             prompt += "\n### 5. DoWhy反事实分析结果（预期改进效果）\n"
             prompt += "以下是通过DoWhy因果推断计算出的真实预期改进效果：\n"
             
-            valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
-            for _, row in valid_counterfactual.iterrows():
-                gain_percent = row['expected_efficiency_gain'] * 100
-                prompt += f"- {row['factor']}: 提升{row['improvement_level']*100:.0f}%，预计效率提升{gain_percent:.1f}%\n"
+            # 检查是否是V2版本的反事实分析结果
+            if 'predicted_target_outcome' in counterfactual_results.columns:
+                # V2版本的反事实分析结果
+                for _, row in counterfactual_results.iterrows():
+                    treatment_name = metric_names.get(row['treatment'], row['treatment'])
+                    current_value = row.get('current_treatment', 'N/A')
+                    target_value = row.get('target_treatment', 'N/A')
+                    predicted_outcome = row.get('predicted_target_outcome', 'N/A')
+                    feasibility = row.get('feasibility', 'N/A')
+                    accuracy = row.get('outcome_accuracy', 'N/A')
+                    
+                    prompt += f"- {treatment_name}: 当前值 {current_value:.2f}，目标值 {target_value:.2f}，预测结果 {predicted_outcome:.2f}，可行性: {feasibility}，预测准确性: {accuracy}\n"
+            else:
+                # 原始版本的反事实分析结果
+                valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
+                for _, row in valid_counterfactual.iterrows():
+                    gain_percent = row['expected_efficiency_gain'] * 100
+                    prompt += f"- {row['factor']}: 提升{row['improvement_level']*100:.0f}%，预计效率提升{gain_percent:.1f}%\n"
         
         prompt += """
 ## 请回答以下问题：
