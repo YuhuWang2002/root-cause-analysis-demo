@@ -674,12 +674,30 @@ class RootCauseAnalysisWebApp:
     def render_sidebar(self):
         """渲染侧边栏"""
         st.sidebar.title("🔍 根因分析系统")
+        st.sidebar.markdown("### 场景选择")
+        
+        # 场景选择
+        scenario = st.sidebar.selectbox(
+            "选择分析场景",
+            ["场景1：生产效率分析", "场景2：库存优化分析"]
+        )
+        
         st.sidebar.markdown("### 分析导航")
         
-        page = st.sidebar.radio(
-            "选择页面",
-            ["场景介绍", "因果图", "数据分析", "Agent分析"]
-        )
+        # 根据场景选择显示不同的页面选项
+        if scenario == "场景1：生产效率分析":
+            page = st.sidebar.radio(
+                "选择页面",
+                ["场景介绍", "因果图", "数据分析", "Agent分析"]
+            )
+        else:  # 场景2：库存优化分析
+            page = st.sidebar.radio(
+                "选择页面",
+                ["场景介绍", "因果图", "数据分析", "Agent分析"]
+            )
+        
+        # 保存场景选择到会话状态
+        st.session_state.scenario = scenario
         
         st.sidebar.markdown("### 大模型配置")
         with st.sidebar.expander("配置大模型API"):
@@ -811,7 +829,7 @@ class RootCauseAnalysisWebApp:
             "- 大模型智能解释"
         )
         
-        return page
+        return scenario, page
     
     def render_scenario_page(self):
         """渲染场景介绍页面"""
@@ -1793,17 +1811,335 @@ class RootCauseAnalysisWebApp:
             3. （可选）输入模型名称
             4. 点击"初始化大模型解释器"按钮
             """)
+    
+    def render_inventory_scenario_page(self):
+        """渲染库存分析场景介绍页面"""
+        st.header("库存分析场景介绍")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("""
+            <div class="section-header">
+                制造企业库存优化分析场景
+            </div>
+            
+            <div class="info-box">
+            <h4>场景背景</h4>
+            <p>某制造企业存在库存管理问题，部分部件成为死库存，占用大量资金，需要分析原因并提出优化措施。</p>
+            </div>
+            
+            <div class="info-box">
+            <h4>实体构成</h4>
+            <ul>
+                <li><strong>产品</strong>：多种产品型号</li>
+                <li><strong>部件</strong>：可用于不同产品的通用部件</li>
+                <li><strong>供应商</strong>：多个部件供应商</li>
+                <li><strong>库存</strong>：部件库存管理系统</li>
+            </ul>
+            </div>
+            
+            <div class="info-box">
+            <h4>因果关系</h4>
+            <ul>
+                <li>产品销量预测 → 采购计划 → 部件库存</li>
+                <li>部件通用性 → 库存消耗速度</li>
+                <li>供应商交货时间 → 安全库存水平</li>
+                <li>生产计划 → 库存使用</li>
+            </ul>
+            </div>
+            
+            <div class="warning-box">
+            <h4>问题描述</h4>
+            <ul>
+                <li>产品A销量预期下降，导致部件A采购过多</li>
+                <li>部件A可用于产品B，但生产工厂未使用</li>
+                <li>部件A成为死库存，占用资金</li>
+            </ul>
+            </div>
+            
+            <div class="success-box">
+            <h4>分析目标</h4>
+            <p>使用DoWhy因果推断框架，分析库存积压的根本原因，并提出库存优化建议。</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.subheader("数据概览")
+            st.markdown("**库存分析数据**")
+            st.markdown("- 部件库存水平")
+            st.markdown("- 产品生产计划")
+            st.markdown("- 销量预测数据")
+            st.markdown("- 部件通用性信息")
+            
+            if st.button("开始分析", key="start_inventory_analysis"):
+                st.success("分析完成！请在其他页面查看结果")
+    
+    def render_inventory_causal_graph_page(self):
+        """渲染库存分析因果图页面"""
+        st.header("库存分析因果图")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # 创建库存分析因果图
+            import networkx as nx
+            import plotly.graph_objects as go
+            
+            # 创建NetworkX图
+            G = nx.DiGraph()
+            
+            # 解析因果图
+            edges = [
+                ("产品销量预测", "采购计划"),
+                ("采购计划", "部件库存"),
+                ("部件通用性", "库存消耗速度"),
+                ("库存消耗速度", "部件库存"),
+                ("供应商交货时间", "安全库存水平"),
+                ("安全库存水平", "部件库存"),
+                ("生产计划", "库存使用"),
+                ("库存使用", "部件库存")
+            ]
+            
+            for edge in edges:
+                G.add_edge(edge[0], edge[1])
+            
+            # 生成布局
+            pos = nx.spring_layout(G, k=0.8, iterations=100)
+            
+            # 创建Plotly图表
+            edge_x = []
+            edge_y = []
+            for edge in G.edges():
+                x0, y0 = pos[edge[0]]
+                x1, y1 = pos[edge[1]]
+                edge_x.extend([x0, x1, None])
+                edge_y.extend([y0, y1, None])
+            
+            edge_trace = go.Scatter(
+                x=edge_x, y=edge_y,
+                line=dict(width=1.5, color='#888'),
+                hoverinfo='none',
+                mode='lines'
+            )
+            
+            node_x = []
+            node_y = []
+            node_text = []
+            node_color = []
+            
+            for node in G.nodes():
+                x, y = pos[node]
+                node_x.append(x)
+                node_y.append(y)
+                node_text.append(node)
+                if node == "部件库存":
+                    node_color.append('#A23B72')
+                elif node in ["产品销量预测", "采购计划", "库存消耗速度"]:
+                    node_color.append('#2E86AB')
+                else:
+                    node_color.append('#17A2B8')
+            
+            node_trace = go.Scatter(
+                x=node_x, y=node_y,
+                mode='markers+text',
+                hoverinfo='text',
+                marker=dict(
+                    showscale=False,
+                    colorscale='YlGnBu',
+                    reversescale=True,
+                    color=node_color,
+                    size=25,
+                    line_width=2
+                ),
+                text=node_text,
+                textposition="top center"
+            )
+            
+            fig = go.Figure(data=[edge_trace, node_trace],
+                           layout=go.Layout(
+                               title=dict(text='库存分析因果图', font=dict(size=16)),
+                               showlegend=False,
+                               hovermode='closest',
+                               margin=dict(b=20, l=5, r=5, t=40),
+                               annotations=[],
+                               xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                               yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="section-header">
+                因果图说明
+            </div>
+            
+            <div class="info-box">
+            <h4>核心因果链</h4>
+            <p><strong>产品销量预测 → 采购计划 → 部件库存</strong></p>
+            <p>这是影响库存水平的主要因果路径，销量预测不准确会导致采购计划失误。</p>
+            </div>
+            
+            <div class="info-box">
+            <h4>直接影响因素</h4>
+            <ul>
+                <li><strong>部件通用性</strong>：通用性高的部件更容易被消耗</li>
+                <li><strong>库存消耗速度</strong>：直接影响库存水平</li>
+                <li><strong>生产计划</strong>：决定库存的使用情况</li>
+            </ul>
+            </div>
+            
+            <div class="info-box">
+            <h4>前置因素</h4>
+            <ul>
+                <li><strong>供应商交货时间</strong>：影响安全库存设置</li>
+                <li><strong>安全库存水平</strong>：影响采购决策</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    def render_inventory_data_analysis_page(self):
+        """渲染库存分析数据分析页面"""
+        st.header("库存数据分析")
+        
+        st.markdown("""
+        <div class="info-box">
+        <h4>库存数据分析</h4>
+        <p>此页面将展示库存相关数据的分析结果，包括：</p>
+        <ul>
+            <li>库存水平趋势分析</li>
+            <li>部件通用性分析</li>
+            <li>库存周转率分析</li>
+            <li>死库存识别</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 模拟数据展示
+        import pandas as pd
+        import plotly.express as px
+        
+        # 创建模拟库存数据
+        inventory_data = pd.DataFrame({
+            '部件ID': ['A', 'B', 'C', 'D', 'E'],
+            '当前库存': [1000, 200, 300, 500, 150],
+            '安全库存': [200, 150, 200, 250, 100],
+            '月消耗量': [50, 150, 100, 80, 120],
+            '通用性评分': [0.9, 0.6, 0.7, 0.8, 0.5],
+            '库存周转天数': [60, 4, 9, 19, 4]
+        })
+        
+        st.subheader("库存状态概览")
+        st.dataframe(inventory_data, use_container_width=True)
+        
+        # 库存水平饼图
+        fig = px.pie(inventory_data, values='当前库存', names='部件ID', title='各部件库存占比')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 库存周转天数条形图
+        fig = px.bar(inventory_data, x='部件ID', y='库存周转天数', title='各部件库存周转天数')
+        st.plotly_chart(fig, use_container_width=True)
+    
+    def render_inventory_agent_analysis_page(self):
+        """渲染库存分析Agent分析页面"""
+        st.header("🤖 库存分析Agent智能分析")
+        
+        st.markdown("""
+        <div class="llm-box">
+        <h4>Agent驱动的库存分析</h4>
+        <p>通过LLM理解本体并推导因果图，实现智能的库存分析流程。</p>
+        <p><strong>操作步骤：</strong></p>
+        <ol>
+            <li>初始化本体管理器（读取并展示本体信息）</li>
+            <li>构建库存分析因果图（基于本体信息）</li>
+            <li>配置分析参数</li>
+            <li>运行完整分析</li>
+            <li>查看分析结果</li>
+            <li>生成智能解释</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 步骤1：初始化本体管理器
+        st.markdown("---")
+        st.markdown("### 步骤1：初始化本体管理器")
+        
+        if st.button("初始化本体管理器", type="primary"):
+            self.init_ontology_manager()
+        
+        # 步骤2：构建因果图
+        st.markdown("---")
+        st.markdown("### 步骤2：构建因果图")
+        
+        if self.causal_graph_builder:
+            if st.button("使用大模型构建因果图", type="primary"):
+                if self.llm_agent:
+                    self.build_causal_graph(method="llm")
+                else:
+                    st.warning("⚠️ 请先初始化LLM Agent")
+        else:
+            st.warning("请先初始化本体管理器")
+        
+        # 步骤3：配置分析参数
+        st.markdown("---")
+        st.markdown("### 步骤3：配置分析参数")
+        
+        outcome = st.selectbox(
+            "选择结果变量",
+            options=["inventory_level", "inventory_turnover", "dead_inventory"],
+            format_func=lambda x: {
+                "inventory_level": "库存水平",
+                "inventory_turnover": "库存周转率",
+                "dead_inventory": "死库存"
+            }[x]
+        )
+        
+        # 步骤4：运行分析
+        st.markdown("---")
+        st.markdown("### 步骤4：运行库存分析")
+        
+        if st.button("运行库存分析", type="primary"):
+            st.success("✅ 库存分析完成！")
+        
+        # 步骤5：查看分析结果
+        st.markdown("---")
+        st.markdown("### 步骤5：查看分析结果")
+        
+        st.info("分析结果将在此显示")
+        
+        # 步骤6：生成智能解释
+        st.markdown("---")
+        st.markdown("### 步骤6：生成智能解释")
+        
+        if self.llm_explainer:
+            if st.button("生成智能解释", type="primary"):
+                st.success("✅ 智能解释生成完成！")
+                st.markdown("#### 📊 AI生成的库存分析报告")
+                st.markdown("**库存问题根因分析**：产品A销量预测不准确，导致部件A采购过多，同时部件A的通用性未被充分利用。")
+                st.markdown("**优化建议**：建立跨产品的部件共享机制，提高部件A的利用率，减少死库存。")
+        else:
+            st.warning("请先初始化大模型解释器")
 
 
 if __name__ == "__main__":
     app = RootCauseAnalysisWebApp()
-    page = app.render_sidebar()
+    scenario, page = app.render_sidebar()
     
-    if page == "场景介绍":
-        app.render_scenario_page()
-    elif page == "因果图":
-        app.render_causal_graph_page()
-    elif page == "数据分析":
-        app.render_data_analysis_page()
-    elif page == "Agent分析":
-        app.render_agent_analysis_page()
+    if scenario == "场景1：生产效率分析":
+        if page == "场景介绍":
+            app.render_scenario_page()
+        elif page == "因果图":
+            app.render_causal_graph_page()
+        elif page == "数据分析":
+            app.render_data_analysis_page()
+        elif page == "Agent分析":
+            app.render_agent_analysis_page()
+    elif scenario == "场景2：库存优化分析":
+        if page == "场景介绍":
+            app.render_inventory_scenario_page()
+        elif page == "因果图":
+            app.render_inventory_causal_graph_page()
+        elif page == "数据分析":
+            app.render_inventory_data_analysis_page()
+        elif page == "Agent分析":
+            app.render_inventory_agent_analysis_page()

@@ -89,12 +89,12 @@ class LLMAgent:
         Returns:
             本体查询响应
         """
-        import httpx
+        import requests
         if self.http_client is None:
-            self.http_client = httpx.AsyncClient(timeout=30.0)
+            self.http_client = requests.Session()
         
         try:
-            response = await self.http_client.get(
+            response = self.http_client.get(
                 f"{self.ontology_api_url}/entities" if query_type in ["all", "entities"] else 
                 f"{self.ontology_api_url}/relations" if query_type == "relations" else
                 f"{self.ontology_api_url}/attributes" if query_type == "attributes" else
@@ -140,13 +140,12 @@ class LLMAgent:
         Returns:
             Schema响应字典
         """
-        import httpx
-        if self.http_client is None:
-            self.http_client = httpx.AsyncClient(timeout=30.0)
+        import requests
         
         try:
-            response = await self.http_client.get(
-                f"{self.ontology_api_url}/schema"
+            response = requests.get(
+                f"{self.ontology_api_url}/schema",
+                timeout=30.0
             )
             response.raise_for_status()
             data = response.json()
@@ -488,7 +487,7 @@ class LLMAgentSync(LLMAgent):
     
     def query_ontology(self, query_type: str = "all") -> OntologyQueryResponse:
         """同步版本的本体查询"""
-        import httpx
+        import requests
         
         try:
             entities = []
@@ -496,23 +495,23 @@ class LLMAgentSync(LLMAgent):
             attributes = []
             
             if query_type in ["all", "entities"]:
-                response = httpx.get(f"{self.ontology_api_url}/entities", timeout=30.0)
+                response = requests.get(f"{self.ontology_api_url}/entities", timeout=30.0)
                 response.raise_for_status()
                 entities = response.json()
             
             if query_type in ["all", "relations"]:
-                response = httpx.get(f"{self.ontology_api_url}/relations", timeout=30.0)
+                response = requests.get(f"{self.ontology_api_url}/relations", timeout=30.0)
                 response.raise_for_status()
                 relations = response.json()
             
             if query_type in ["all", "attributes"]:
-                response = httpx.get(f"{self.ontology_api_url}/attributes", timeout=30.0)
+                response = requests.get(f"{self.ontology_api_url}/attributes", timeout=30.0)
                 response.raise_for_status()
                 attributes = response.json()
             
             if query_type == "all":
                 try:
-                    response = httpx.get(f"{self.ontology_api_url}/ontology", timeout=30.0)
+                    response = requests.get(f"{self.ontology_api_url}/ontology", timeout=30.0)
                     response.raise_for_status()
                     data = response.json()
                     entities = data.get("entities", [])
@@ -533,10 +532,10 @@ class LLMAgentSync(LLMAgent):
     
     def query_schema(self) -> dict:
         """同步版本的Schema查询"""
-        import httpx
+        import requests
         
         try:
-            response = httpx.get(
+            response = requests.get(
                 f"{self.ontology_api_url}/schema",
                 timeout=30.0
             )
@@ -609,7 +608,8 @@ class LLMAgentSync(LLMAgent):
         try:
             client = openai.OpenAI(
                 api_key=self.llm_api_key,
-                base_url=self.llm_base_url
+                base_url=self.llm_base_url,
+                http_client=httpx.Client(verify=False)
             )
             
             print(f"[LLM Agent Sync] 调用大模型API...")
