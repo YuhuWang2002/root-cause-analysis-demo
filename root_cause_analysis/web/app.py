@@ -92,6 +92,7 @@ class RootCauseAnalysisWebApp:
     def __init__(self):
         # CSV文件路径
         self.data_csv_path = "production_data.csv"
+        self.server_inventory_csv_path = "server_inventory_data.csv"
         self.anomaly_factors_json_path = "anomaly_factors.json"
         
         # 使用 st.session_state 持久化状态
@@ -121,6 +122,8 @@ class RootCauseAnalysisWebApp:
             st.session_state.ontology_manager = None
         if 'causal_graph_builder' not in st.session_state:
             st.session_state.causal_graph_builder = None
+        if 'current_scenario' not in st.session_state:
+            st.session_state.current_scenario = "场景1：生产效率分析"
         
         self.data = st.session_state.data
         self.anomaly_factors = st.session_state.anomaly_factors
@@ -134,6 +137,7 @@ class RootCauseAnalysisWebApp:
         self.causal_graph = st.session_state.causal_graph
         self.ontology_manager = st.session_state.ontology_manager
         self.causal_graph_builder = st.session_state.causal_graph_builder
+        self.current_scenario = st.session_state.current_scenario
         
     def _save_state(self):
         """保存状态到 session_state"""
@@ -148,37 +152,85 @@ class RootCauseAnalysisWebApp:
         st.session_state.causal_graph = self.causal_graph
         st.session_state.ontology_manager = self.ontology_manager
         st.session_state.causal_graph_builder = self.causal_graph_builder
+        st.session_state.current_scenario = self.current_scenario
         # 注意：agent_outcome_entity由Streamlit自动管理，不需要手动保存
         
     def load_data(self):
         """加载数据"""
+        # 获取当前场景
+        if 'scenario' in st.session_state:
+            self.current_scenario = st.session_state.scenario
+            st.session_state.current_scenario = self.current_scenario
+        
+        # 场景切换时强制重新加载数据
+        if self.data is not None:
+            # 检查当前场景是否与上次加载数据时的场景不同
+            if 'last_loaded_scenario' not in st.session_state or st.session_state.last_loaded_scenario != self.current_scenario:
+                self.data = None
+                self.analysis_results = None
+                self.pipeline = None
+                st.session_state.data = None
+                st.session_state.analysis_results = None
+                st.session_state.pipeline = None
+        
         if self.data is None:
             with st.spinner("加载数据..."):
-                # 尝试从CSV文件读取
-                if os.path.exists(self.data_csv_path):
-                    try:
-                        import json
-                        self.data = pd.read_csv(self.data_csv_path, parse_dates=['date'])
-                        
-                        # 读取异常因素配置
-                        if os.path.exists(self.anomaly_factors_json_path):
-                            with open(self.anomaly_factors_json_path, 'r', encoding='utf-8') as f:
-                                self.anomaly_factors = json.load(f)
-                        else:
-                            self.anomaly_factors = {
-                                "payment_delay": True,
-                                "supplier_issue": True,
-                                "employee_turnover": False,
-                                "equipment_failure": False
-                            }
-                        
-                        st.success(f"✅ 从CSV文件加载了 {len(self.data)} 条数据记录")
-                    except Exception as e:
-                        st.warning(f"⚠️ 读取CSV文件失败: {str(e)}，将重新生成数据")
-                        self._generate_new_data()
+                # 根据场景选择数据文件
+                if self.current_scenario == "场景2：库存优化分析":
+                    # 加载服务器库存数据
+                    # 获取绝对路径
+                    data_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), self.server_inventory_csv_path)
+                    st.info(f"正在尝试加载服务器库存数据文件: {data_file}")
+                    
+                    if os.path.exists(data_file):
+                        try:
+                            self.data = pd.read_csv(data_file, parse_dates=['date'])
+                            st.success(f"✅ 从CSV文件加载了 {len(self.data)} 条服务器库存数据记录")
+                        except Exception as e:
+                            st.warning(f"⚠️ 读取服务器库存数据失败: {str(e)}")
+                            # 使用模拟数据
+                            self._generate_server_inventory_data()
+                    else:
+                        st.warning(f"⚠️ 服务器库存数据文件不存在: {data_file}，使用模拟数据")
+                        # 检查当前目录
+                        current_dir = os.getcwd()
+                        st.info(f"当前工作目录: {current_dir}")
+                        # 列出当前目录的文件
+                        import glob
+                        files = glob.glob('*.csv')
+                        st.info(f"当前目录的CSV文件: {files}")
+                        self._generate_server_inventory_data()
                 else:
-                    # CSV文件不存在，生成新数据
-                    self._generate_new_data()
+                    # 加载生产效率数据
+                    data_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), self.data_csv_path)
+                    if os.path.exists(data_file):
+                        try:
+                            import json
+                            self.data = pd.read_csv(data_file, parse_dates=['date'])
+                            
+                            # 读取异常因素配置
+                            anomaly_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), self.anomaly_factors_json_path)
+                            if os.path.exists(anomaly_file):
+                                with open(anomaly_file, 'r', encoding='utf-8') as f:
+                                    self.anomaly_factors = json.load(f)
+                            else:
+                                self.anomaly_factors = {
+                                    "payment_delay": True,
+                                    "supplier_issue": True,
+                                    "employee_turnover": False,
+                                    "equipment_failure": False
+                                }
+                            
+                            st.success(f"✅ 从CSV文件加载了 {len(self.data)} 条生产效率数据记录")
+                        except Exception as e:
+                            st.warning(f"⚠️ 读取生产效率数据失败: {str(e)}，将重新生成数据")
+                            self._generate_new_data()
+                    else:
+                        # CSV文件不存在，生成新数据
+                        self._generate_new_data()
+            
+            # 记录上次加载数据的场景
+            st.session_state.last_loaded_scenario = self.current_scenario
             self._save_state()
         return self.data, self.anomaly_factors
     
@@ -201,9 +253,30 @@ class RootCauseAnalysisWebApp:
             except Exception as e:
                 st.warning(f"⚠️ 保存数据到CSV失败: {str(e)}")
     
-    def init_ontology_manager(self):
+    def _generate_server_inventory_data(self):
+        """生成服务器库存模拟数据"""
+        with st.spinner("生成服务器库存模拟数据..."):
+            # 导入generate_server_inventory_data函数
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from generate_server_inventory_data import generate_server_inventory_data
+            
+            # 调用函数生成数据
+            df = generate_server_inventory_data()
+            
+            # 处理数据格式
+            self.data = df
+            self.data['date'] = pd.to_datetime(self.data['date'])
+            
+            st.success(f"✅ 已生成 {len(self.data)} 条服务器库存模拟数据")
+    
+    def init_ontology_manager(self, schema_type="default"):
         """
         初始化本体管理器 - 从ontology_api读取schema信息
+        
+        Args:
+            schema_type: schema类型，"default" 或 "server"
         """
         if not self.ontology_manager:
             try:
@@ -212,8 +285,16 @@ class RootCauseAnalysisWebApp:
                 # 从ontology_api读取schema信息
                 st.info("正在从ontology_api读取schema信息...")
                 
+                # 根据schema_type选择不同的API端点
+                if schema_type == "server":
+                    schema_url = "http://localhost:8000/schema/server"
+                    st.info("使用服务器库存分析本体Schema")
+                else:
+                    schema_url = "http://localhost:8000/schema"
+                    st.info("使用默认本体Schema")
+                
                 # 只读取schema端点，因为其他端点返回空数据
-                schema_response = requests.get("http://localhost:8000/schema", timeout=10.0)
+                schema_response = requests.get(schema_url, timeout=10.0)
                 schema_response.raise_for_status()
                 schema_data = schema_response.json()
                 
@@ -294,7 +375,26 @@ class RootCauseAnalysisWebApp:
             # 使用大模型构建因果图
             try:
                 ontology_schema = self.ontology_manager.schema
-                self.causal_graph = self.causal_graph_builder.build_with_llm(ontology_schema, self.llm_agent)
+                # 获取最新的场景选择
+                if 'scenario' in st.session_state:
+                    self.current_scenario = st.session_state.scenario
+                    st.session_state.current_scenario = self.current_scenario
+                st.info(f"当前场景: {self.current_scenario}")
+                # 根据当前场景设置参数
+                if self.current_scenario == "场景2：库存优化分析":
+                    scenario_description = "制造企业服务器库存分析"
+                    outcome_entity = "cpu_xeon_6338_inventory_level"
+                else:
+                    scenario_description = "制造企业生产效率分析"
+                    outcome_entity = "production_efficiency"
+                st.info(f"场景描述: {scenario_description}")
+                st.info(f"结果实体: {outcome_entity}")
+                self.causal_graph = self.causal_graph_builder.build_with_llm(
+                    ontology_schema, 
+                    self.llm_agent,
+                    scenario_description,
+                    outcome_entity
+                )
                 st.success("✅ 使用大模型构建因果图成功！")
             except Exception as e:
                 st.error(f"❌ 使用大模型构建因果图失败: {str(e)}")
@@ -304,17 +404,37 @@ class RootCauseAnalysisWebApp:
             if self.causal_graph_builder:
                 self.causal_graph = self.causal_graph_builder.get_default_causal_graph()
             else:
-                # 如果没有因果图构建器，使用硬编码的默认因果图
-                self.causal_graph = """digraph {
-                    payment_timeliness -> supplier_efficiency;
-                    supplier_efficiency -> parts_availability;
-                    parts_availability -> production_efficiency;
-                    avg_employee_skill -> production_efficiency;
-                    equipment_status -> production_efficiency;
-                    capacity_utilization -> production_efficiency;
-                    supplier_efficiency -> production_efficiency;
-                    payment_timeliness -> production_efficiency;
-                }"""
+                # 根据当前场景使用不同的默认因果图
+                if self.current_scenario == "场景2：库存优化分析":
+                    # 库存分析默认因果图 - 使用与数据列名匹配的节点
+                    self.causal_graph = """digraph {
+                        server_2885_sales_quantity -> cpu_xeon_6338_inventory_level;
+                        server_5885_sales_quantity -> cpu_xeon_8358_inventory_level;
+                        cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
+                        cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
+                        memory_32gb_commonality -> memory_32gb_inventory_turnover_rate;
+                        memory_64gb_commonality -> memory_64gb_inventory_turnover_rate;
+                        hdd_2tb_commonality -> hdd_2tb_inventory_turnover_rate;
+                        ssd_1tb_commonality -> ssd_1tb_inventory_turnover_rate;
+                        cpu_xeon_6338_inventory_level -> cpu_xeon_6338_dead_inventory;
+                        cpu_xeon_8358_inventory_level -> cpu_xeon_8358_dead_inventory;
+                        memory_32gb_inventory_level -> memory_32gb_dead_inventory;
+                        memory_64gb_inventory_level -> memory_64gb_dead_inventory;
+                        hdd_2tb_inventory_level -> hdd_2tb_dead_inventory;
+                        ssd_1tb_inventory_level -> ssd_1tb_dead_inventory;
+                    }"""
+                else:
+                    # 生产效率分析默认因果图
+                    self.causal_graph = """digraph {
+                        payment_timeliness -> supplier_efficiency;
+                        supplier_efficiency -> parts_availability;
+                        parts_availability -> production_efficiency;
+                        avg_employee_skill -> production_efficiency;
+                        equipment_status -> production_efficiency;
+                        capacity_utilization -> production_efficiency;
+                        supplier_efficiency -> production_efficiency;
+                        payment_timeliness -> production_efficiency;
+                    }"""
         
         self._save_state()
         return self.causal_graph
@@ -1429,9 +1549,11 @@ class RootCauseAnalysisWebApp:
                     # 生成布局
                     if len(G.nodes) > 0:
                         try:
-                            pos = nx.kamada_kawai_layout(G)
+                            # 对于大型图，使用spring_layout并调整参数避免节点重合
+                            pos = nx.spring_layout(G, k=1.2, iterations=300, seed=42)
                         except:
-                            pos = nx.spring_layout(G, k=0.8, iterations=200)
+                            # 备选布局，同样调整参数
+                            pos = nx.spring_layout(G, k=1.0, iterations=200, seed=42)
                     else:
                         pos = {}
                     
@@ -1537,11 +1659,40 @@ class RootCauseAnalysisWebApp:
                     help="可以直接编辑因果图，格式为DOT语言，例如：digraph G { A -> B; B -> C; }"
                 )
                 
-                if st.button("应用修改"):
-                    if edited_causal_graph != self.causal_graph:
-                        self.causal_graph = edited_causal_graph
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("应用修改"):
+                        if edited_causal_graph != self.causal_graph:
+                            self.causal_graph = edited_causal_graph
+                            self._save_state()
+                            st.success("✅ 因果图已更新")
+                            # 重新渲染页面以显示更新后的因果图
+                            st.rerun()
+                with col2:
+                    if st.button("默认因果图"):
+                        # 根据因果关系和本体schema创建默认因果图
+                        default_causal_graph = """digraph {
+    # 部件通用性 -> 库存周转率
+    cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
+    
+    # 库存周转率 -> 部件库存
+    cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
+    cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
+    
+    # 被服务器使用比例 -> 库存周转率
+    cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
+    cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
+    
+    # 销售数量 -> 库存周转率
+    server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
+    server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
+}"""
+                        self.causal_graph = default_causal_graph
                         self._save_state()
-                        st.success("✅ 因果图已更新")
+                        st.success("✅ 已设置为默认因果图")
                         # 重新渲染页面以显示更新后的因果图
                         st.rerun()
         else:
@@ -1814,62 +1965,64 @@ class RootCauseAnalysisWebApp:
     
     def render_inventory_scenario_page(self):
         """渲染库存分析场景介绍页面"""
-        st.header("库存分析场景介绍")
+        st.header("服务器库存分析场景介绍")
         
         col1, col2 = st.columns([2, 1])
         
         with col1:
             st.markdown("""
             <div class="section-header">
-                制造企业库存优化分析场景
+                服务器制造业库存优化分析场景
             </div>
             
             <div class="info-box">
             <h4>场景背景</h4>
-            <p>某制造企业存在库存管理问题，部分部件成为死库存，占用大量资金，需要分析原因并提出优化措施。</p>
+            <p>某服务器制造企业在2026年12月发现服务器2885型号销量显著下降，导致其专用CPU部件Xeon 6338库存积压，占用大量资金，需要分析原因并提出优化措施。</p>
             </div>
             
             <div class="info-box">
             <h4>实体构成</h4>
             <ul>
-                <li><strong>产品</strong>：多种产品型号</li>
-                <li><strong>部件</strong>：可用于不同产品的通用部件</li>
-                <li><strong>供应商</strong>：多个部件供应商</li>
-                <li><strong>库存</strong>：部件库存管理系统</li>
+                <li><strong>服务器</strong>：server_2885、server_5885等型号</li>
+                <li><strong>部件</strong>：CPU、内存、存储等组件</li>
+                <li><strong>关键部件</strong>：cpu_xeon_6338（可用于2种服务器）、cpu_xeon_8358、memory_32gb、memory_64gb、hdd_2tb、ssd_1tb</li>
+                <li><strong>库存系统</strong>：实时跟踪部件库存水平</li>
             </ul>
             </div>
             
             <div class="info-box">
             <h4>因果关系</h4>
             <ul>
-                <li>产品销量预测 → 采购计划 → 部件库存</li>
+                <li>服务器销量 → CPU需求 → CPU库存水平</li>
                 <li>部件通用性 → 库存消耗速度</li>
-                <li>供应商交货时间 → 安全库存水平</li>
-                <li>生产计划 → 库存使用</li>
+                <li>库存水平 → 库存周转率</li>
+                <li>死库存 → 资金占用</li>
             </ul>
             </div>
             
             <div class="warning-box">
             <h4>问题描述</h4>
             <ul>
-                <li>产品A销量预期下降，导致部件A采购过多</li>
-                <li>部件A可用于产品B，但生产工厂未使用</li>
-                <li>部件A成为死库存，占用资金</li>
+                <li>server_2885销量在12月从平均19.47台下降到7.06台</li>
+                <li>cpu_xeon_6338库存从11月平均63.33增加到12月平均123.68</li>
+                <li>cpu_xeon_6338可用于2种服务器，但未充分利用</li>
+                <li>库存积压导致周转率下降，资金占用增加</li>
             </ul>
             </div>
             
             <div class="success-box">
             <h4>分析目标</h4>
-            <p>使用DoWhy因果推断框架，分析库存积压的根本原因，并提出库存优化建议。</p>
+            <p>使用DoWhy因果推断框架，分析cpu_xeon_6338库存积压的根本原因，评估部件通用性对库存的影响，并提出库存优化建议。</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.subheader("数据概览")
-            st.markdown("**库存分析数据**")
+            st.markdown("**服务器库存分析数据**")
+            st.markdown("- 服务器销量数据（11-12月）")
             st.markdown("- 部件库存水平")
-            st.markdown("- 产品生产计划")
-            st.markdown("- 销量预测数据")
+            st.markdown("- 库存周转率")
+            st.markdown("- 死库存数量")
             st.markdown("- 部件通用性信息")
             
             if st.button("开始分析", key="start_inventory_analysis"):
@@ -1891,14 +2044,11 @@ class RootCauseAnalysisWebApp:
             
             # 解析因果图
             edges = [
-                ("产品销量预测", "采购计划"),
-                ("采购计划", "部件库存"),
-                ("部件通用性", "库存消耗速度"),
-                ("库存消耗速度", "部件库存"),
-                ("供应商交货时间", "安全库存水平"),
-                ("安全库存水平", "部件库存"),
-                ("生产计划", "库存使用"),
-                ("库存使用", "部件库存")
+                ("部件通用性", "库存周转率"),
+                ("库存周转率", "部件库存"),
+                ("库存周转率", "部件库存"),
+                ("被服务器使用比例","库存周转率"),
+                ("销售数量", "库存周转率")                
             ]
             
             for edge in edges:
@@ -1976,24 +2126,24 @@ class RootCauseAnalysisWebApp:
             
             <div class="info-box">
             <h4>核心因果链</h4>
-            <p><strong>产品销量预测 → 采购计划 → 部件库存</strong></p>
-            <p>这是影响库存水平的主要因果路径，销量预测不准确会导致采购计划失误。</p>
+            <p><strong>部件通用性 → 库存周转率 → 部件库存</strong></p>
+            <p>这是影响库存水平的主要因果路径，部件通用性直接影响库存周转率，进而影响库存水平。</p>
             </div>
             
             <div class="info-box">
             <h4>直接影响因素</h4>
             <ul>
-                <li><strong>部件通用性</strong>：通用性高的部件更容易被消耗</li>
-                <li><strong>库存消耗速度</strong>：直接影响库存水平</li>
-                <li><strong>生产计划</strong>：决定库存的使用情况</li>
+                <li><strong>销售数量</strong>：直接影响库存周转率，销量增加会提高周转率</li>
+                <li><strong>被服务器使用比例</strong>：使用比例高的部件周转率更高</li>
+                <li><strong>库存周转率</strong>：直接影响部件库存水平，周转率高则库存水平低</li>
             </ul>
             </div>
             
             <div class="info-box">
             <h4>前置因素</h4>
             <ul>
-                <li><strong>供应商交货时间</strong>：影响安全库存设置</li>
-                <li><strong>安全库存水平</strong>：影响采购决策</li>
+                <li><strong>部件通用性</strong>：通用性高的部件更容易被不同服务器使用，提高周转率</li>
+                <li><strong>销售数量</strong>：销量是影响库存周转率的重要因素</li>
             </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -2015,30 +2165,188 @@ class RootCauseAnalysisWebApp:
         </div>
         """, unsafe_allow_html=True)
         
-        # 模拟数据展示
-        import pandas as pd
-        import plotly.express as px
+        # 加载数据
+        self.load_data()
         
-        # 创建模拟库存数据
-        inventory_data = pd.DataFrame({
-            '部件ID': ['A', 'B', 'C', 'D', 'E'],
-            '当前库存': [1000, 200, 300, 500, 150],
-            '安全库存': [200, 150, 200, 250, 100],
-            '月消耗量': [50, 150, 100, 80, 120],
-            '通用性评分': [0.9, 0.6, 0.7, 0.8, 0.5],
-            '库存周转天数': [60, 4, 9, 19, 4]
-        })
-        
-        st.subheader("库存状态概览")
-        st.dataframe(inventory_data, use_container_width=True)
-        
-        # 库存水平饼图
-        fig = px.pie(inventory_data, values='当前库存', names='部件ID', title='各部件库存占比')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # 库存周转天数条形图
-        fig = px.bar(inventory_data, x='部件ID', y='库存周转天数', title='各部件库存周转天数')
-        st.plotly_chart(fig, use_container_width=True)
+        # 检查数据是否加载成功
+        if self.data is not None:
+            import pandas as pd
+            import plotly.express as px
+            
+            # 创建标签页
+            tab1, tab2, tab3, tab4 = st.tabs(["库存趋势", "部件分析", "周转率分析", "库存概览"])
+            
+            with tab1:
+                # 库存水平趋势分析
+                st.subheader("库存水平趋势分析")
+                
+                # 提取所有部件的库存水平数据
+                inventory_data = []
+                components = ['cpu_xeon_6338', 'cpu_xeon_8358', 'memory_32gb', 'memory_64gb', 'hdd_2tb', 'ssd_1tb']
+                
+                for component in components:
+                    inventory_col = f"{component}_inventory_level"
+                    if inventory_col in self.data.columns:
+                        component_data = self.data[['date', inventory_col]].copy()
+                        component_data['component_id'] = component
+                        component_data['inventory_level'] = component_data[inventory_col]
+                        inventory_data.append(component_data[['date', 'component_id', 'inventory_level']])
+                
+                if inventory_data:
+                    daily_inventory = pd.concat(inventory_data)
+                    
+                    # 创建趋势图
+                    fig = px.line(
+                        daily_inventory, 
+                        x='date', 
+                        y='inventory_level',
+                        color='component_id',
+                        title='各部件库存水平趋势',
+                        labels={'inventory_level': '库存水平', 'date': '日期', 'component_id': '部件ID'}
+                    )
+                    
+                    fig.update_layout(
+                        xaxis_title="日期",
+                        yaxis_title="库存水平",
+                        legend_title="部件ID",
+                        template="plotly_white"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ 未找到库存水平数据")
+            
+            with tab2:
+                # 部件通用性分析
+                st.subheader("部件通用性分析")
+                
+                # 提取所有部件的通用性数据
+                commonality_data = []
+                for component in components:
+                    commonality_col = f"{component}_commonality"
+                    inventory_col = f"{component}_inventory_level"
+                    if commonality_col in self.data.columns and inventory_col in self.data.columns:
+                        component_data = self.data[['date', commonality_col, inventory_col]].copy()
+                        component_data['component_id'] = component
+                        component_data['commonality'] = component_data[commonality_col]
+                        component_data['inventory_level'] = component_data[inventory_col]
+                        commonality_data.append(component_data[['date', 'component_id', 'commonality', 'inventory_level']])
+                
+                if commonality_data:
+                    component_analysis = pd.concat(commonality_data).groupby('component_id').agg({
+                        'commonality': 'mean',
+                        'inventory_level': 'mean'
+                    }).reset_index()
+                    
+                    # 通用性与库存关系图
+                    fig = px.scatter(
+                        component_analysis,
+                        x='commonality',
+                        y='inventory_level',
+                        color='component_id',
+                        title='部件通用性与库存关系',
+                        labels={'commonality': '通用性', 'inventory_level': '平均库存'}
+                    )
+                    
+                    fig.update_layout(
+                        xaxis_title="通用性",
+                        yaxis_title="平均库存",
+                        legend_title="部件ID",
+                        template="plotly_white"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ 未找到通用性数据")
+            
+            with tab3:
+                # 库存周转率分析
+                st.subheader("库存周转率分析")
+                
+                # 提取所有部件的周转率数据
+                turnover_data = []
+                for component in components:
+                    turnover_col = f"{component}_inventory_turnover_rate"
+                    if turnover_col in self.data.columns:
+                        component_data = self.data[['date', turnover_col]].copy()
+                        component_data['component_id'] = component
+                        component_data['inventory_turnover'] = component_data[turnover_col]
+                        turnover_data.append(component_data[['date', 'component_id', 'inventory_turnover']])
+                
+                if turnover_data:
+                    daily_turnover = pd.concat(turnover_data)
+                    
+                    # 创建周转率趋势图
+                    fig = px.line(
+                        daily_turnover, 
+                        x='date', 
+                        y='inventory_turnover',
+                        color='component_id',
+                        title='各部件库存周转率趋势',
+                        labels={'inventory_turnover': '库存周转率', 'date': '日期', 'component_id': '部件ID'}
+                    )
+                    
+                    fig.update_layout(
+                        xaxis_title="日期",
+                        yaxis_title="库存周转率",
+                        legend_title="部件ID",
+                        template="plotly_white"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ 未找到周转率数据")
+            
+            with tab4:
+                # 库存概览
+                st.subheader("库存状态概览")
+                
+                # 计算各部件的统计信息
+                inventory_summary_data = []
+                for component in components:
+                    inventory_col = f"{component}_inventory_level"
+                    turnover_col = f"{component}_inventory_turnover_rate"
+                    commonality_col = f"{component}_commonality"
+                    dead_col = f"{component}_dead_inventory"
+                    
+                    if all(col in self.data.columns for col in [inventory_col, turnover_col, commonality_col, dead_col]):
+                        component_summary = {
+                            '部件ID': component,
+                            '平均库存': self.data[inventory_col].mean(),
+                            '最大库存': self.data[inventory_col].max(),
+                            '最小库存': self.data[inventory_col].min(),
+                            '平均周转率': self.data[turnover_col].mean(),
+                            '通用性': self.data[commonality_col].mean(),
+                            '死库存': self.data[dead_col].mean()
+                        }
+                        inventory_summary_data.append(component_summary)
+                
+                if inventory_summary_data:
+                    inventory_summary = pd.DataFrame(inventory_summary_data)
+                    
+                    # 显示库存概览表格
+                    st.dataframe(inventory_summary, use_container_width=True)
+                    
+                    # 库存占比饼图
+                    total_inventory = inventory_summary[['部件ID', '平均库存']]
+                    fig = px.pie(total_inventory, values='平均库存', names='部件ID', title='各部件库存占比')
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # 死库存识别
+                    st.subheader("死库存识别")
+                    
+                    # 计算平均死库存，识别死库存较高的部件
+                    dead_inventory = inventory_summary[inventory_summary['死库存'] > inventory_summary['死库存'].quantile(0.75)]
+                    
+                    if not dead_inventory.empty:
+                        st.warning(f"⚠️ 识别到 {len(dead_inventory)} 个死库存较高的部件：")
+                        st.dataframe(dead_inventory, use_container_width=True)
+                    else:
+                        st.success("✅ 未识别到明显的死库存部件")
+                else:
+                    st.warning("⚠️ 未找到库存概览数据")
+        else:
+            st.warning("⚠️ 数据加载失败，请检查数据文件是否存在")
     
     def render_inventory_agent_analysis_page(self):
         """渲染库存分析Agent分析页面"""
@@ -2065,18 +2373,539 @@ class RootCauseAnalysisWebApp:
         st.markdown("### 步骤1：初始化本体管理器")
         
         if st.button("初始化本体管理器", type="primary"):
-            self.init_ontology_manager()
+            self.init_ontology_manager(schema_type="server")
+        
+        # 显示本体信息图形化展示
+        if self.ontology_manager:
+            st.markdown("#### 📊 本体信息展示")
+            
+            # 显示Schema信息
+            if hasattr(self.ontology_manager, 'schema') and self.ontology_manager.schema:
+                schema = self.ontology_manager.schema
+                
+                # 绘制本体图
+                st.markdown("##### 🎯 本体图形化展示")
+                
+                try:
+                    import networkx as nx
+                    import plotly.graph_objects as go
+                    
+                    # 创建有向图
+                    G = nx.DiGraph()
+                    
+                    # 从schema添加实体类型节点
+                    entity_types = schema.get('entity_types', [])
+                    relation_types = schema.get('relation_types', [])
+                    metric_definitions = schema.get('metric_definitions', [])
+                    
+                    # 添加节点
+                    entity_map = {}
+                    for i, entity_type in enumerate(entity_types):
+                        entity_id = entity_type.get('id', entity_type.get('name', f'entity_{i}'))
+                        entity_name = entity_type.get('name', entity_id)
+                        entity_map[entity_id] = entity_name
+                        G.add_node(entity_id, type='entity', name=entity_name)
+                    
+                    # 添加指标定义节点
+                    metric_map = {}
+                    for i, metric in enumerate(metric_definitions):
+                        metric_id = metric.get('id', metric.get('name', f'metric_{i}'))
+                        metric_name = metric.get('name', metric_id)
+                        metric_map[metric_id] = metric_name
+                        G.add_node(metric_id, type='metric', name=metric_name)
+                    
+                    # 添加关系类型边
+                    for i, relation_type in enumerate(relation_types):
+                        relation_name = relation_type.get('name', f'relation_{i}')
+                        source_types = relation_type.get('source_types', [])
+                        target_types = relation_type.get('target_types', [])
+                        
+                        # 为每种源类型和目标类型的组合添加边
+                        for source_type in source_types:
+                            for target_type in target_types:
+                                if source_type in G.nodes and target_type in G.nodes:
+                                    G.add_edge(source_type, target_type, label=relation_name)
+                    
+                    # 添加指标与实体的关系边
+                    for metric in metric_definitions:
+                        metric_id = metric.get('id', metric.get('name'))
+                        source_entity = metric.get('source_entity_type')
+                        
+                        # 连接指标与相关实体
+                        if metric_id in G.nodes and source_entity and source_entity in G.nodes:
+                            G.add_edge(source_entity, metric_id, label="has_metric")
+                    
+                    # 分离实体和指标节点
+                    entity_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'entity']
+                    metric_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') == 'metric']
+                    other_nodes = [node for node, attrs in G.nodes(data=True) if attrs.get('type') not in ['entity', 'metric']]
+                    
+                    # 使用更智能的布局算法
+                    if len(G.nodes) > 0:
+                        print(f"[DEBUG] 节点数量: {len(G.nodes)}")
+                        print(f"[DEBUG] 实体节点: {len(entity_nodes)}")
+                        print(f"[DEBUG] 指标节点: {len(metric_nodes)}")
+                        print(f"[DEBUG] 其他节点: {len(other_nodes)}")
+                        # 直接使用spring_layout，调整参数避免节点重叠
+                        print("[DEBUG] 使用 spring_layout")
+                        # 增加k值以增大节点间距，增加迭代次数以提高布局质量
+                        pos = nx.spring_layout(G, k=1.0, iterations=300, seed=42)
+                        # 打印布局结果
+                        print(f"[DEBUG] 布局完成，节点位置数量: {len(pos)}")
+                    else:
+                        pos = {}
+                    
+                    # 创建边轨迹
+                    edge_x = []
+                    edge_y = []
+                    edge_hover_text = []
+                    
+                    # 添加边标签
+                    edge_annotations = []
+                    
+                    for edge in G.edges(data=True):
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+                        
+                        label = edge[2].get('label', 'relation')
+                        edge_hover_text.append(label)
+                        
+                        # 添加边标签，确保它们正确显示
+                        x_mid = (x0 + x1) / 2
+                        y_mid = (y0 + y1) / 2
+                        
+                        # 计算标签位置的偏移，避免与边重叠
+                        dx = x1 - x0
+                        dy = y1 - y0
+                        length = (dx**2 + dy**2)**0.5
+                        if length > 0:
+                            # 垂直于边的方向偏移
+                            offset_x = -dy / length * 0.05
+                            offset_y = dx / length * 0.05
+                        else:
+                            offset_x = offset_y = 0
+                        
+                        edge_annotations.append(dict(
+                            x=x_mid + offset_x,
+                            y=y_mid + offset_y,
+                            xref="x",
+                            yref="y",
+                            text=label,
+                            showarrow=False,
+                            font=dict(size=10, color="#333", weight="bold"),
+                            bgcolor="rgba(255, 255, 255, 0.9)",
+                            bordercolor="rgba(0, 0, 0, 0.3)",
+                            borderwidth=1,
+                            borderpad=5
+                        ))
+                    
+                    # 创建边轨迹
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=1.5, color='#888888'),
+                        hoverinfo='text',
+                        mode='lines'
+                    )
+                    edge_trace.text = edge_hover_text
+                    
+                    # 创建箭头标记
+                    arrow_x = []
+                    arrow_y = []
+                    arrow_angles = []
+                    
+                    import math
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        
+                        # 计算箭头位置（在边的末端）
+                        arrow_x.append(x1)
+                        arrow_y.append(y1)
+                        
+                        # 计算箭头角度
+                        angle = 180 + (180 / math.pi) * math.atan2(y1 - y0, x1 - x0)
+                        arrow_angles.append(angle)
+                    
+                    # 创建箭头轨迹
+                    arrow_trace = go.Scatter(
+                        x=arrow_x,
+                        y=arrow_y,
+                        mode='markers',
+                        marker=dict(
+                            symbol='arrow',
+                            size=10,
+                            color='#666',
+                            angleref='previous',
+                            angle=[angle for angle in arrow_angles]
+                        ),
+                        hoverinfo='none'
+                    )
+                    
+                    # 创建实体节点轨迹
+                    entity_x = []
+                    entity_y = []
+                    entity_texts = []
+                    for node in entity_nodes:
+                        x, y = pos[node]
+                        entity_x.append(x)
+                        entity_y.append(y)
+                        entity_texts.append(G.nodes[node].get('name', node))
+                    
+                    entity_trace = go.Scatter(
+                        x=entity_x,
+                        y=entity_y,
+                        mode='markers+text',
+                        text=entity_texts,
+                        textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
+                        marker=dict(
+                            showscale=False,
+                            color='#6495ED',  # 实体类型用蓝色
+                            size=35,  # 实体类型节点大小
+                            line_width=2,
+                            symbol='circle'  # 实体类型用圆形
+                        ),
+                        hoverinfo='text',
+                        name='实体类型 (蓝色圆形)'
+                    )
+                    
+                    # 创建指标节点轨迹
+                    metric_x = []
+                    metric_y = []
+                    metric_texts = []
+                    for node in metric_nodes:
+                        x, y = pos[node]
+                        metric_x.append(x)
+                        metric_y.append(y)
+                        metric_texts.append(G.nodes[node].get('name', node))
+                    
+                    metric_trace = go.Scatter(
+                        x=metric_x,
+                        y=metric_y,
+                        mode='markers+text',
+                        text=metric_texts,
+                        textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
+                        marker=dict(
+                            showscale=False,
+                            color='#DC143C',  # 指标定义用红色
+                            size=30,  # 指标定义节点大小
+                            line_width=2,
+                            symbol='square'  # 指标定义用正方形
+                        ),
+                        hoverinfo='text',
+                        name='指标定义 (红色正方形)'
+                    )
+                    
+                    # 创建其他节点轨迹
+                    other_x = []
+                    other_y = []
+                    other_texts = []
+                    for node in other_nodes:
+                        x, y = pos[node]
+                        other_x.append(x)
+                        other_y.append(y)
+                        other_texts.append(G.nodes[node].get('name', node))
+                    
+                    other_trace = go.Scatter(
+                        x=other_x,
+                        y=other_y,
+                        mode='markers+text',
+                        text=other_texts,
+                        textposition="middle center",
+                        textfont=dict(color="#000000"),  # 文本颜色为黑色
+                        marker=dict(
+                            showscale=False,
+                            color='#666666',
+                            size=25,
+                            line_width=2,
+                            symbol='circle'
+                        ),
+                        hoverinfo='text',
+                        name='其他节点'
+                    )
+                    
+                    # 创建图表
+                    data = [edge_trace, arrow_trace]
+                    if entity_nodes:
+                        data.append(entity_trace)
+                    if metric_nodes:
+                        data.append(metric_trace)
+                    if other_nodes:
+                        data.append(other_trace)
+                    
+                    fig = go.Figure(data=data,
+                                   layout=go.Layout(
+                                       title=dict(text='本体关系与指标图', font=dict(size=16, weight='bold')),
+                                       showlegend=True,
+                                       hovermode='closest',
+                                       margin=dict(b=40, l=40, r=40, t=80),
+                                       height=800,  # 增加画布高度
+                                       annotations=edge_annotations,
+                                       xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       legend=dict(
+                                           x=0.01,
+                                           y=0.99,
+                                           bgcolor="rgba(255, 255, 255, 0.8)",
+                                           bordercolor="rgba(0, 0, 0, 0.5)",
+                                           borderwidth=1,
+                                           traceorder="normal",
+                                           font=dict(
+                                               family="sans-serif",
+                                               size=12,
+                                               color="#000"
+                                           )
+                                       )
+                                   ))
+                    
+                    # 显示图表
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ 绘制本体图失败: {str(e)}")
+                    
+                # 显示详细信息
+                st.markdown("##### 📋 Schema详细信息")
+                
+                # 实体类型详情
+                if entity_types:
+                    st.info(f"共 {len(entity_types)} 个实体类型")
+                    
+                    with st.expander("查看实体类型详情"):
+                        for entity_type in entity_types:
+                            st.markdown(f"**{entity_type.get('name', 'Unknown')}** ({entity_type.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {entity_type.get('description', '无')}")
+                            attributes = entity_type.get('attributes', [])
+                            if attributes:
+                                st.markdown("- 属性:")
+                                for attr in attributes:
+                                    st.markdown(f"  - {attr.get('name')} ({attr.get('type')}): {attr.get('description')}")
+                            st.markdown("")
+                
+                # 关系类型详情
+                if relation_types:
+                    st.info(f"共 {len(relation_types)} 个关系类型")
+                    
+                    with st.expander("查看关系类型详情"):
+                        for relation_type in relation_types:
+                            st.markdown(f"**{relation_type.get('name', 'Unknown')}** ({relation_type.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {relation_type.get('description', '无')}")
+                            source_types = relation_type.get('source_types', [])
+                            target_types = relation_type.get('target_types', [])
+                            st.markdown(f"- 源类型: {', '.join(source_types)}")
+                            st.markdown(f"- 目标类型: {', '.join(target_types)}")
+                            st.markdown("")
+                
+                # 指标定义详情
+                if metric_definitions:
+                    st.info(f"共 {len(metric_definitions)} 个指标定义")
+                    
+                    with st.expander("查看指标定义详情"):
+                        for metric in metric_definitions:
+                            st.markdown(f"**{metric.get('name', 'Unknown')}** ({metric.get('id', 'Unknown')})")
+                            st.markdown(f"- 描述: {metric.get('description', '无')}")
+                            st.markdown(f"- 源实体类型: {metric.get('source_entity_type', '无')}")
+                            st.markdown(f"- 目标实体类型: {metric.get('target_entity_type', '无')}")
+                            st.markdown(f"- 源关系: {metric.get('source_relation', '无')}")
+                            st.markdown(f"- 类型: {metric.get('type', '无')}")
+                            st.markdown("")
+            
+            # 显示因果图构建提示
+            st.success("✅ 本体信息已缓存，可用于下一步构建因果图")
+            st.info("这些本体信息将作为因果图构建的输入，帮助系统理解领域知识结构")
         
         # 步骤2：构建因果图
         st.markdown("---")
         st.markdown("### 步骤2：构建因果图")
         
         if self.causal_graph_builder:
-            if st.button("使用大模型构建因果图", type="primary"):
-                if self.llm_agent:
-                    self.build_causal_graph(method="llm")
-                else:
-                    st.warning("⚠️ 请先初始化LLM Agent")
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                if st.button("使用大模型构建因果图", type="primary"):
+                    if self.llm_agent:
+                        self.build_causal_graph(method="llm")
+                    else:
+                        st.warning("⚠️ 请先初始化LLM Agent")
+            
+            # 显示因果图可视化
+            if self.causal_graph:
+                st.markdown("#### 🎯 因果图可视化")
+                
+                try:
+                    import networkx as nx
+                    import plotly.graph_objects as go
+                    
+                    # 解析因果图字符串
+                    def parse_causal_graph(graph_str):
+                        G = nx.DiGraph()
+                        # 简单解析digraph格式
+                        lines = graph_str.strip().split('\n')
+                        for line in lines:
+                            line = line.strip()
+                            if '->' in line:
+                                parts = line.split('->')
+                                if len(parts) == 2:
+                                    source = parts[0].strip()
+                                    target = parts[1].strip().rstrip(';').strip()
+                                    G.add_edge(source, target)
+                        return G
+                    
+                    # 解析因果图
+                    G = parse_causal_graph(self.causal_graph)
+                    
+                    # 生成布局
+                    if len(G.nodes) > 0:
+                        try:
+                            # 对于大型图，使用spring_layout并调整参数避免节点重合
+                            pos = nx.spring_layout(G, k=1.2, iterations=300, seed=42)
+                        except:
+                            # 备选布局，同样调整参数
+                            pos = nx.spring_layout(G, k=1.0, iterations=200, seed=42)
+                    else:
+                        pos = {}
+                    
+                    # 创建边轨迹
+                    edge_x = []
+                    edge_y = []
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+                    
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=1.5, color='#666'),
+                        hoverinfo='none',
+                        mode='lines'
+                    )
+                    
+                    # 创建箭头标记
+                    arrow_x = []
+                    arrow_y = []
+                    arrow_angles = []
+                    
+                    import math
+                    
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        arrow_x.append(x1)
+                        arrow_y.append(y1)
+                        angle = 180 + (180 / math.pi) * math.atan2(y1 - y0, x1 - x0)
+                        arrow_angles.append(angle)
+                    
+                    arrow_trace = go.Scatter(
+                        x=arrow_x,
+                        y=arrow_y,
+                        mode='markers',
+                        marker=dict(
+                            symbol='arrow',
+                            size=8,
+                            color='#666',
+                            angleref='previous',
+                            angle=[angle for angle in arrow_angles]
+                        ),
+                        hoverinfo='none'
+                    )
+                    
+                    # 创建节点轨迹
+                    node_x = []
+                    node_y = []
+                    node_texts = []
+                    
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        node_texts.append(node)
+                    
+                    node_trace = go.Scatter(
+                        x=node_x,
+                        y=node_y,
+                        mode='markers+text',
+                        text=node_texts,
+                        textposition="top center",
+                        marker=dict(
+                            showscale=False,
+                            color='#2E86AB',
+                            size=25,
+                            line_width=2
+                        ),
+                        hoverinfo='text'
+                    )
+                    
+                    # 创建图表
+                    fig = go.Figure(data=[edge_trace, arrow_trace, node_trace],
+                                   layout=go.Layout(
+                                       title=dict(text='因果图可视化', font=dict(size=16)),
+                                       showlegend=False,
+                                       hovermode='closest',
+                                       margin=dict(b=20, l=5, r=5, t=40),
+                                       xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                       yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+                                   ))
+                    
+                    # 显示图表
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ 绘制因果图失败: {str(e)}")
+            
+            if self.causal_graph:
+                st.markdown("#### 因果图结果")
+                st.code(self.causal_graph, language="python")
+                
+                # 人工修正因果图
+                st.markdown("#### 人工修正因果图")
+                edited_causal_graph = st.text_area(
+                    "编辑因果图（DOT格式）",
+                    value=self.causal_graph,
+                    height=200,
+                    help="可以直接编辑因果图，格式为DOT语言，例如：digraph G { A -> B; B -> C; }"
+                )
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("应用修改"):
+                        if edited_causal_graph != self.causal_graph:
+                            self.causal_graph = edited_causal_graph
+                            self._save_state()
+                            st.success("✅ 因果图已更新")
+                            # 重新渲染页面以显示更新后的因果图
+                            st.rerun()
+                with col2:
+                    if st.button("默认因果图"):
+                        # 根据因果关系和本体schema创建默认因果图
+                        default_causal_graph = """digraph {
+    # 部件通用性 -> 库存周转率
+    cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
+    
+    # 库存周转率 -> 部件库存
+    cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
+    cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
+    
+    # 被服务器使用比例 -> 库存周转率
+    cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
+    cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
+    cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
+    
+    # 销售数量 -> 库存周转率
+    server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
+    server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
+}"""
+                        self.causal_graph = default_causal_graph
+                        self._save_state()
+                        st.success("✅ 已设置为默认因果图")
+                        # 重新渲染页面以显示更新后的因果图
+                        st.rerun()
         else:
             st.warning("请先初始化本体管理器")
         
@@ -2084,14 +2913,62 @@ class RootCauseAnalysisWebApp:
         st.markdown("---")
         st.markdown("### 步骤3：配置分析参数")
         
+        # 从因果图中提取可能的结果变量
+        available_outcomes = []
+        
+        # 首先尝试从因果图中提取结果变量
+        if self.causal_graph:
+            import re
+            # 解析因果图，提取所有节点（支持包含下划线的节点名）
+            nodes = set()
+            # 使用更准确的正则表达式，支持包含下划线的节点名
+            edges = re.findall(r'\s*([\w_]+)\s*->\s*([\w_]+)\s*;', self.causal_graph)
+            for source, target in edges:
+                nodes.add(source)
+                nodes.add(target)
+            
+            # 从节点中提取与库存相关的变量
+            for node in nodes:
+                if 'inventory' in node or '库存' in node:
+                    available_outcomes.append(node)
+        
+        # 如果因果图中没有找到，从数据中提取
+        if not available_outcomes and self.data is not None:
+            # 从数据中提取可能的结果变量，排除与生产效率相关的变量
+            for col in self.data.columns:
+                if ('inventory_level' in col or 'inventory_turnover' in col or 'dead_inventory' in col) and 'production' not in col:
+                    available_outcomes.append(col)
+        
+        # 如果仍然没有找到，使用默认值
+        if not available_outcomes:
+            available_outcomes = ["cpu_xeon_6338_inventory_level", "cpu_xeon_6338_inventory_turnover_rate", "cpu_xeon_6338_dead_inventory"]
+        
         outcome = st.selectbox(
             "选择结果变量",
-            options=["inventory_level", "inventory_turnover", "dead_inventory"],
+            options=available_outcomes,
             format_func=lambda x: {
                 "inventory_level": "库存水平",
                 "inventory_turnover": "库存周转率",
-                "dead_inventory": "死库存"
-            }[x]
+                "dead_inventory": "死库存",
+                "cpu_xeon_6338_inventory_level": "CPU Xeon 6338 库存水平",
+                "cpu_xeon_8358_inventory_level": "CPU Xeon 8358 库存水平",
+                "memory_32gb_inventory_level": "内存 32GB 库存水平",
+                "memory_64gb_inventory_level": "内存 64GB 库存水平",
+                "hdd_2tb_inventory_level": "硬盘 2TB 库存水平",
+                "ssd_1tb_inventory_level": "固态硬盘 1TB 库存水平",
+                "cpu_xeon_6338_inventory_turnover_rate": "CPU Xeon 6338 库存周转率",
+                "cpu_xeon_8358_inventory_turnover_rate": "CPU Xeon 8358 库存周转率",
+                "memory_32gb_inventory_turnover_rate": "内存 32GB 库存周转率",
+                "memory_64gb_inventory_turnover_rate": "内存 64GB 库存周转率",
+                "hdd_2tb_inventory_turnover_rate": "硬盘 2TB 库存周转率",
+                "ssd_1tb_inventory_turnover_rate": "固态硬盘 1TB 库存周转率",
+                "cpu_xeon_6338_dead_inventory": "CPU Xeon 6338 死库存",
+                "cpu_xeon_8358_dead_inventory": "CPU Xeon 8358 死库存",
+                "memory_32gb_dead_inventory": "内存 32GB 死库存",
+                "memory_64gb_dead_inventory": "内存 64GB 死库存",
+                "hdd_2tb_dead_inventory": "硬盘 2TB 死库存",
+                "ssd_1tb_dead_inventory": "固态硬盘 1TB 死库存"
+            }.get(x, x)
         )
         
         # 步骤4：运行分析
@@ -2099,13 +2976,199 @@ class RootCauseAnalysisWebApp:
         st.markdown("### 步骤4：运行库存分析")
         
         if st.button("运行库存分析", type="primary"):
-            st.success("✅ 库存分析完成！")
+            if not self.causal_graph:
+                st.warning("请先构建因果图")
+            else:
+                # 确保数据已加载
+                if self.data is None:
+                    st.info("正在加载数据...")
+                    self.load_data()
+                
+                if self.data is None:
+                    st.warning("数据加载失败，请检查数据文件是否存在")
+                else:
+                    # 打印数据表头和前几行，验证数据是否正确加载
+                    st.info(f"数据加载成功，共 {len(self.data)} 条记录")
+                    st.info(f"数据列名: {list(self.data.columns)}")
+                    st.info(f"数据前5行:\n{self.data.head()}")
+                    
+                    with st.spinner("正在分析根因..."):
+                        try:
+                            # 初始化分析管道
+                            from root_cause_analysis_pipeline import RootCauseAnalysisPipeline
+                            self.pipeline = RootCauseAnalysisPipeline(
+                                data=self.data,
+                                causal_graph=self.causal_graph
+                            )
+                            
+                            # 运行根因分析
+                            print(f"[DEBUG] 开始运行根因分析，结果变量: {outcome}")
+                            results_df = self.pipeline.run_root_cause_analysis(outcome)
+                            print(f"[DEBUG] 根因分析完成，结果行数: {len(results_df)}")
+                            
+                            # 保存分析结果
+                            self.analysis_results = self.pipeline.analysis_results
+                            print(f"[DEBUG] 分析结果: {self.analysis_results.keys()}")
+                            
+                            # 对每个处理变量运行反事实分析（使用V2版本）
+                            counterfactual_results = []
+                            if self.analysis_results and 'treatments' in self.analysis_results:
+                                print(f"[DEBUG] 处理变量: {self.analysis_results.get('treatments')}")
+                                for treatment in self.analysis_results.get('treatments', []):
+                                    try:
+                                        # 尝试使用新的反事实分析V2版本
+                                        cf_result = self.pipeline.analyzer.counterfactual_analysis_v2(
+                                            treatment=treatment,
+                                            outcome=outcome,
+                                            target_outcome=80.0,  # 目标库存水平
+                                            causal_graph=self.causal_graph
+                                        )
+                                        counterfactual_results.append(cf_result)
+                                    except Exception as e:
+                                        print(f"对处理变量 {treatment} 运行反事实分析V2失败: {e}")
+                                        # 失败时回退到原始版本
+                                        try:
+                                            cf_result = self.pipeline.analyzer.counterfactual_analysis(
+                                                treatment=treatment,
+                                                outcome=outcome,
+                                                target_outcome=80.0,
+                                                causal_graph=self.causal_graph
+                                            )
+                                            counterfactual_results.append(cf_result)
+                                        except Exception as e2:
+                                            print(f"对处理变量 {treatment} 运行反事实分析失败: {e2}")
+                            
+                            # 保存反事实分析结果
+                            if counterfactual_results and self.analysis_results:
+                                self.analysis_results['counterfactual_analysis'] = counterfactual_results
+                                print(f"[DEBUG] 反事实分析结果数量: {len(counterfactual_results)}")
+                            self._save_state()
+                            
+                            st.success("✅ 库存分析完成！")
+                            # 立即显示分析结果
+                            if self.analysis_results:
+                                # 检查是否有根因分析结果
+                                if "root_cause_analysis" in self.analysis_results:
+                                    st.markdown("#### 根因分析结果")
+                                    
+                                    # 显示根因分析表格
+                                    root_cause_results = self.analysis_results["root_cause_analysis"]
+                                    results_df = pd.DataFrame(root_cause_results)
+                                    
+                                    # 格式化显示
+                                    display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
+                                    display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
+                                    display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                                    display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                                    
+                                    st.dataframe(display_df, use_container_width=True)
+                                    
+                                    # 显示处理变量和结果变量信息
+                                    st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
+                                    st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+                                
+                                # 显示反事实分析结果（如果存在）
+                                if "counterfactual_analysis" in self.analysis_results:
+                                    st.markdown("#### 反事实分析结果")
+                                    
+                                    cf_results = self.analysis_results["counterfactual_analysis"]
+                                    if cf_results:
+                                        # 创建反事实分析结果表格
+                                        cf_df = pd.DataFrame(cf_results)
+                                        
+                                        # 格式化显示
+                                        # 检查是否有 predicted_target_outcome 和 outcome_accuracy 字段（V2版本）
+                                        if 'predicted_target_outcome' in cf_df.columns and 'outcome_accuracy' in cf_df.columns:
+                                            display_cf_df = cf_df[['treatment', 'target_treatment', 'predicted_target_outcome', 'feasibility', 'outcome_accuracy']].copy()
+                                            display_cf_df.columns = ['处理变量', '目标值', '预测结果', '可行性', '预测准确性']
+                                            display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                            display_cf_df['预测结果'] = display_cf_df['预测结果'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                        else:
+                                            # 原始版本
+                                            display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
+                                            display_cf_df.columns = ['处理变量', '目标值', '可行性']
+                                            display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                        
+                                        st.dataframe(display_cf_df, use_container_width=True)
+                                    else:
+                                        st.info("没有反事实分析结果")
+                        except Exception as e:
+                            st.error(f"❌ 库存分析失败: {str(e)}")
+                            print(f"[DEBUG] 库存分析失败: {str(e)}")
         
         # 步骤5：查看分析结果
         st.markdown("---")
         st.markdown("### 步骤5：查看分析结果")
         
-        st.info("分析结果将在此显示")
+        if self.analysis_results:
+            # 检查是否有根因分析结果
+            if "root_cause_analysis" in self.analysis_results:
+                st.markdown("#### 根因分析结果")
+                
+                # 显示根因分析表格
+                root_cause_results = self.analysis_results["root_cause_analysis"]
+                results_df = pd.DataFrame(root_cause_results)
+                
+                # 格式化显示
+                display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
+                display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
+                display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                
+                st.dataframe(display_df, use_container_width=True)
+                
+                # 显示处理变量和结果变量信息
+                st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
+                st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+            
+            # 显示反事实分析结果（如果存在）
+            if "counterfactual_analysis" in self.analysis_results:
+                st.markdown("#### 反事实分析结果")
+                
+                cf_results = self.analysis_results["counterfactual_analysis"]
+                if cf_results:
+                    # 创建反事实分析结果表格
+                    cf_df = pd.DataFrame(cf_results)
+                    
+                    # 格式化显示
+                    # 检查是否有 predicted_target_outcome 和 outcome_accuracy 字段（V2版本）
+                    if 'predicted_target_outcome' in cf_df.columns and 'outcome_accuracy' in cf_df.columns:
+                        display_cf_df = cf_df[['treatment', 'target_treatment', 'predicted_target_outcome', 'feasibility', 'outcome_accuracy']].copy()
+                        display_cf_df.columns = ['处理变量', '目标值', '预测结果', '可行性', '预测准确性']
+                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                        display_cf_df['预测结果'] = display_cf_df['预测结果'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    else:
+                        # 原始版本
+                        display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
+                        display_cf_df.columns = ['处理变量', '目标值', '可行性']
+                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    
+                    st.dataframe(display_cf_df, use_container_width=True)
+                else:
+                    st.info("没有反事实分析结果")
+            
+            # 显示传统分析结果（如果存在）
+            if "causal_effect" in self.analysis_results:
+                st.markdown("#### 传统分析结果")
+                
+                # 显示因果效应
+                causal_effect = self.analysis_results.get("causal_effect")
+                if causal_effect is not None:
+                    st.markdown(f"**因果效应值**: {causal_effect:.4f}")
+                    
+                    if causal_effect > 0:
+                        st.success("正向因果效应：处理变量增加会提高结果变量")
+                    else:
+                        st.warning("负向因果效应：处理变量增加会降低结果变量")
+            
+            # 显示驳斥检验结果
+            refutation_results = self.analysis_results.get("refutation_results")
+            if refutation_results:
+                with st.expander("查看驳斥检验结果"):
+                    for test_name, result in refutation_results.items():
+                        st.markdown(f"**{test_name}**: {result}")
+        else:
+            st.info("请先运行分析")
         
         # 步骤6：生成智能解释
         st.markdown("---")

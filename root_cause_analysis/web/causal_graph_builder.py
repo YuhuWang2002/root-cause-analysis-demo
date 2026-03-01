@@ -64,13 +64,17 @@ class CausalGraphBuilder:
     
     def build_with_llm(self, 
                       ontology_schema: Dict, 
-                      llm_agent: object) -> str:
+                      llm_agent: object,
+                      scenario_description: str,
+                      outcome_entity: str) -> str:
         """
         使用大模型从本体schema智能推导因果图
         
         Args:
             ontology_schema: 本体schema字典
             llm_agent: LLM代理实例，需要提供推理方法
+            scenario_description: 场景描述
+            outcome_entity: 结果实体
         
         Returns:
             标准的DoWhy因果图格式字符串
@@ -81,10 +85,12 @@ class CausalGraphBuilder:
             
             # 构建因果图推导请求
             request = CausalGraphDerivationRequest(
-                scenario_description="制造企业生产效率分析",
-                outcome_entity="production_efficiency",
+                scenario_description=scenario_description,
+                outcome_entity=outcome_entity,
                 ontology_info=ontology_schema
             )
+            print(f"[CausalGraphBuilder] 使用场景: {scenario_description}")
+            print(f"[CausalGraphBuilder] 结果实体: {outcome_entity}")
             
             # 使用LLM推导因果图
             response = llm_agent.derive_causal_graph(request)

@@ -1,0 +1,236 @@
+{
+  "entity_types": [
+    {
+      "id": "server_2885",
+      "name": "服务器2885",
+      "description": "型号为2885的服务器",
+      "attributes": [
+        {
+          "name": "price",
+          "type": "float",
+          "description": "服务器价格"
+        },
+        {
+          "name": "stock_level",
+          "type": "integer",
+          "description": "库存水平"
+        },
+        {
+          "name": "lead_time",
+          "type": "integer",
+          "description": "交货周期"
+        }
+      ]
+    },
+    {
+      "id": "server_5885",
+      "name": "服务器5885",
+      "description": "型号为5885的服务器",
+      "attributes": [
+        {
+          "name": "price",
+          "type": "float",
+          "description": "服务器价格"
+        },
+        {
+          "name": "stock_level",
+          "type": "integer",
+          "description": "库存水平"
+        },
+        {
+          "name": "lead_time",
+          "type": "integer",
+          "description": "交货周期"
+        }
+      ]
+    },
+    {
+      "id": "cpu_xeon_6338",
+      "name": "Xeon 6338 CPU",
+      "description": "Intel Xeon 6338 CPU",
+      "attributes": [
+        {
+          "name": "price",
+          "type": "float",
+          "description": "CPU价格"
+        },
+        {
+          "name": "stock_level",
+          "type": "integer",
+          "description": "库存水平"
+        },
+        {
+          "name": "performance",
+          "type": "float",
+          "description": "性能评分"
+        }
+      ]
+    },
+    {
+      "id": "cpu_xeon_8358",
+      "name": "Xeon 8358 CPU",
+      "description": "Intel Xeon 8358 CPU",
+      "attributes": [
+        {
+          "name": "price",
+          "type": "float",
+          "description": "CPU价格"
+        },
+        {
+          "name": "stock_level",
+          "type": "integer",
+          "description": "库存水平"
+        },
+        {
+          "name": "performance",
+          "type": "float",
+          "description": "性能评分"
+        }
+      ]
+    }
+  ],
+  "relation_types": [
+    {
+      "id": "cpu_used_by_server",
+      "name": "CPU被服务器使用",
+      "description": "CPU组件被服务器使用",
+      "source_types": [
+        "cpu_xeon_8358"
+      ],
+      "target_types": [
+        "server_2885"
+      ]
+    },
+    {
+      "id": "cpu_used_by_server",
+      "name": "CPU被服务器使用",
+      "description": "CPU组件被服务器使用",
+      "source_types": [
+        "cpu_xeon_8358"
+      ],
+      "target_types": [
+        "server_5885"
+      ]
+    },
+    {
+      "id": "cpu_used_by_server",
+      "name": "CPU被服务器使用",
+      "description": "CPU组件被服务器使用",
+      "source_types": [
+        "cpu_xeon_6338"
+      ],
+      "target_types": [
+        "server_2885"
+      ]
+    },
+    {
+      "id": "cpu_used_by_server",
+      "name": "CPU被服务器使用",
+      "description": "CPU组件被服务器使用",
+      "source_types": [
+        "cpu_xeon_6338"
+      ],
+      "target_types": [
+        "server_5885"
+      ]
+    }
+  ],
+  "metric_definitions": [
+    {
+      "id": "cpu_xeon_6338_inventory_level",
+      "name": "Xeon 6338 CPU库存水平",
+      "description": "Xeon 6338 CPU的当前库存水平",
+      "source_entity_type": "cpu_xeon_6338"
+    },
+    {
+      "id": "cpu_xeon_6338_inventory_turnover_rate",
+      "name": "Xeon 6338 CPU库存周转率",
+      "description": "Xeon 6338 CPU的库存周转速度",
+      "source_entity_type": "cpu_xeon_6338"
+    },
+    {
+      "id": "cpu_xeon_6338_commonality",
+      "name": "Xeon 6338 CPU通用性",
+      "description": "Xeon 6338 CPU在不同服务器型号中的通用程度",
+      "source_entity_type": "cpu_xeon_6338"
+    },
+    {
+      "id": "cpu_xeon_6338_utilization_ratio_for_server_2885",
+      "name": "Xeon 6338 CPU被服务器2885使用比例",
+      "description": "Xeon 6338 CPU被服务器2885使用的比例",
+      "source_entity_type": "cpu_xeon_6338",
+      "source_relation": "cpu_used_by_server",
+      "target_entity_type": "server_2885"
+    },
+    {
+      "id": "cpu_xeon_6338_utilization_ratio_for_server_5885",
+      "name": "Xeon 6338 CPU被服务器5885使用比例",
+      "description": "Xeon 6338 CPU被服务器5885使用的比例",
+      "source_entity_type": "cpu_xeon_6338",
+      "source_relation": "cpu_used_by_server",
+      "target_entity_type": "server_5885"
+    },
+    {
+      "id": "cpu_xeon_8358_inventory_level",
+      "name": "Xeon 8358 CPU库存水平",
+      "description": "Xeon 8358 CPU的当前库存水平",
+      "source_entity_type": "cpu_xeon_8358"
+    },
+    {
+      "id": "cpu_xeon_8358_inventory_turnover_rate",
+      "name": "Xeon 8358 CPU库存周转率",
+      "description": "Xeon 8358 CPU的库存周转速度",
+      "source_entity_type": "cpu_xeon_8358"
+    },
+    {
+      "id": "cpu_xeon_8358_commonality",
+      "name": "Xeon 8358 CPU通用性",
+      "description": "Xeon 8358 CPU在不同服务器型号中的通用程度",
+      "source_entity_type": "cpu_xeon_8358"
+    },
+    {
+      "id": "cpu_xeon_8358_utilization_ratio_for_server_2885",
+      "name": "Xeon 8358 CPU被服务器2885使用比例",
+      "description": "Xeon 8358 CPU被服务器2885使用的比例",
+      "source_entity_type": "cpu_xeon_8358",
+      "source_relation": "cpu_used_by_server",
+      "target_entity_type": "server_2885"
+    },
+    {
+      "id": "cpu_xeon_8358_utilization_ratio_for_server_5885",
+      "name": "Xeon 8358 CPU被服务器5885使用比例",
+      "description": "Xeon 8358 CPU被服务器5885使用的比例",
+      "source_entity_type": "cpu_xeon_8358",
+      "source_relation": "cpu_used_by_server",
+      "target_entity_type": "server_5885"
+    },
+    {
+      "id": "server_2885_production_efficiency",
+      "name": "服务器2885生产效率",
+      "description": "服务器2885的生产效率",
+      "source_entity_type": "server_2885"
+    },
+    {
+      "id": "server_2885_sales_quantity",
+      "name": "服务器2885销售数量",
+      "description": "服务器2885的销售数量",
+      "source_entity_type": "server_2885"
+    },
+    {
+      "id": "server_5885_production_efficiency",
+      "name": "服务器5885生产效率",
+      "description": "服务器5885的生产效率",
+      "source_entity_type": "server_5885"
+    },
+    {
+      "id": "server_5885_sales_quantity",
+      "name": "服务器5885销售数量",
+      "description": "服务器5885的销售数量",
+      "source_entity_type": "server_5885"
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-02-28T18:39:27.216470",
+    "description": "服务器库存分析本体Schema"
+  }
+}

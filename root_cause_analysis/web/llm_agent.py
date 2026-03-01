@@ -172,8 +172,15 @@ class LLMAgent:
         Returns:
             因果图推导响应
         """
-        # 第一步：查询本体Schema获取元数据
-        schema_response = await self.query_schema()
+        # 第一步：获取本体Schema元数据
+        # 优先使用传入的ontology_info，如果没有则查询API
+        if request.ontology_info:
+            schema_response = request.ontology_info
+            print(f"[LLM Agent] 使用传入的本体Schema")
+        else:
+            # 查询本体Schema获取元数据
+            schema_response = await self.query_schema()
+            print(f"[LLM Agent] 从API查询本体Schema")
         
         # 第二步：构建提示词让LLM推导因果图
         prompt = self._build_derivation_prompt(
@@ -553,21 +560,28 @@ class LLMAgentSync(LLMAgent):
         """同步版本的因果图推导 - 直接实现不使用super()"""
         import httpx
         
-        # 第一步：查询本体Schema获取元数据
-        print(f"[LLM Agent Sync] 正在查询本体Schema...")
+        # 第一步：获取本体Schema元数据
+        # 优先使用传入的ontology_info，如果没有则查询API
+        print(f"[LLM Agent Sync] 正在获取本体Schema...")
         
-        try:
-            schema_response = self.query_schema()
-            print(f"[LLM Agent Sync] 查询到 {len(schema_response.get('entity_types', []))} 个实体类型, {len(schema_response.get('relation_types', []))} 个关系类型")
-            
-        except Exception as e:
-            print(f"[LLM Agent Sync] 查询Schema失败: {str(e)}, 将使用默认逻辑")
-            # 使用默认响应
-            schema_response = {
-                "entity_types": [],
-                "relation_types": [],
-                "metric_definitions": []
-            }
+        if request.ontology_info:
+            schema_response = request.ontology_info
+            print(f"[LLM Agent Sync] 使用传入的本体Schema")
+            print(f"[LLM Agent Sync] 传入的Schema包含 {len(schema_response.get('entity_types', []))} 个实体类型, {len(schema_response.get('relation_types', []))} 个关系类型")
+        else:
+            try:
+                schema_response = self.query_schema()
+                print(f"[LLM Agent Sync] 从API查询本体Schema")
+                print(f"[LLM Agent Sync] 查询到 {len(schema_response.get('entity_types', []))} 个实体类型, {len(schema_response.get('relation_types', []))} 个关系类型")
+                
+            except Exception as e:
+                print(f"[LLM Agent Sync] 查询Schema失败: {str(e)}, 将使用默认逻辑")
+                # 使用默认响应
+                schema_response = {
+                    "entity_types": [],
+                    "relation_types": [],
+                    "metric_definitions": []
+                }
         
         # 第二步：构建提示词（直接使用基类的方法）
         print(f"[LLM Agent Sync] 正在构建提示词...")

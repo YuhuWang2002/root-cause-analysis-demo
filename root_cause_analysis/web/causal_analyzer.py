@@ -370,8 +370,34 @@ class CausalAnalyzer:
         """
         results = []
         
+        print(f"[DEBUG] 开始分析多个处理变量: {treatments}")
+        print(f"[DEBUG] 结果变量: {outcome}")
+        
         for treatment in treatments:
             try:
+                print(f"[DEBUG] 分析处理变量: {treatment}")
+                
+                # 检查变量是否在数据中
+                if treatment not in self.data.columns:
+                    print(f"[DEBUG] 处理变量 {treatment} 不在数据中")
+                    results.append({
+                        "treatment": treatment,
+                        "causal_effect": 0.0,
+                        "success": False,
+                        "error": f"处理变量不在数据中: {treatment}"
+                    })
+                    continue
+                
+                if outcome not in self.data.columns:
+                    print(f"[DEBUG] 结果变量 {outcome} 不在数据中")
+                    results.append({
+                        "treatment": treatment,
+                        "causal_effect": 0.0,
+                        "success": False,
+                        "error": f"结果变量不在数据中: {outcome}"
+                    })
+                    continue
+                
                 # 创建因果模型
                 self.create_causal_model(
                     treatment=treatment,
@@ -385,18 +411,30 @@ class CausalAnalyzer:
                 # 估计因果效应
                 estimate = self.estimate_effect()
                 
+                # 确保estimate.value不为None
+                causal_effect = estimate.value if estimate.value is not None else 0.0
+                print(f"[DEBUG] 处理变量 {treatment} 的因果效应: {causal_effect}")
+                
                 results.append({
                     "treatment": treatment,
-                    "causal_effect": estimate.value,
+                    "causal_effect": causal_effect,
                     "success": True
                 })
                 
             except Exception as e:
+                print(f"[DEBUG] 分析处理变量 {treatment} 时出错: {str(e)}")
                 results.append({
                     "treatment": treatment,
-                    "causal_effect": None,
+                    "causal_effect": 0.0,  # 使用0.0而不是None
                     "success": False,
                     "error": str(e)
                 })
         
-        return pd.DataFrame(results)
+        # 创建DataFrame
+        results_df = pd.DataFrame(results)
+        print(f"[DEBUG] analyze_causal_effects 返回的结果: {results_df}")
+        if 'causal_effect' in results_df.columns:
+            print(f"[DEBUG] causal_effect 列的值: {list(results_df['causal_effect'])}")
+            print(f"[DEBUG] causal_effect 列的类型: {results_df['causal_effect'].dtype}")
+        
+        return results_df
