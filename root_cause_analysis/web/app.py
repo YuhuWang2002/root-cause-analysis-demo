@@ -1702,29 +1702,54 @@ class RootCauseAnalysisWebApp:
         st.markdown("---")
         st.markdown("### 步骤3：配置分析参数")
         
-        outcome = st.selectbox(
-            "选择结果变量",
-            options=["production_efficiency", "supplier_efficiency", "parts_availability"],
-            format_func=lambda x: {
-                "production_efficiency": "生产效率",
-                "supplier_efficiency": "供应商效率",
-                "parts_availability": "零部件可用性"
-            }[x]
-        )
+        # 根据当前场景显示不同的结果变量选项
+        if self.current_scenario == "场景2：库存优化分析":
+            # 库存分析的结果变量选项
+            outcome = st.selectbox(
+                "选择结果变量",
+                options=["cpu_xeon_6338_inventory_level", "cpu_xeon_8358_inventory_level"],
+                format_func=lambda x: {
+                    "cpu_xeon_6338_inventory_level": "CPU Xeon 6338 库存水平",
+                    "cpu_xeon_8358_inventory_level": "CPU Xeon 8358 库存水平"
+                }[x]
+            )
+        else:
+            # 生产效率分析的结果变量选项
+            outcome = st.selectbox(
+                "选择结果变量",
+                options=["production_efficiency", "supplier_efficiency", "parts_availability"],
+                format_func=lambda x: {
+                    "production_efficiency": "生产效率",
+                    "supplier_efficiency": "供应商效率",
+                    "parts_availability": "零部件可用性"
+                }[x]
+            )
         
         # 步骤4：运行根因分析
         st.markdown("---")
         st.markdown("### 步骤4：运行根因分析")
         
         # 输入目标结果值（用于反事实分析）
-        target_outcome = st.number_input(
-            "目标结果值（用于反事实分析）",
-            min_value=0.0,
-            max_value=100.0,
-            value=85.0,
-            step=0.1,
-            help="设置期望的结果变量目标值，用于计算需要的原因变量变化"
-        )
+        if self.current_scenario == "场景2：库存优化分析":
+            # 库存分析的目标结果值设置
+            target_outcome = st.number_input(
+                "目标结果值（用于反事实分析）",
+                min_value=0.0,
+                max_value=1000.0,
+                value=100.0,
+                step=1.0,
+                help="设置期望的库存水平目标值，用于计算需要的原因变量变化"
+            )
+        else:
+            # 生产效率分析的目标结果值设置
+            target_outcome = st.number_input(
+                "目标结果值（用于反事实分析）",
+                min_value=0.0,
+                max_value=100.0,
+                value=85.0,
+                step=0.1,
+                help="设置期望的结果变量目标值，用于计算需要的原因变量变化"
+            )
         
         if st.button("自动分析所有根因（含反事实分析）", type="primary"):
             if not self.causal_graph:
