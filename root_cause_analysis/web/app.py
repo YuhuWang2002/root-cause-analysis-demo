@@ -426,14 +426,12 @@ class RootCauseAnalysisWebApp:
                 else:
                     # 生产效率分析默认因果图
                     self.causal_graph = """digraph {
-                        payment_timeliness -> supplier_efficiency;
-                        supplier_efficiency -> parts_availability;
-                        parts_availability -> production_efficiency;
-                        avg_employee_skill -> production_efficiency;
                         equipment_status -> production_efficiency;
                         capacity_utilization -> production_efficiency;
-                        supplier_efficiency -> production_efficiency;
-                        payment_timeliness -> production_efficiency;
+                        avg_employee_skill -> production_efficiency;
+                        supplier_efficiency -> parts_availability;
+                        parts_availability -> production_efficiency;
+                        payment_timeliness -> supplier_efficiency;
                     }"""
         
         self._save_state()
@@ -1687,25 +1685,33 @@ class RootCauseAnalysisWebApp:
                             st.rerun()
                 with col2:
                     if st.button("默认因果图"):
-                        # 根据因果关系和本体schema创建默认因果图
-                        default_causal_graph = """digraph {
- 
+                        # 根据当前场景使用不同的默认因果图
+                        if self.current_scenario == "场景2：库存优化分析":
+                            # 库存分析默认因果图
+                            default_causal_graph = """digraph {
     cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
     
-   
     cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
     cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
     
-   
     cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
     
-   
     server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
+}"""
+                        else:
+                            # 生产效率分析默认因果图
+                            default_causal_graph = """digraph {
+    equipment_status -> production_efficiency;
+    capacity_utilization -> production_efficiency;
+    avg_employee_skill -> production_efficiency;
+    supplier_efficiency -> parts_availability;
+    parts_availability -> production_efficiency;
+    payment_timeliness -> supplier_efficiency;
 }"""
                         self.causal_graph = default_causal_graph
                         self._save_state()
