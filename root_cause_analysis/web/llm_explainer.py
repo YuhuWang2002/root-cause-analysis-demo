@@ -223,10 +223,27 @@ class LLMExplainer:
         if not causal_graph:
             raise ValueError("错误：未提供因果图，无法生成解释")
         
-        efficiency_change = comparison_df[comparison_df['metric'] == 'production_efficiency']['change_percent'].values[0]
+        # 自动检测主要指标
+        if 'production_efficiency' in comparison_df['metric'].values:
+            main_metric = 'production_efficiency'
+            main_metric_name = '生产效率'
+            scenario_background = "某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。"
+        elif 'inventory_level' in comparison_df['metric'].values:
+            main_metric = 'inventory_level'
+            main_metric_name = '库存水平'
+            scenario_background = "某制造企业在2024年12月发现库存水平相比前两个月显著异常，需要分析原因并提出优化措施。"
+        else:
+            # 使用第一个指标作为主要指标
+            main_metric = comparison_df['metric'].iloc[0]
+            main_metric_name = main_metric
+            scenario_background = "某制造企业发现关键指标异常，需要分析原因并提出改进措施。"
         
+        # 获取主要指标的变化值
+        main_metric_change = comparison_df[comparison_df['metric'] == main_metric]['change_percent'].values[0]
+        
+        # 获取主要下降指标
         top_declines = comparison_df[
-            (comparison_df['metric'] != 'production_efficiency') & 
+            (comparison_df['metric'] != main_metric) & 
             (comparison_df['change_percent'] < 0)
         ].head(3)
         
@@ -239,16 +256,16 @@ class LLMExplainer:
         prompt = f"""你是一个专业的制造企业生产管理顾问。请根据以下数据分析结果，给出详细的根因分析和改进建议。
 
 ## 场景背景
-某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。
+{scenario_background}
 
 {causal_graph_description}
 
 ## 数据分析结果
 
-### 1. 生产效率变化
-- 生产效率变化: {efficiency_change:.2f}%
+### 1. {main_metric_name}变化
+- {main_metric_name}变化: {main_metric_change:.2f}%
 
-### 2. 主要下降指标
+### 2. 主要异常指标
 """
         
         # 动态生成指标名称映射，优先使用本体中的名称，否则使用默认转换
@@ -273,7 +290,11 @@ class LLMExplainer:
             'parts_availability': '零部件可用性',
             'avg_employee_skill': '员工技能水平',
             'equipment_status': '设备状态',
-            'capacity_utilization': '产能利用率'
+            'capacity_utilization': '产能利用率',
+            'inventory_level': '库存水平',
+            'server_2885_sales_quantity': '服务器2885销量',
+            'cpu_xeon_6338_utilization_ratio_for_server_5885': 'CPU被服务器5885使用比例',
+            'cpu_xeon_6338_utilization_ratio_for_server_2885': 'CPU被服务器2885使用比例'
         }
         
         # 更新默认映射，保留本体中的名称
