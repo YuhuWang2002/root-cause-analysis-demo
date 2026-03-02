@@ -1689,27 +1689,8 @@ class RootCauseAnalysisWebApp:
                         st.rerun()
             with col2:
                 if st.button("默认因果图"):
-                    # 根据当前场景使用不同的默认因果图
-                    if self.current_scenario == "场景2：库存优化分析":
-                        # 库存分析默认因果图
-                        default_causal_graph = """digraph {
-    cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
-    cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
-    
-    cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
-    cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
-    
-    cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
-    cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
-    cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
-    cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
-    
-    server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
-    server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
-}"""
-                    else:
-                        # 生产效率分析默认因果图
-                        default_causal_graph = """digraph {
+                    # 生产效率分析默认因果图
+                    default_causal_graph = """digraph {
     equipment_status -> production_efficiency;
     capacity_utilization -> production_efficiency;
     avg_employee_skill -> production_efficiency;
@@ -2887,32 +2868,32 @@ class RootCauseAnalysisWebApp:
             if self.causal_graph:
                 st.markdown("#### 因果图结果")
                 st.code(self.causal_graph, language="python")
-                
-                # 人工修正因果图 - 总是显示，不依赖于因果图是否存在
-                st.markdown("#### 人工修正因果图")
-                # 如果因果图为空，提供一个默认的空因果图
-                default_empty_graph = """digraph {
+            
+            # 人工修正因果图 - 总是显示，不依赖于因果图是否存在
+            st.markdown("#### 人工修正因果图")
+            # 如果因果图为空，提供一个默认的空因果图
+            default_empty_graph = """digraph {
 }"""
-                edited_causal_graph = st.text_area(
-                    "编辑因果图（DOT格式）",
-                    value=self.causal_graph if self.causal_graph else default_empty_graph,
-                    height=200,
-                    help="可以直接编辑因果图，格式为DOT语言，例如：digraph G { A -> B; B -> C; }"
-                )
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("应用修改"):
-                        if edited_causal_graph != self.causal_graph:
-                            self.causal_graph = edited_causal_graph
-                            self._save_state()
-                            st.success("✅ 因果图已更新")
-                            # 重新渲染页面以显示更新后的因果图
-                            st.rerun()
-                with col2:
-                    if st.button("默认因果图"):
-                        # 根据因果关系和本体schema创建默认因果图
-                        default_causal_graph = """digraph {
+            edited_causal_graph = st.text_area(
+                "编辑因果图（DOT格式）",
+                value=self.causal_graph if self.causal_graph else default_empty_graph,
+                height=200,
+                help="可以直接编辑因果图，格式为DOT语言，例如：digraph G { A -> B; B -> C; }"
+            )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("应用修改"):
+                    if edited_causal_graph != self.causal_graph:
+                        self.causal_graph = edited_causal_graph
+                        self._save_state()
+                        st.success("✅ 因果图已更新")
+                        # 重新渲染页面以显示更新后的因果图
+                        st.rerun()
+            with col2:
+                if st.button("默认因果图"):
+                    # 根据因果关系和本体schema创建默认因果图
+                    default_causal_graph = """digraph {
     
     cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
@@ -2931,11 +2912,11 @@ class RootCauseAnalysisWebApp:
     server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
 }"""
-                        self.causal_graph = default_causal_graph
-                        self._save_state()
-                        st.success("✅ 已设置为默认因果图")
-                        # 重新渲染页面以显示更新后的因果图
-                        st.rerun()
+                    self.causal_graph = default_causal_graph
+                    self._save_state()
+                    st.success("✅ 已设置为默认因果图")
+                    # 重新渲染页面以显示更新后的因果图
+                    st.rerun()
         else:
             st.warning("请先初始化本体管理器")
         
