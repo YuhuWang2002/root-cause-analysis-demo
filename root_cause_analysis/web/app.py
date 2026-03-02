@@ -513,32 +513,9 @@ class RootCauseAnalysisWebApp:
             print("[APP] 开始生成解释...")
             
             if self.analysis_results is None:
-                print("[APP] analysis_results 为空，先运行分析...")
-                # 根据场景选择结果变量
-                if not self.causal_graph:
-                    st.warning("请先构建因果图并运行根因分析")
-                    return None
-                
-                # 初始化分析管道
-                self.pipeline = RootCauseAnalysisPipeline(
-                    data=self.data,
-                    causal_graph=self.causal_graph
-                )
-                
-                # 运行根因分析
-                try:
-                    # 根据场景选择结果变量
-                    if self.current_scenario == "场景2：库存优化分析":
-                        outcome = "inventory_level"
-                    else:
-                        outcome = "production_efficiency"
-                    
-                    results_df = self.pipeline.run_root_cause_analysis(outcome)
-                    self.analysis_results = self.pipeline.analysis_results
-                    self._save_state()
-                except Exception as e:
-                    st.error(f"❌ 运行分析失败: {str(e)}")
-                    return None
+                print("[APP] analysis_results 为空")
+                st.warning("请先运行根因分析，再生成智能解释")
+                return None
             
             print(f"[APP] analysis_results 状态: {self.analysis_results is not None}")
             
