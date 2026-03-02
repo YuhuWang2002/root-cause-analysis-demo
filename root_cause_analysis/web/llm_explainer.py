@@ -165,7 +165,10 @@ class LLMExplainer:
                             comparison_df: pd.DataFrame,
                             causal_results: pd.DataFrame,
                             counterfactual_results: pd.DataFrame = None,
-                            causal_graph: str = None) -> str:
+                            causal_graph: str = None,
+                            main_metric: str = None,
+                            main_metric_name: str = None,
+                            scenario_background: str = None) -> str:
         """
         生成根因分析解释
         
@@ -175,11 +178,14 @@ class LLMExplainer:
             causal_results: 因果分析结果
             counterfactual_results: 反事实分析结果（预期改进效果）
             causal_graph: 因果图（DOT格式字符串）
+            main_metric: 主要指标名称
+            main_metric_name: 主要指标显示名称
+            scenario_background: 场景背景描述
             
         Returns:
             大模型生成的解释文本
         """
-        prompt = self._build_prompt(analysis_results, comparison_df, causal_results, counterfactual_results, causal_graph)
+        prompt = self._build_prompt(analysis_results, comparison_df, causal_results, counterfactual_results, causal_graph, main_metric, main_metric_name, scenario_background)
         
         if not self.client:
             print("[LLM] 客户端未初始化，无法生成解释")
@@ -216,27 +222,31 @@ class LLMExplainer:
                       comparison_df: pd.DataFrame,
                       causal_results: pd.DataFrame,
                       counterfactual_results: pd.DataFrame = None,
-                      causal_graph: str = None) -> str:
+                      causal_graph: str = None,
+                      main_metric: str = None,
+                      main_metric_name: str = None,
+                      scenario_background: str = None) -> str:
         """构建提示词"""
         
         # 检查是否提供了因果图
         if not causal_graph:
             raise ValueError("错误：未提供因果图，无法生成解释")
         
-        # 自动检测主要指标
-        if 'production_efficiency' in comparison_df['metric'].values:
-            main_metric = 'production_efficiency'
-            main_metric_name = '生产效率'
-            scenario_background = "某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。"
-        elif 'inventory_level' in comparison_df['metric'].values:
-            main_metric = 'inventory_level'
-            main_metric_name = '库存水平'
-            scenario_background = "某制造企业在2024年12月发现库存水平相比前两个月显著异常，需要分析原因并提出优化措施。"
-        else:
-            # 使用第一个指标作为主要指标
-            main_metric = comparison_df['metric'].iloc[0]
-            main_metric_name = main_metric
-            scenario_background = "某制造企业发现关键指标异常，需要分析原因并提出改进措施。"
+        # 如果没有传入参数，自动检测主要指标
+        if not main_metric:
+            if 'production_efficiency' in comparison_df['metric'].values:
+                main_metric = 'production_efficiency'
+                main_metric_name = '生产效率'
+                scenario_background = "某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。"
+            elif 'inventory_level' in comparison_df['metric'].values:
+                main_metric = 'inventory_level'
+                main_metric_name = '库存水平'
+                scenario_background = "某制造企业在2024年12月发现库存水平相比前两个月显著异常，需要分析原因并提出优化措施。"
+            else:
+                # 使用第一个指标作为主要指标
+                main_metric = comparison_df['metric'].iloc[0]
+                main_metric_name = main_metric
+                scenario_background = "某制造企业发现关键指标异常，需要分析原因并提出改进措施。"
         
         # 获取主要指标的变化值
         main_metric_change = comparison_df[comparison_df['metric'] == main_metric]['change_percent'].values[0]

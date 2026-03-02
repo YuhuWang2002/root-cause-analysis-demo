@@ -583,13 +583,26 @@ class RootCauseAnalysisWebApp:
                 if 'counterfactual_analysis' in self.analysis_results:
                     counterfactual_results = pd.DataFrame(self.analysis_results['counterfactual_analysis'])
                 
+                # 根据场景设置参数
+                if self.current_scenario == "场景2：库存优化分析":
+                    main_metric = "inventory_level"
+                    main_metric_name = "库存水平"
+                    scenario_background = "某制造企业在2024年12月发现库存水平相比前两个月显著异常，需要分析原因并提出优化措施。"
+                else:
+                    main_metric = "production_efficiency"
+                    main_metric_name = "生产效率"
+                    scenario_background = "某制造企业在2024年12月发现生产效率相比前两个月显著下降，需要分析原因并提出改进措施。"
+                
                 # 生成解释，传递完整的因果图、分析结果和反事实分析结果
                 self.llm_explanation = self.llm_explainer.generate_explanation(
                     self.analysis_results,
                     comparison_df,
                     causal_results,
                     counterfactual_results,
-                    causal_graph=self.causal_graph  # 传递完整的因果图
+                    causal_graph=self.causal_graph,  # 传递完整的因果图
+                    main_metric=main_metric,
+                    main_metric_name=main_metric_name,
+                    scenario_background=scenario_background
                 )
                 self._save_state()
                 print(f"[APP] 解释生成完成，长度: {len(self.llm_explanation) if self.llm_explanation else 0}")
