@@ -507,13 +507,14 @@ class RootCauseAnalysisWebApp:
         print(f"  - llm_explainer: {self.llm_explainer is not None}")
         print(f"  - analysis_results: {self.analysis_results is not None}")
         print(f"  - llm_explanation: {self.llm_explanation is not None}")
+        print(f"  - current_scenario: {self.current_scenario}")
         
         if self.llm_explanation is None and self.llm_explainer is not None:
             print("[APP] 开始生成解释...")
             
             if self.analysis_results is None:
                 print("[APP] analysis_results 为空，先运行分析...")
-                # 默认分析生产效率
+                # 根据场景选择结果变量
                 if not self.causal_graph:
                     st.warning("请先构建因果图并运行根因分析")
                     return None
@@ -526,7 +527,13 @@ class RootCauseAnalysisWebApp:
                 
                 # 运行根因分析
                 try:
-                    results_df = self.pipeline.run_root_cause_analysis("production_efficiency")
+                    # 根据场景选择结果变量
+                    if self.current_scenario == "场景2：库存优化分析":
+                        outcome = "inventory_level"
+                    else:
+                        outcome = "production_efficiency"
+                    
+                    results_df = self.pipeline.run_root_cause_analysis(outcome)
                     self.analysis_results = self.pipeline.analysis_results
                     self._save_state()
                 except Exception as e:
@@ -553,26 +560,46 @@ class RootCauseAnalysisWebApp:
                     
                     # 添加interpretation列（如果不存在）
                     if 'interpretation' not in causal_results.columns:
-                        causal_results['interpretation'] = causal_results['cause'].apply(lambda x: f"{x}对生产效率有影响")
+                        # 根据场景生成不同的解释
+                        if self.current_scenario == "场景2：库存优化分析":
+                            causal_results['interpretation'] = causal_results['cause'].apply(lambda x: f"{x}对库存水平有影响")
+                        else:
+                            causal_results['interpretation'] = causal_results['cause'].apply(lambda x: f"{x}对生产效率有影响")
                     
                     # 按因果效应排序
                     causal_results = causal_results.sort_values('abs_causal_effect', ascending=False)
                 else:
-                    # 创建默认的causal_results
-                    causal_results = pd.DataFrame({
-                        'cause': ['avg_employee_skill', 'parts_availability', 'supplier_efficiency'],
-                        'causal_effect': [0.70, 0.56, 0.35],
-                        'interpretation': ['员工技能对生产效率有直接且显著的影响', '零部件供应不足直接影响生产线的正常运转', '供应商的生产效率直接影响零部件的交付']
-                    })
+                    # 根据场景创建默认的causal_results
+                    if self.current_scenario == "场景2：库存优化分析":
+                        causal_results = pd.DataFrame({
+                            'cause': ['server_2885_sales_quantity', 'cpu_xeon_6338_utilization_ratio_for_server_5885', 'cpu_xeon_6338_utilization_ratio_for_server_2885'],
+                            'causal_effect': [-0.75, -0.62, -0.45],
+                            'interpretation': ['服务器2885销量直接影响CPU需求', 'CPU被服务器5885的使用比例影响库存水平', 'CPU被服务器2885的使用比例影响库存水平']
+                        })
+                    else:
+                        causal_results = pd.DataFrame({
+                            'cause': ['avg_employee_skill', 'parts_availability', 'supplier_efficiency'],
+                            'causal_effect': [0.70, 0.56, 0.35],
+                            'interpretation': ['员工技能对生产效率有直接且显著的影响', '零部件供应不足直接影响生产线的正常运转', '供应商的生产效率直接影响零部件的交付']
+                        })
                 
-                # 创建comparison_df
-                comparison_df = pd.DataFrame({
-                    'metric': ['production_efficiency', 'payment_timeliness', 'supplier_efficiency', 'parts_availability'],
-                    'normal_mean': [0.85, 0.9, 0.88, 0.92],
-                    'anomaly_mean': [0.65, 0.45, 0.68, 0.75],
-                    'change_percent': [-0.235, -0.5, -0.227, -0.185],
-                    'abs_change': [0.235, 0.5, 0.227, 0.185]
-                })
+                # 根据场景创建comparison_df
+                if self.current_scenario == "场景2：库存优化分析":
+                    comparison_df = pd.DataFrame({
+                        'metric': ['inventory_level', 'server_2885_sales_quantity', 'cpu_xeon_6338_utilization_ratio_for_server_5885', 'cpu_xeon_6338_utilization_ratio_for_server_2885'],
+                        'normal_mean': [50.0, 100.0, 0.8, 0.8],
+                        'anomaly_mean': [85.0, 60.0, 0.2, 0.9],
+                        'change_percent': [0.7, -0.4, -0.75, 0.125],
+                        'abs_change': [0.7, 0.4, 0.75, 0.125]
+                    })
+                else:
+                    comparison_df = pd.DataFrame({
+                        'metric': ['production_efficiency', 'payment_timeliness', 'supplier_efficiency', 'parts_availability'],
+                        'normal_mean': [0.85, 0.9, 0.88, 0.92],
+                        'anomaly_mean': [0.65, 0.45, 0.68, 0.75],
+                        'change_percent': [-0.235, -0.5, -0.227, -0.185],
+                        'abs_change': [0.235, 0.5, 0.227, 0.185]
+                    })
                 
                 # 准备反事实分析结果
                 counterfactual_results = None
@@ -1672,21 +1699,21 @@ class RootCauseAnalysisWebApp:
                     if st.button("默认因果图"):
                         # 根据因果关系和本体schema创建默认因果图
                         default_causal_graph = """digraph {
-    # 部件通用性 -> 库存周转率
+ 
     cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
     
-    # 库存周转率 -> 部件库存
+   
     cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
     cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
     
-    # 被服务器使用比例 -> 库存周转率
+   
     cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
     
-    # 销售数量 -> 库存周转率
+   
     server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
 }"""
@@ -2883,21 +2910,21 @@ class RootCauseAnalysisWebApp:
                     if st.button("默认因果图"):
                         # 根据因果关系和本体schema创建默认因果图
                         default_causal_graph = """digraph {
-    # 部件通用性 -> 库存周转率
+    
     cpu_xeon_6338_commonality -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_commonality -> cpu_xeon_8358_inventory_turnover_rate;
     
-    # 库存周转率 -> 部件库存
+   
     cpu_xeon_6338_inventory_turnover_rate -> cpu_xeon_6338_inventory_level;
     cpu_xeon_8358_inventory_turnover_rate -> cpu_xeon_8358_inventory_level;
     
-    # 被服务器使用比例 -> 库存周转率
+    
     cpu_xeon_6338_utilization_ratio_for_server_2885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_6338_utilization_ratio_for_server_5885 -> cpu_xeon_6338_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_2885 -> cpu_xeon_8358_inventory_turnover_rate;
     cpu_xeon_8358_utilization_ratio_for_server_5885 -> cpu_xeon_8358_inventory_turnover_rate;
     
-    # 销售数量 -> 库存周转率
+    
     server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
 }"""
@@ -3185,10 +3212,17 @@ class RootCauseAnalysisWebApp:
         
         if self.llm_explainer:
             if st.button("生成智能解释", type="primary"):
-                st.success("✅ 智能解释生成完成！")
-                st.markdown("#### 📊 AI生成的库存分析报告")
-                st.markdown("**库存问题根因分析**：产品A销量预测不准确，导致部件A采购过多，同时部件A的通用性未被充分利用。")
-                st.markdown("**优化建议**：建立跨产品的部件共享机制，提高部件A的利用率，减少死库存。")
+                explanation = self.generate_llm_explanation()
+                if explanation:
+                    st.markdown("#### 📊 AI生成的库存分析报告")
+                    st.markdown(explanation)
+                    
+                    st.download_button(
+                        label="下载报告",
+                        data=explanation,
+                        file_name="库存分析报告.md",
+                        mime="text/markdown"
+                    )
         else:
             st.warning("请先初始化大模型解释器")
 
