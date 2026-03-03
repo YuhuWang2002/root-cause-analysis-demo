@@ -194,8 +194,8 @@ class RootCauseAnalysisWebApp:
     server_2885_sales_quantity -> cpu_xeon_6338_inventory_turnover_rate;
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
 }""",
-                "analysis_button_text": "运行库存分析",
-                "analysis_step_title": "步骤4：运行库存分析",
+                "analysis_button_text": "运行根因分析",
+                "analysis_step_title": "步骤4：运行根因分析",
                 "report_title": "📊 AI生成的库存分析报告",
                 "report_filename": "库存分析报告.md",
                 "outcome_entity": "inventory_level",
@@ -1795,6 +1795,29 @@ class RootCauseAnalysisWebApp:
             if not self.causal_graph:
                 st.warning("请先构建因果图")
             else:
+                # 根据场景强制加载正确的数据
+                if scenario_name == "场景2：库存优化分析":
+                    st.info("正在加载场景2数据...")
+                    # 确保重新加载数据
+                    self.data = None
+                    self.analysis_results = None
+                    self.pipeline = None
+                    st.session_state.data = None
+                    st.session_state.analysis_results = None
+                    st.session_state.pipeline = None
+                    st.session_state.last_loaded_scenario = None
+                    
+                    # 加载数据
+                    self.load_data()
+                    
+                    if self.data is None:
+                        st.warning("数据加载失败，请检查数据文件是否存在")
+                        return
+                    
+                    # 打印数据表头和前几行，验证数据是否正确加载
+                    st.info(f"数据加载成功，共 {len(self.data)} 条记录")
+                    st.info(f"数据列名: {list(self.data.columns)}")
+                
                 with st.spinner("正在分析根因..."):
                     try:
                         # 初始化分析管道
