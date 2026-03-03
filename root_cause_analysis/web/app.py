@@ -1826,46 +1826,39 @@ class RootCauseAnalysisWebApp:
                         self._save_state()
                         
                         st.success("✅ 根因分析完成！")
+                        
+                        # 立即显示分析结果
+                        if self.analysis_results and "root_cause_analysis" in self.analysis_results:
+                            st.markdown("#### 根因分析结果")
+                            
+                            # 显示根因分析表格
+                            root_cause_results = self.analysis_results["root_cause_analysis"]
+                            results_df = pd.DataFrame(root_cause_results)
+                            
+                            # 格式化显示
+                            display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
+                            display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
+                            display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                            display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                            
+                            st.dataframe(display_df, use_container_width=True)
+                            
+                            # 显示处理变量和结果变量信息
+                            st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
+                            st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+                        
+                        # 显示驳斥检验结果
+                        refutation_results = self.analysis_results.get("refutation_results") if self.analysis_results else None
+                        if refutation_results:
+                            with st.expander("查看驳斥检验结果"):
+                                for test_name, result in refutation_results.items():
+                                    st.markdown(f"**{test_name}**: {result}")
                     except Exception as e:
                         st.error(f"❌ 根因分析失败: {str(e)}")
         
-        # 步骤4：查看分析结果
+        # 步骤4：对根因分析结果进行智能解释
         st.markdown("---")
-        st.markdown("### 步骤4：查看分析结果")
-        
-        if self.analysis_results:
-            # 检查是否有根因分析结果
-            if "root_cause_analysis" in self.analysis_results:
-                st.markdown("#### 根因分析结果")
-                
-                # 显示根因分析表格
-                root_cause_results = self.analysis_results["root_cause_analysis"]
-                results_df = pd.DataFrame(root_cause_results)
-                
-                # 格式化显示
-                display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
-                display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
-                display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
-                display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
-                
-                st.dataframe(display_df, use_container_width=True)
-                
-                # 显示处理变量和结果变量信息
-                st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
-                st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
-            
-            # 显示驳斥检验结果
-            refutation_results = self.analysis_results.get("refutation_results")
-            if refutation_results:
-                with st.expander("查看驳斥检验结果"):
-                    for test_name, result in refutation_results.items():
-                        st.markdown(f"**{test_name}**: {result}")
-        else:
-            st.info("请先运行分析")
-        
-        # 步骤5：对根因分析结果进行智能解释
-        st.markdown("---")
-        st.markdown("### 步骤5：对根因分析结果进行智能解释")
+        st.markdown("### 步骤4：对根因分析结果进行智能解释")
         
         if self.llm_explainer:
             if st.button("生成根因分析报告", type="primary"):
@@ -1883,9 +1876,9 @@ class RootCauseAnalysisWebApp:
         else:
             st.warning("请先初始化大模型解释器")
         
-        # 步骤6：如果我要达到某个目标，我该如何调整？
+        # 步骤5：如果我要达到某个目标，我该如何调整？
         st.markdown("---")
-        st.markdown("### 步骤6：如果我要达到某个目标，我该如何调整？")
+        st.markdown("### 步骤5：如果我要达到某个目标，我该如何调整？")
         
         # 输入目标结果值（用于反事实分析）
         target_outcome = st.number_input(
@@ -1961,9 +1954,9 @@ class RootCauseAnalysisWebApp:
                     except Exception as e:
                         st.error(f"❌ 反事实分析失败: {str(e)}")
         
-        # 步骤7：根据根因分析结果，我该如何优化我的业务？
+        # 步骤6：根据根因分析结果，我该如何优化我的业务？
         st.markdown("---")
-        st.markdown("### 步骤7：根据根因分析结果，我该如何优化我的业务？")
+        st.markdown("### 步骤6：根据根因分析结果，我该如何优化我的业务？")
         
         if self.llm_explainer:
             if st.button("生成改进建议", type="primary"):

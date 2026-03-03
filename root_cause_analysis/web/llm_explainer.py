@@ -356,19 +356,16 @@ class LLMExplainer:
         prompt += """
 ## 请回答以下问题：
 
-1. **根因分析**：根据因果图结构和因果效应分析结果，哪些因素是导致生产效率下降的根本原因？为什么？
+1. **根因分析**：根据因果图结构和因果效应分析结果，哪些因素是导致问题的根本原因？为什么？
 
-2. **因果路径分析**：请结合上面提供的因果图结构，详细解释这些因素是如何通过因果链影响生产效率的。
+2. **因果路径分析**：请结合上面提供的因果图结构，详细解释这些因素是如何通过因果链影响结果变量的。
 
-3. **改进建议**：针对识别出的根本原因，应该采取哪些具体的改进措施？请按优先级排序。
-
-4. **引用分析结果**：在回答中，请引用以下信息：
+3. **引用分析结果**：在回答中，请引用以下信息：
    - 引用因果图中的因果关系路径
    - 引用因果效应分析结果
    - 引用根因分析排序结果
-   - 引用DoWhy反事实分析的预期改进效果数据（不要自己猜测改进效果）
 
-请用专业但易懂的语言回答，适合企业管理层阅读。
+请用专业但易懂的语言回答，适合企业管理层阅读。不要给出改进建议，只进行根因分析解释。
 """
         
         self._save_prompt(prompt)
@@ -493,8 +490,12 @@ class LLMExplainer:
             if counterfactual_results:
                 prompt += "\n### 反事实分析结果（预期改进效果）\n"
                 
+                # 如果是列表，转换为DataFrame
+                if isinstance(counterfactual_results, list):
+                    counterfactual_results = pd.DataFrame(counterfactual_results)
+                
                 # 检查是否是V2版本的反事实分析结果
-                if 'predicted_target_outcome' in counterfactual_results.columns:
+                if isinstance(counterfactual_results, pd.DataFrame) and 'predicted_target_outcome' in counterfactual_results.columns:
                     # V2版本的反事实分析结果
                     for _, row in counterfactual_results.iterrows():
                         treatment_name = metric_names.get(row['treatment'], row['treatment'])
