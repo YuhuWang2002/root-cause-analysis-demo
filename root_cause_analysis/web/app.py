@@ -1242,11 +1242,11 @@ class RootCauseAnalysisWebApp:
         </div>
         """, unsafe_allow_html=True)
         
-        # 步骤1：初始化本体管理器
+        # 步骤1：读取业务信息
         st.markdown("---")
-        st.markdown("### 步骤1：初始化本体管理器")
+        st.markdown("### 步骤1：读取业务信息")
         
-        if st.button("初始化本体管理器", type="primary"):
+        if st.button("读取业务信息", type="primary"):
             self.init_ontology_manager(schema_type=config["schema_type"])
         
         # 显示本体信息图形化展示
