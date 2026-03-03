@@ -375,7 +375,160 @@ class LLMExplainer:
         
         return prompt
     
+    def generate_improvement_suggestions(self,
+                                         analysis_results: Dict,
+                                         causal_graph: str,
+                                         scenario_description: str,
+                                         problem_description: str) -> str:
+        """
+        生成改进建议
+        
+        Args:
+            analysis_results: 分析结果字典
+            causal_graph: 因果图（DOT格式字符串）
+            scenario_description: 场景描述
+            problem_description: 问题描述
+            
+        Returns:
+            大模型生成的改进建议文本
+        """
+        prompt = self._build_improvement_prompt(analysis_results, causal_graph, scenario_description, problem_description)
+        
+        if not self.client:
+            print("[LLM] 客户端未初始化，无法生成改进建议")
+            return "错误：大模型客户端未初始化，请检查API配置"
+        
+        try:
+            print(f"[LLM] 生成改进建议...")
+            print(f"  - API Key: {self.api_key[:20]}...{self.api_key[-10:]}")
+            print(f"  - Base URL: {self.base_url or 'https://api.siliconflow.cn/v1'}")
+            print(f"  - Model: {self.model}")
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "你是一个专业的企业管理顾问，擅长根据数据分析结果提出改进建议。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"[LLM] 调用大模型API失败: {str(e)}")
+            print(f"  - API Key: {self.api_key[:20]}...{self.api_key[-10:]}")
+            print(f"  - Base URL: {self.base_url or 'https://api.siliconflow.cn/v1'}")
+            print(f"  - Model: {self.model}")
+            return f"错误：调用大模型API失败 - {str(e)}"
+    
+    def _build_improvement_prompt(self,
+                                  analysis_results: Dict,
+                                  causal_graph: str,
+                                  scenario_description: str,
+                                  problem_description: str) -> str:
+        """构建改进建议提示词"""
+        
+        # 使用实际的因果图
+        causal_graph_description = f"## 因果图结构（实际分析使用的因果图）\n\n```\n{causal_graph}\n```\n\n"
+        
+        prompt = f"""你是一个专业的企业管理顾问。请根据以下根因分析结果，给出具体的改进建议。
 
+## 场景背景
+{scenario_description}
+
+## 问题描述
+{problem_description}
+
+{causal_graph_description}
+
+## 根因分析结果
+"""
+        
+        # 动态生成指标名称映射
+        metric_names = {}
+        
+        # 如果有本体管理器，从本体中获取指标名称
+        if self.ontology:
+            try:
+                # 从本体中获取所有指标定义
+                if hasattr(self.ontology, 'schema') and self.ontology.schema:
+                    for entity_type in self.ontology.schema.get('entity_types', []):
+                        for metric in entity_type.get('metrics', []):
+                            metric_names[metric.get('name')] = metric.get('display_name', metric.get('name'))
+            except Exception as e:
+                print(f"[LLM] 从本体获取指标名称失败: {e}")
+        
+        # 添加默认映射作为 fallback
+        default_metric_names = {
+            'production_efficiency': '生产效率',
+            'payment_timeliness': '付款及时性',
+            'supplier_efficiency': '供应商效率',
+            'parts_availability': '零部件可用性',
+            'avg_employee_skill': '员工技能水平',
+            'equipment_status': '设备状态',
+            'capacity_utilization': '产能利用率',
+            'inventory_level': '库存水平',
+            'server_2885_sales_quantity': '服务器2885销量',
+            'cpu_xeon_6338_utilization_ratio_for_server_5885': 'CPU被服务器5885使用比例',
+            'cpu_xeon_6338_utilization_ratio_for_server_2885': 'CPU被服务器2885使用比例'
+        }
+        
+        # 更新默认映射，保留本体中的名称
+        metric_names.update(default_metric_names)
+        
+        # 检查是否有根因分析结果
+        if analysis_results and 'root_cause_analysis' in analysis_results:
+            root_cause_results = analysis_results['root_cause_analysis']
+            if root_cause_results:
+                prompt += "### 根因分析排序结果（按因果效应绝对值排序）\n"
+                for i, item in enumerate(root_cause_results[:5], 1):
+                    cause_name = metric_names.get(item['treatment'], item['treatment'])
+                    prompt += f"{i}. {cause_name}: 因果效应值 {item['causal_effect']:.4f} (排名: {item['rank']})\n"
+        
+        # 检查是否有反事实分析结果
+        if analysis_results and 'counterfactual_analysis' in analysis_results:
+            counterfactual_results = analysis_results['counterfactual_analysis']
+            if counterfactual_results:
+                prompt += "\n### 反事实分析结果（预期改进效果）\n"
+                
+                # 检查是否是V2版本的反事实分析结果
+                if 'predicted_target_outcome' in counterfactual_results.columns:
+                    # V2版本的反事实分析结果
+                    for _, row in counterfactual_results.iterrows():
+                        treatment_name = metric_names.get(row['treatment'], row['treatment'])
+                        current_value = row.get('current_treatment', 'N/A')
+                        target_value = row.get('target_treatment', 'N/A')
+                        predicted_outcome = row.get('predicted_target_outcome', 'N/A')
+                        feasibility = row.get('feasibility', 'N/A')
+                        accuracy = row.get('outcome_accuracy', 'N/A')
+                        
+                        prompt += f"- {treatment_name}: 当前值 {current_value:.2f}，目标值 {target_value:.2f}，预测结果 {predicted_outcome:.2f}，可行性: {feasibility}，预测准确性: {accuracy}\n"
+                else:
+                    # 原始版本的反事实分析结果
+                    valid_counterfactual = counterfactual_results[counterfactual_results['expected_efficiency_gain'].notna()]
+                    for _, row in valid_counterfactual.iterrows():
+                        gain_percent = row['expected_efficiency_gain'] * 100
+                        prompt += f"- {row['factor']}: 提升{row['improvement_level']*100:.0f}%，预计效率提升{gain_percent:.1f}%\n"
+        
+        prompt += """
+## 请回答以下问题：
+
+1. **改进建议**：针对识别出的根本原因，应该采取哪些具体的改进措施？请按优先级排序，并说明每项措施的预期效果。
+
+2. **实施路径**：请给出改进措施的实施路径，包括短期、中期和长期措施。
+
+3. **风险评估**：实施这些改进措施可能面临哪些风险？如何规避？
+
+4. **效果评估**：如何评估改进措施的效果？建议设置哪些监控指标？
+
+请用专业但易懂的语言回答，适合企业管理层阅读。不要重复根因分析的解释，专注改进建议。
+"""
+        
+        self._save_prompt(prompt)
+        
+        return prompt
 
 
 def create_explainer(api_type: str = "siliconflow", api_key: str = None, model: str = None, base_url: str = None) -> LLMExplainer:

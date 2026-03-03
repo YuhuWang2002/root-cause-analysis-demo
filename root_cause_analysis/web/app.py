@@ -159,8 +159,9 @@ class RootCauseAnalysisWebApp:
     parts_availability -> production_efficiency;
     payment_timeliness -> supplier_efficiency;
 }""",
-                "analysis_button_text": "自动分析所有根因（含反事实分析）",
-                "analysis_step_title": "步骤4：运行根因分析",
+                "analysis_button_text": "运行根因分析",
+                "analysis_step_title": "步骤3：根据因果信息，读取数据，并进行根因分析",
+                "analysis_problem_description": "发现12月份生产效率异常下降，需要寻找根因。",
                 "report_title": "📊 AI生成的根因分析报告",
                 "report_filename": "根因分析报告.md",
                 "outcome_entity": "production_efficiency",
@@ -195,7 +196,8 @@ class RootCauseAnalysisWebApp:
     server_5885_sales_quantity -> cpu_xeon_8358_inventory_turnover_rate;
 }""",
                 "analysis_button_text": "运行根因分析",
-                "analysis_step_title": "步骤4：运行根因分析",
+                "analysis_step_title": "步骤3：根据因果信息，读取数据，并进行根因分析",
+                "analysis_problem_description": "发现12月份，CPU Xeon 6338 库存水平异常变高，需要寻找根因。",
                 "report_title": "📊 AI生成的库存分析报告",
                 "report_filename": "库存分析报告.md",
                 "outcome_entity": "inventory_level",
@@ -1232,12 +1234,12 @@ class RootCauseAnalysisWebApp:
         <p>{config['description_detail']}</p>
         <p><strong>操作步骤：</strong></p>
         <ol>
-            <li>初始化本体管理器（读取并展示本体信息）</li>
+            <li>读取业务信息（读取并展示本体信息）</li>
             <li>构建因果图（基于本体信息）</li>
-            <li>配置分析参数</li>
-            <li>运行完整分析</li>
-            <li>查看分析结果</li>
-            <li>生成智能解释</li>
+            <li>根据因果信息，读取数据，并且进行根因分析</li>
+            <li>对根因分析结果进行智能解释，生产根因分析报告</li>
+            <li>如果我要达到某个目标，我该如何调整？</li>
+            <li>根据根因分析结果，我该如何优化我的业务？</li>
         </ol>
         </div>
         """, unsafe_allow_html=True)
@@ -1767,28 +1769,18 @@ class RootCauseAnalysisWebApp:
         else:
             st.warning("请先初始化本体管理器")
         
-        # 步骤3：配置分析参数
+        # 步骤3：根据因果信息，读取数据，并进行根因分析
         st.markdown("---")
-        st.markdown("### 步骤3：配置分析参数")
+        st.markdown(f"### {config['analysis_step_title']}")
         
+        # 显示场景问题描述
+        st.info(f"📋 **分析问题**: {config['analysis_problem_description']}")
+        
+        # 选择结果变量
         outcome = st.selectbox(
             "选择结果变量",
             options=config["default_outcomes"],
             format_func=lambda x: config["outcome_labels"].get(x, x)
-        )
-        
-        # 步骤4：运行根因分析
-        st.markdown("---")
-        st.markdown(f"### {config['analysis_step_title']}")
-        
-        # 输入目标结果值（用于反事实分析）
-        target_outcome = st.number_input(
-            "目标结果值（用于反事实分析）",
-            min_value=0.0,
-            max_value=100.0,
-            value=85.0,
-            step=0.1,
-            help="设置期望的结果变量目标值，用于计算需要的原因变量变化"
         )
         
         if st.button(config["analysis_button_text"], type="primary"):
@@ -1826,13 +1818,94 @@ class RootCauseAnalysisWebApp:
                             causal_graph=self.causal_graph
                         )
                         
-                        # 运行根因分析
+                        # 运行根因分析（只进行因果效应分析，不包括反事实分析）
                         results_df = self.pipeline.run_root_cause_analysis(outcome)
                         
                         # 保存分析结果
                         self.analysis_results = self.pipeline.analysis_results
+                        self._save_state()
                         
-                        # 对每个处理变量运行反事实分析（使用V2版本）
+                        st.success("✅ 根因分析完成！")
+                    except Exception as e:
+                        st.error(f"❌ 根因分析失败: {str(e)}")
+        
+        # 步骤4：查看分析结果
+        st.markdown("---")
+        st.markdown("### 步骤4：查看分析结果")
+        
+        if self.analysis_results:
+            # 检查是否有根因分析结果
+            if "root_cause_analysis" in self.analysis_results:
+                st.markdown("#### 根因分析结果")
+                
+                # 显示根因分析表格
+                root_cause_results = self.analysis_results["root_cause_analysis"]
+                results_df = pd.DataFrame(root_cause_results)
+                
+                # 格式化显示
+                display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
+                display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
+                display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
+                
+                st.dataframe(display_df, use_container_width=True)
+                
+                # 显示处理变量和结果变量信息
+                st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
+                st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
+            
+            # 显示驳斥检验结果
+            refutation_results = self.analysis_results.get("refutation_results")
+            if refutation_results:
+                with st.expander("查看驳斥检验结果"):
+                    for test_name, result in refutation_results.items():
+                        st.markdown(f"**{test_name}**: {result}")
+        else:
+            st.info("请先运行分析")
+        
+        # 步骤5：对根因分析结果进行智能解释
+        st.markdown("---")
+        st.markdown("### 步骤5：对根因分析结果进行智能解释")
+        
+        if self.llm_explainer:
+            if st.button("生成根因分析报告", type="primary"):
+                explanation = self.generate_llm_explanation()
+                if explanation:
+                    st.markdown(f"#### {config['report_title']}")
+                    st.markdown(explanation)
+                    
+                    st.download_button(
+                        label="下载报告",
+                        data=explanation,
+                        file_name=config["report_filename"],
+                        mime="text/markdown"
+                    )
+        else:
+            st.warning("请先初始化大模型解释器")
+        
+        # 步骤6：如果我要达到某个目标，我该如何调整？
+        st.markdown("---")
+        st.markdown("### 步骤6：如果我要达到某个目标，我该如何调整？")
+        
+        # 输入目标结果值（用于反事实分析）
+        target_outcome = st.number_input(
+            "目标结果值",
+            min_value=0.0,
+            max_value=100.0,
+            value=85.0,
+            step=0.1,
+            help="设置期望的结果变量目标值，用于计算需要的原因变量变化"
+        )
+        
+        if st.button("运行反事实分析", type="primary"):
+            if not self.analysis_results:
+                st.warning("请先运行根因分析")
+            elif not self.causal_graph:
+                st.warning("请先构建因果图")
+            else:
+                with st.spinner("正在进行反事实分析..."):
+                    try:
+                        # 对每个处理变量运行反事实分析
                         counterfactual_results = []
                         if self.analysis_results and 'treatments' in self.analysis_results:
                             for treatment in self.analysis_results.get('treatments', []):
@@ -1862,103 +1935,63 @@ class RootCauseAnalysisWebApp:
                         # 保存反事实分析结果
                         if counterfactual_results and self.analysis_results:
                             self.analysis_results['counterfactual_analysis'] = counterfactual_results
-                        self._save_state()
-                        
-                        st.success("✅ 根因分析完成！")
+                            self._save_state()
+                            
+                            st.success("✅ 反事实分析完成！")
+                            
+                            # 显示反事实分析结果
+                            if counterfactual_results:
+                                st.markdown("#### 反事实分析结果")
+                                
+                                cf_df = pd.DataFrame(counterfactual_results)
+                                
+                                # 检查是否有 predicted_target_outcome 和 outcome_accuracy 字段（V2版本）
+                                if 'predicted_target_outcome' in cf_df.columns and 'outcome_accuracy' in cf_df.columns:
+                                    display_cf_df = cf_df[['treatment', 'target_treatment', 'predicted_target_outcome', 'feasibility', 'outcome_accuracy']].copy()
+                                    display_cf_df.columns = ['处理变量', '目标值', '预测结果', '可行性', '预测准确性']
+                                    display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                    display_cf_df['预测结果'] = display_cf_df['预测结果'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                else:
+                                    # 原始版本
+                                    display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
+                                    display_cf_df.columns = ['处理变量', '目标值', '可行性']
+                                    display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                                
+                                st.dataframe(display_cf_df, use_container_width=True)
                     except Exception as e:
-                        st.error(f"❌ 根因分析失败: {str(e)}")
+                        st.error(f"❌ 反事实分析失败: {str(e)}")
         
-        # 步骤5：查看分析结果
+        # 步骤7：根据根因分析结果，我该如何优化我的业务？
         st.markdown("---")
-        st.markdown("### 步骤5：查看分析结果")
-        
-        if self.analysis_results:
-            # 检查是否有根因分析结果
-            if "root_cause_analysis" in self.analysis_results:
-                st.markdown("#### 根因分析结果")
-                
-                # 显示根因分析表格
-                root_cause_results = self.analysis_results["root_cause_analysis"]
-                results_df = pd.DataFrame(root_cause_results)
-                
-                # 格式化显示
-                display_df = results_df[["rank", "treatment", "causal_effect", "abs_causal_effect"]].copy()
-                display_df.columns = ["排名", "处理变量", "因果效应", "绝对效应值"]
-                display_df["因果效应"] = display_df["因果效应"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
-                display_df["绝对效应值"] = display_df["绝对效应值"].map(lambda x: f"{x:.4f}" if x is not None else "N/A")
-                
-                st.dataframe(display_df, use_container_width=True)
-                
-                # 显示处理变量和结果变量信息
-                st.markdown(f"**分析变量**: {', '.join(self.analysis_results.get('treatments', []))}")
-                st.markdown(f"**结果变量**: {self.analysis_results.get('outcome', 'N/A')}")
-            
-            # 显示反事实分析结果（如果存在）
-            if "counterfactual_analysis" in self.analysis_results:
-                st.markdown("#### 反事实分析结果")
-                
-                cf_results = self.analysis_results["counterfactual_analysis"]
-                if cf_results:
-                    # 创建反事实分析结果表格
-                    cf_df = pd.DataFrame(cf_results)
-                    
-                    # 格式化显示
-                    # 检查是否有 predicted_target_outcome 和 outcome_accuracy 字段（V2版本）
-                    if 'predicted_target_outcome' in cf_df.columns and 'outcome_accuracy' in cf_df.columns:
-                        display_cf_df = cf_df[['treatment', 'target_treatment', 'predicted_target_outcome', 'feasibility', 'outcome_accuracy']].copy()
-                        display_cf_df.columns = ['处理变量', '目标值', '预测结果', '可行性', '预测准确性']
-                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
-                        display_cf_df['预测结果'] = display_cf_df['预测结果'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
-                    else:
-                        # 原始版本
-                        display_cf_df = cf_df[['treatment', 'target_treatment', 'feasibility']].copy()
-                        display_cf_df.columns = ['处理变量', '目标值', '可行性']
-                        display_cf_df['目标值'] = display_cf_df['目标值'].map(lambda x: f"{x:.2f}" if x is not None else "N/A")
-                    
-                    st.dataframe(display_cf_df, use_container_width=True)
-                else:
-                    st.info("没有反事实分析结果")
-            
-            # 显示传统分析结果（如果存在）
-            if "causal_effect" in self.analysis_results:
-                st.markdown("#### 传统分析结果")
-                
-                # 显示因果效应
-                causal_effect = self.analysis_results.get("causal_effect")
-                if causal_effect is not None:
-                    st.markdown(f"**因果效应值**: {causal_effect:.4f}")
-                    
-                    if causal_effect > 0:
-                        st.success("正向因果效应：处理变量增加会提高结果变量")
-                    else:
-                        st.warning("负向因果效应：处理变量增加会降低结果变量")
-            
-            # 显示驳斥检验结果
-            refutation_results = self.analysis_results.get("refutation_results")
-            if refutation_results:
-                with st.expander("查看驳斥检验结果"):
-                    for test_name, result in refutation_results.items():
-                        st.markdown(f"**{test_name}**: {result}")
-        else:
-            st.info("请先运行分析")
-        
-        # 步骤6：生成智能解释
-        st.markdown("---")
-        st.markdown("### 步骤6：生成智能解释")
+        st.markdown("### 步骤7：根据根因分析结果，我该如何优化我的业务？")
         
         if self.llm_explainer:
-            if st.button("生成智能解释", type="primary"):
-                explanation = self.generate_llm_explanation()
-                if explanation:
-                    st.markdown(f"#### {config['report_title']}")
-                    st.markdown(explanation)
-                    
-                    st.download_button(
-                        label="下载报告",
-                        data=explanation,
-                        file_name=config["report_filename"],
-                        mime="text/markdown"
-                    )
+            if st.button("生成改进建议", type="primary"):
+                if not self.analysis_results:
+                    st.warning("请先运行根因分析")
+                else:
+                    with st.spinner("正在生成改进建议..."):
+                        try:
+                            # 调用改进建议生成功能
+                            suggestions = self.llm_explainer.generate_improvement_suggestions(
+                                analysis_results=self.analysis_results,
+                                causal_graph=self.causal_graph,
+                                scenario_description=config["scenario_description"],
+                                problem_description=config["analysis_problem_description"]
+                            )
+                            
+                            if suggestions:
+                                st.markdown("#### 📊 AI生成的改进建议")
+                                st.markdown(suggestions)
+                                
+                                st.download_button(
+                                    label="下载改进建议",
+                                    data=suggestions,
+                                    file_name="改进建议.md",
+                                    mime="text/markdown"
+                                )
+                        except Exception as e:
+                            st.error(f"❌ 生成改进建议失败: {str(e)}")
         else:
             st.warning("请先初始化大模型解释器")
     
