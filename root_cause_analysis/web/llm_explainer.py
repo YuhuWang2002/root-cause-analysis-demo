@@ -439,9 +439,47 @@ class LLMExplainer:
 {problem_description}
 
 {causal_graph_description}
-
-## 根因分析结果
 """
+        
+        # 添加本体Schema信息
+        if self.ontology and hasattr(self.ontology, 'schema') and self.ontology.schema:
+            prompt += "## 本体Schema信息\n\n"
+            
+            # 添加实体类型信息
+            entity_types = self.ontology.schema.get('entity_types', [])
+            if entity_types:
+                prompt += "### 实体类型\n"
+                for entity_type in entity_types:
+                    entity_name = entity_type.get('name', 'Unknown')
+                    entity_desc = entity_type.get('description', '无描述')
+                    prompt += f"- **{entity_name}**: {entity_desc}\n"
+                    
+                    # 添加实体属性
+                    attributes = entity_type.get('attributes', [])
+                    if attributes:
+                        prompt += f"  - 属性: {', '.join([attr.get('name', '') for attr in attributes])}\n"
+                    
+                    # 添加实体指标
+                    metrics = entity_type.get('metrics', [])
+                    if metrics:
+                        prompt += f"  - 指标: {', '.join([metric.get('name', '') for metric in metrics])}\n"
+                prompt += "\n"
+            
+            # 添加关系类型信息
+            relation_types = self.ontology.schema.get('relation_types', [])
+            if relation_types:
+                prompt += "### 关系类型\n"
+                for relation_type in relation_types:
+                    relation_name = relation_type.get('name', 'Unknown')
+                    relation_desc = relation_type.get('description', '无描述')
+                    source_types = relation_type.get('source_types', [])
+                    target_types = relation_type.get('target_types', [])
+                    prompt += f"- **{relation_name}**: {relation_desc}\n"
+                    prompt += f"  - 源类型: {', '.join(source_types)}\n"
+                    prompt += f"  - 目标类型: {', '.join(target_types)}\n"
+                prompt += "\n"
+        
+        prompt += "## 根因分析结果\n"
         
         # 动态生成指标名称映射
         metric_names = {}
