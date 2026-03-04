@@ -203,6 +203,35 @@ class RootCauseAnalysisWebApp:
                 "outcome_entity": "inventory_level",
                 "scenario_description": "库存优化分析场景",
                 "data_file": "server_inventory_data.csv"
+            },
+            "场景3：产品部件库存分析": {
+                "title": "🤖 产品部件库存分析",
+                "description": "Agent驱动的产品部件库存分析",
+                "description_detail": "通过LLM理解本体并推导因果图，实现智能的产品部件库存分析流程。",
+                "schema_type": "product",
+                "default_outcomes": ["component_a_inventory_level", "component_a_inventory_turnover_rate"],
+                "outcome_labels": {
+                    "component_a_inventory_level": "部件A库存水平",
+                    "component_a_inventory_turnover_rate": "部件A库存周转率",
+                    "component_a1_inventory_level": "部件A1库存水平",
+                    "component_a1_inventory_turnover_rate": "部件A1库存周转率"
+                },
+                "default_causal_graph": """digraph {
+    component_a_commonality -> component_a_inventory_turnover_rate;
+    component_a_inventory_turnover_rate -> component_a_inventory_level;
+    component_a_utilization_ratio_for_product_a -> component_a_inventory_turnover_rate;
+    component_a_utilization_ratio_for_product_b -> component_a_inventory_turnover_rate;
+    product_a_sales_quantity -> component_a_inventory_turnover_rate;
+    product_b_sales_quantity -> component_a_inventory_turnover_rate;
+}""",
+                "analysis_button_text": "运行根因分析",
+                "analysis_step_title": "步骤3：根据因果信息，读取数据，并进行根因分析",
+                "analysis_problem_description": "发现12月份，产品A销售下降后，部件A库存水平异常变高，需要寻找根因。",
+                "report_title": "📊 AI生成的产品部件库存分析报告",
+                "report_filename": "产品部件库存分析报告.md",
+                "outcome_entity": "component_a_inventory_level",
+                "scenario_description": "产品部件库存分析场景：部件A本来可以同时被产品A和B使用，但由于BOM单或其他原因，一直以来都是产品A用部件A，产品B用的是A1，实际上A=A1。当产品A销售下降后，导致看到部件A库存处于高位。",
+                "data_file": "product_inventory_data.csv"
             }
         }
         
@@ -343,7 +372,7 @@ class RootCauseAnalysisWebApp:
         初始化本体管理器 - 从ontology_api读取schema信息
         
         Args:
-            schema_type: schema类型，"default" 或 "server"
+            schema_type: schema类型，"default"、"server" 或 "product"
         """
         if not self.ontology_manager:
             try:
@@ -356,6 +385,9 @@ class RootCauseAnalysisWebApp:
                 if schema_type == "server":
                     schema_url = "http://localhost:8000/schema/server"
                     st.info("使用服务器库存分析本体Schema")
+                elif schema_type == "product":
+                    schema_url = "http://localhost:8000/schema/product"
+                    st.info("使用产品部件库存分析本体Schema")
                 else:
                     schema_url = "http://localhost:8000/schema"
                     st.info("使用默认本体Schema")

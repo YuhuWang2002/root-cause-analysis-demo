@@ -1,0 +1,211 @@
+{
+  "schema_info": {
+    "name": "产品部件库存分析本体",
+    "version": "1.0",
+    "description": "用于产品部件库存分析的领域本体，描述产品、部件及其库存关系",
+    "created_at": "2026-03-04"
+  },
+  
+  "entity_types": [
+    {
+      "id": "product",
+      "name": "产品",
+      "description": "制造的产品类型",
+      "attributes": [
+        {"name": "product_id", "type": "string", "description": "产品唯一标识"},
+        {"name": "product_name", "type": "string", "description": "产品名称"},
+        {"name": "product_type", "type": "string", "description": "产品类型"}
+      ],
+      "metrics": [
+        {"name": "product_a_sales_quantity", "display_name": "产品A销售数量", "description": "产品A的销售数量", "type": "float"},
+        {"name": "product_b_sales_quantity", "display_name": "产品B销售数量", "description": "产品B的销售数量", "type": "float"},
+        {"name": "product_a_production_quantity", "display_name": "产品A生产数量", "description": "产品A的生产数量", "type": "float"},
+        {"name": "product_b_production_quantity", "display_name": "产品B生产数量", "description": "产品B的生产数量", "type": "float"}
+      ]
+    },
+    {
+      "id": "component",
+      "name": "部件",
+      "description": "产品的组成部件",
+      "attributes": [
+        {"name": "component_id", "type": "string", "description": "部件唯一标识"},
+        {"name": "component_name", "type": "string", "description": "部件名称"},
+        {"name": "component_type", "type": "string", "description": "部件类型"},
+        {"name": "commonality", "type": "integer", "description": "通用性，可被多少产品使用"}
+      ],
+      "metrics": [
+        {"name": "component_a_inventory_level", "display_name": "部件A库存水平", "description": "部件A的库存水平", "type": "float"},
+        {"name": "component_a1_inventory_level", "display_name": "部件A1库存水平", "description": "部件A1的库存水平", "type": "float"},
+        {"name": "component_a_inventory_turnover_rate", "display_name": "部件A库存周转率", "description": "部件A的库存周转率", "type": "float"},
+        {"name": "component_a1_inventory_turnover_rate", "display_name": "部件A1库存周转率", "description": "部件A1的库存周转率", "type": "float"},
+        {"name": "component_a_commonality", "display_name": "部件A通用性", "description": "部件A可被多少产品使用", "type": "integer"},
+        {"name": "component_a1_commonality", "display_name": "部件A1通用性", "description": "部件A1可被多少产品使用", "type": "integer"},
+        {"name": "component_a_utilization_ratio_for_product_a", "display_name": "部件A被产品A使用比例", "description": "部件A被产品A使用的比例", "type": "float"},
+        {"name": "component_a_utilization_ratio_for_product_b", "display_name": "部件A被产品B使用比例", "description": "部件A被产品B使用的比例（实际为0，但应该可以使用）", "type": "float"},
+        {"name": "component_a1_utilization_ratio_for_product_b", "display_name": "部件A1被产品B使用比例", "description": "部件A1被产品B使用的比例", "type": "float"}
+      ]
+    }
+  ],
+  
+  "relation_types": [
+    {
+      "id": "product_uses_component",
+      "name": "产品使用部件",
+      "description": "产品使用某个部件的关系",
+      "source_types": ["product"],
+      "target_types": ["component"],
+      "attributes": [
+        {"name": "quantity", "type": "integer", "description": "使用数量"},
+        {"name": "is_primary", "type": "boolean", "description": "是否为主要部件"}
+      ]
+    },
+    {
+      "id": "component_used_by_product",
+      "name": "部件被产品使用",
+      "description": "部件被某个产品使用的关系",
+      "source_types": ["component"],
+      "target_types": ["product"],
+      "attributes": [
+        {"name": "utilization_ratio", "type": "float", "description": "使用比例"}
+      ]
+    },
+    {
+      "id": "component_similar_to",
+      "name": "部件相似",
+      "description": "部件之间的相似或替代关系",
+      "source_types": ["component"],
+      "target_types": ["component"],
+      "attributes": [
+        {"name": "similarity_score", "type": "float", "description": "相似度分数"},
+        {"name": "is_interchangeable", "type": "boolean", "description": "是否可互换"}
+      ]
+    }
+  ],
+  
+  "metric_definitions": [
+    {
+      "id": "component_a_inventory_level",
+      "name": "component_a_inventory_level",
+      "display_name": "部件A库存水平",
+      "description": "部件A的当前库存水平",
+      "type": "gauge",
+      "source_entity_type": "component",
+      "target_entity_type": "component",
+      "source_relation": "self"
+    },
+    {
+      "id": "component_a_inventory_turnover_rate",
+      "name": "component_a_inventory_turnover_rate",
+      "display_name": "部件A库存周转率",
+      "description": "部件A的库存周转率，反映库存流动速度",
+      "type": "gauge",
+      "source_entity_type": "component",
+      "target_entity_type": "component",
+      "source_relation": "self"
+    },
+    {
+      "id": "component_a_utilization_ratio_for_product_a",
+      "name": "component_a_utilization_ratio_for_product_a",
+      "display_name": "部件A被产品A使用比例",
+      "description": "部件A被产品A使用的比例",
+      "type": "gauge",
+      "source_entity_type": "component",
+      "target_entity_type": "product",
+      "source_relation": "component_used_by_product"
+    },
+    {
+      "id": "component_a_utilization_ratio_for_product_b",
+      "name": "component_a_utilization_ratio_for_product_b",
+      "display_name": "部件A被产品B使用比例",
+      "description": "部件A被产品B使用的比例（关键指标：实际为0，但应该可以使用）",
+      "type": "gauge",
+      "source_entity_type": "component",
+      "target_entity_type": "product",
+      "source_relation": "component_used_by_product"
+    },
+    {
+      "id": "product_a_sales_quantity",
+      "name": "product_a_sales_quantity",
+      "display_name": "产品A销售数量",
+      "description": "产品A的销售数量",
+      "type": "counter",
+      "source_entity_type": "product",
+      "target_entity_type": "product",
+      "source_relation": "self"
+    },
+    {
+      "id": "product_b_sales_quantity",
+      "name": "product_b_sales_quantity",
+      "display_name": "产品B销售数量",
+      "description": "产品B的销售数量",
+      "type": "counter",
+      "source_entity_type": "product",
+      "target_entity_type": "product",
+      "source_relation": "self"
+    }
+  ],
+  
+  "causal_relationships": [
+    {
+      "cause": "product_a_sales_quantity",
+      "effect": "component_a_inventory_turnover_rate",
+      "description": "产品A销售数量影响部件A库存周转率",
+      "mechanism": "产品A销售下降，导致部件A消耗减少，库存周转率下降"
+    },
+    {
+      "cause": "component_a_utilization_ratio_for_product_a",
+      "effect": "component_a_inventory_turnover_rate",
+      "description": "部件A被产品A使用比例影响部件A库存周转率",
+      "mechanism": "使用比例越高，库存周转越快"
+    },
+    {
+      "cause": "component_a_utilization_ratio_for_product_b",
+      "effect": "component_a_inventory_turnover_rate",
+      "description": "部件A被产品B使用比例影响部件A库存周转率（关键因果关系）",
+      "mechanism": "如果产品B也使用部件A，可以提高部件A的库存周转率，降低库存水平"
+    },
+    {
+      "cause": "component_a_inventory_turnover_rate",
+      "effect": "component_a_inventory_level",
+      "description": "部件A库存周转率影响部件A库存水平",
+      "mechanism": "库存周转率越低，库存水平越高"
+    },
+    {
+      "cause": "component_a_commonality",
+      "effect": "component_a_inventory_turnover_rate",
+      "description": "部件A通用性影响部件A库存周转率",
+      "mechanism": "通用性越高（可被更多产品使用），库存周转率越高"
+    }
+  ],
+  
+  "business_rules": [
+    {
+      "id": "rule_component_interchangeability",
+      "name": "部件互换规则",
+      "description": "部件A和部件A1实际上是相同的部件，可以互换使用",
+      "conditions": [
+        "component_a == component_a1 (技术规格相同)",
+        "component_a can be used by product_b",
+        "component_a1 can be replaced by component_a"
+      ],
+      "actions": [
+        "建议产品B使用部件A而不是部件A1",
+        "这样可以降低部件A的库存水平"
+      ]
+    },
+    {
+      "id": "rule_inventory_optimization",
+      "name": "库存优化规则",
+      "description": "当部件库存处于高位时，应该寻找更多的使用渠道",
+      "conditions": [
+        "component_inventory_level > threshold",
+        "component_utilization_ratio < expected"
+      ],
+      "actions": [
+        "检查部件是否可以被其他产品使用",
+        "检查是否有可替代的部件在使用",
+        "优化BOM配置"
+      ]
+    }
+  ]
+}

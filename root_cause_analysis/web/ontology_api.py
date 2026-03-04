@@ -169,6 +169,57 @@ async def get_schema():
     )
 
 
+@app.get("/schema/product", response_model=SchemaResponse, tags=["Schema管理"])
+async def get_product_schema():
+    """获取产品部件库存分析本体Schema（元数据）"""
+    product_schema_path = os.path.join(os.path.dirname(__file__), "../product_ontology_schema.json")
+    product_schema_data = load_ontology_schema(product_schema_path)
+    
+    entity_types = [
+        {
+            "id": et["id"],
+            "name": et["name"],
+            "description": et["description"],
+            "attributes": et["attributes"]
+        }
+        for et in product_schema_data.get("entity_types", [])
+    ]
+    
+    relation_types = [
+        {
+            "id": rt["id"],
+            "name": rt["name"],
+            "description": rt["description"],
+            "source_types": rt.get("source_types", []),
+            "target_types": rt.get("target_types", [])
+        }
+        for rt in product_schema_data.get("relation_types", [])
+    ]
+    
+    metric_definitions = [
+        {
+            "id": md["id"],
+            "name": md["name"],
+            "description": md["description"],
+            "source_entity_type": md.get("source_entity_type"),
+            "target_entity_type": md.get("target_entity_type"),
+            "source_relation": md.get("source_relation"),
+            "type": md.get("type")
+        }
+        for md in product_schema_data.get("metric_definitions", [])
+    ]
+    
+    metadata = product_schema_data.get("metadata", {})
+    
+    return SchemaResponse(
+        entity_types=entity_types,
+        relation_types=relation_types,
+        metric_definitions=metric_definitions,
+        metadata=metadata
+    )
+
+
+
 @app.get("/entities", response_model=List[EntityResponse], tags=["实体管理"])
 async def get_entities():
     """获取所有实体（当前为空，只有Schema）"""
