@@ -913,7 +913,7 @@ class RootCauseAnalysisWebApp:
         # 场景选择
         scenario = st.sidebar.selectbox(
             "选择分析场景",
-            ["场景1：生产效率分析", "场景2：库存优化分析"]
+            ["场景1：生产效率分析", "场景2：库存优化分析", "场景3：产品部件库存分析"]
         )
         
         st.sidebar.markdown("### 分析导航")
@@ -924,7 +924,12 @@ class RootCauseAnalysisWebApp:
                 "选择页面",
                 ["场景介绍", "因果图", "数据分析", "Agent分析"]
             )
-        else:  # 场景2：库存优化分析
+        elif scenario == "场景2：库存优化分析":
+            page = st.sidebar.radio(
+                "选择页面",
+                ["场景介绍", "因果图", "数据分析", "Agent分析"]
+            )
+        else:  # 场景3：产品部件库存分析
             page = st.sidebar.radio(
                 "选择页面",
                 ["场景介绍", "因果图", "数据分析", "Agent分析"]
@@ -2520,4 +2525,13 @@ if __name__ == "__main__":
         elif page == "数据分析":
             app.render_inventory_data_analysis_page()
         elif page == "Agent分析":
-            app.render_inventory_agent_analysis_page()
+            app.render_agent_analysis_page(scenario_name="场景2：库存优化分析")
+    elif scenario == "场景3：产品部件库存分析":
+        if page == "场景介绍":
+            app.render_inventory_scenario_page()  # 暂时使用场景2的页面
+        elif page == "因果图":
+            app.render_inventory_causal_graph_page()  # 暂时使用场景2的页面
+        elif page == "数据分析":
+            app.render_inventory_data_analysis_page()  # 暂时使用场景2的页面
+        elif page == "Agent分析":
+            app.render_agent_analysis_page(scenario_name="场景3：产品部件库存分析")

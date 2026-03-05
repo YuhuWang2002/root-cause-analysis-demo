@@ -61,7 +61,8 @@ def generate_product_inventory_data():
             component_a_utilization_product_a = np.random.uniform(0.4, 0.6)
         
         # 关键：部件A被产品B使用比例 - 始终为0（这是问题的根因）
-        component_a_utilization_product_b = 0.0  # 产品B没有使用部件A
+        # 但为了因果分析能够计算，我们给一个很小的随机值（接近0）
+        component_a_utilization_product_b = np.random.uniform(0.0, 0.01)  # 几乎为0，但有一点变化
         
         # 部件A的通用性 - 可被2个产品使用
         component_a_commonality = 2
