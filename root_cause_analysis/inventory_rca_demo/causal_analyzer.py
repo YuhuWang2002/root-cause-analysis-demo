@@ -265,7 +265,8 @@ class InventoryCausalAnalyzer:
     def run_full_analysis(self,
                          counterfactual_data: pd.DataFrame,
                          treatments: List[str] = None,
-                         outcome: str = "component_a_inventory") -> Dict:
+                         outcome: str = "component_a_inventory",
+                         fast_mode: bool = False) -> Dict:
         """
         运行完整的因果分析流程
         
@@ -273,6 +274,7 @@ class InventoryCausalAnalyzer:
             counterfactual_data: 反事实数据
             treatments: 处理变量列表
             outcome: 结果变量
+            fast_mode: 快速模式（跳过驳斥检验和多变量分析）
             
         Returns:
             完整分析结果字典
@@ -289,14 +291,23 @@ class InventoryCausalAnalyzer:
         print("步骤3: 估计因果效应...")
         estimate = self.estimate_effect()
         
-        print("步骤4: 驳斥检验...")
-        refutation_results = self.refute_estimate()
+        if fast_mode:
+            print("快速模式：跳过驳斥检验和多变量分析")
+            refutation_results = {}
+            causal_effects_df = pd.DataFrame([{
+                "treatment": "product_b_uses_component_a",
+                "causal_effect": estimate.value,
+                "note": "快速模式"
+            }])
+        else:
+            print("步骤4: 驳斥检验...")
+            refutation_results = self.refute_estimate()
+            
+            print("步骤6: 分析多个处理变量...")
+            causal_effects_df = self.analyze_causal_effects(treatments, outcome)
         
         print("步骤5: 反事实分析...")
         counterfactual_results = self.counterfactual_analysis(counterfactual_data)
-        
-        print("步骤6: 分析多个处理变量...")
-        causal_effects_df = self.analyze_causal_effects(treatments, outcome)
         
         return {
             "causal_effect": estimate.value,
