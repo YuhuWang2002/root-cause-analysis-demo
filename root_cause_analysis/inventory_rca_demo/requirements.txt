@@ -1,0 +1,26 @@
+# 部件A库存高因果根因分析 - 依赖包
+
+# 核心依赖
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# 因果推断
+dowhy>=0.8
+graphviz
+
+# 可视化
+matplotlib>=3.4.0
+seaborn>=0.11.0
+plotly>=5.3.0
+networkx>=2.6.0
+
+# Web应用
+streamlit>=1.12.0
+
+# 大模型API
+openai>=1.0.0
+httpx>=0.24.0
+
+# 其他工具
+python-dateutil>=2.8.0
