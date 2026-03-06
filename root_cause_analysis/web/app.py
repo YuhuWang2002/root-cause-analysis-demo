@@ -1283,7 +1283,24 @@ class RootCauseAnalysisWebApp:
         
         # 步骤1：读取业务信息
         st.markdown("---")
-        st.markdown("### 步骤1：读取业务信息")
+        st.markdown("""
+        <div class="step-header">
+            步骤1：What do the users need to do? / 用户需要做什么
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>用户需要了解当前业务指标的情况，在指标出现异常的情况下，找到根本原因。</strong></p>
+        <p><strong>当前场景问题：</strong>{}</p>
+        <ul>
+            <li>监控和了解当前业务指标的实时情况</li>
+            <li>识别指标异常（如指标过高或过低）</li>
+            <li>分析指标异常的根本原因</li>
+            <li>提供决策支持和改进建议</li>
+        </ul>
+        </div>
+        """.format(config['analysis_problem_description']), unsafe_allow_html=True)
         
         if st.button("读取业务信息", type="primary"):
             self.init_ontology_manager(schema_type=config["schema_type"])
@@ -1633,7 +1650,21 @@ class RootCauseAnalysisWebApp:
         
         # 步骤2：构建因果图
         st.markdown("---")
-        st.markdown("### 步骤2：构建因果图")
+        st.markdown("""
+        <div class="step-header">
+            步骤2：Where does the needed data come from? / 需要的数据来自哪里
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>用户需要从数据库中获取业务数据和相关指标数据。本次演示使用的是模拟数据。</strong></p>
+        <ul>
+            <li>数据来源：企业ERP系统、生产管理系统</li>
+            <li>数据类型：生产效率、支付及时性、库存水平等</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         if self.causal_graph_builder:
             col1, col2 = st.columns([2, 1])
@@ -1808,7 +1839,24 @@ class RootCauseAnalysisWebApp:
         
         # 步骤3：根据因果信息，读取数据，并进行根因分析
         st.markdown("---")
-        st.markdown(f"### {config['analysis_step_title']}")
+        st.markdown("""
+        <div class="step-header">
+            步骤3：How are users meant to interact with the data? / 用户如何与数据信息交互
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>本次不演示</strong></p>
+        <p>在实际应用中，用户可以通过以下方式与数据交互：</p>
+        <ul>
+            <li>数据筛选：按时间、产品类型筛选数据</li>
+            <li>数据可视化：查看趋势图、对比图</li>
+            <li>参数调整：调整分析参数</li>
+            <li>结果导出：导出分析报告</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 显示场景问题描述
         st.info(f"📋 **分析问题**: {config['analysis_problem_description']}")
@@ -1895,7 +1943,22 @@ class RootCauseAnalysisWebApp:
         
         # 步骤4：对根因分析结果进行智能解释
         st.markdown("---")
-        st.markdown("### 步骤4：对根因分析结果进行智能解释")
+        st.markdown("""
+        <div class="step-header">
+            步骤4：What structured data asset needs to be provided to users? / 需要向用户提供什么样的结构化数据资产
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>用户需要获取结构化的数据资产，包括：</strong></p>
+        <ul>
+            <li>因果图：描述变量之间的因果关系</li>
+            <li>因果效应分析结果：量化各因素对结果的影响</li>
+            <li>根因分析报告：解释根本原因和影响机制</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         if self.llm_explainer:
             if st.button("生成根因分析报告", type="primary"):
@@ -1915,7 +1978,23 @@ class RootCauseAnalysisWebApp:
         
         # 步骤5：如果我要达到某个目标，我该如何调整？
         st.markdown("---")
-        st.markdown("### 步骤5：如果我要达到某个目标，我该如何调整？")
+        st.markdown("""
+        <div class="step-header">
+            步骤5：What constrain should applied to control the data quality? / 应对施加哪些约束来控制数据质量
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>数据质量约束：</strong></p>
+        <ul>
+            <li>数据完整性：无缺失值</li>
+            <li>数据准确性：数值范围合理</li>
+            <li>数据一致性：时间连续</li>
+            <li>业务约束：符合业务规则</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 输入目标结果值（用于反事实分析）
         target_outcome = st.number_input(
@@ -1993,7 +2072,17 @@ class RootCauseAnalysisWebApp:
         
         # 步骤6：根据根因分析结果，我该如何优化我的业务？
         st.markdown("---")
-        st.markdown("### 步骤6：根据根因分析结果，我该如何优化我的业务？")
+        st.markdown("""
+        <div class="step-header">
+            步骤6：How should the data asset be leveraged? / 数据资产应该如何被利用
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>用户需要利用数据资产进行根因分析，发现问题的根本原因。</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if self.llm_explainer:
             if st.button("生成改进建议", type="primary"):
@@ -2024,6 +2113,47 @@ class RootCauseAnalysisWebApp:
                             st.error(f"❌ 生成改进建议失败: {str(e)}")
         else:
             st.warning("请先初始化大模型解释器")
+        
+        # 步骤7：用户完成其任务所需的自动化措施
+        st.markdown("---")
+        st.markdown("""
+        <div class="step-header">
+            步骤7：Describe any automations necessary for users to fulfill their tasks? / 用户完成其任务所需的自动化措施
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>本次演示不展示</strong></p>
+        <p>在实际应用中，可以包括：</p>
+        <ul>
+            <li>自动数据采集和清洗</li>
+            <li>自动因果分析</li>
+            <li>自动报告生成</li>
+            <li>自动预警通知</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 步骤8：定义角色和权限
+        st.markdown("---")
+        st.markdown("""
+        <div class="step-header">
+            步骤8：Define roles and permissions? / 定义角色和权限
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="step-content">
+        <p><strong>本次演示不展示</strong></p>
+        <p>在实际应用中，可以包括：</p>
+        <ul>
+            <li>数据分析师：查看和分析数据</li>
+            <li>业务经理：查看报告和决策</li>
+            <li>系统管理员：配置和管理系统</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
     def render_llm_explanation_page(self):
         """渲染大模型解释页面"""
