@@ -41,8 +41,9 @@ anomaly_factors.json
 ontology.json
 
 # API相关
-ontology_api.py
-llm_agent.py
+web/ontology_api.py
+web/llm_agent.py
+!inventory_rca_demo/ontology_api.py
 
 # API密钥配置文件
 web/modelkey.cfg
