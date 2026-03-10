@@ -1,5 +1,5 @@
 """
-部件A库存高因果根因分析 - Web应用（重构版）
+部件PAC900S12-B2库存高因果根因分析 - Web应用（重构版）
 
 根据refactor.md要求重构：
 - 只保留场景介绍和根因分析两个页面
@@ -21,7 +21,7 @@ from llm_explainer import LLMExplainer
 from ontology_api import OntologyAPI
 
 st.set_page_config(
-    page_title="部件A库存高因果根因分析",
+    page_title="PAC900S12-B2库存高因果根因分析",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -232,18 +232,18 @@ class InventoryAnalysisWebApp:
         with col1:
             st.markdown("""
             <div class="step-header">
-                部件A库存高因果根因分析场景
+                PAC900S12-B2库存高因果根因分析场景
             </div>
             
             <div class="info-box">
             <h4>场景背景</h4>
-            <p>产品A销量下降，导致部件A库存偏高。需要验证：<strong>产品B未使用部件A</strong> 是部件A库存高的<strong>核心因果根因</strong>，而非仅由产品A销量下降导致。</p>
+            <p>昆仑2280销量下降，导致PAC900S12-B2（服务器白金900W电源）库存偏高。需要验证：<strong>2288HV7未使用PAC900S12-B2</strong> 是PAC900S12-B2库存高的<strong>核心因果根因</strong>，而非仅由昆仑2280销量下降导致。</p>
             </div>
             
             <div class="info-box">
             <h4>核心目标</h4>
             <ul>
-                <li>用因果分析量化：若产品B使用部件A，库存可下降多少</li>
+                <li>用因果分析量化：若2288HV7使用PAC900S12-B2，库存可下降多少</li>
                 <li>通过反事实与稳健检验证明因果结论可靠</li>
                 <li>输出Web可视化页面 + 大模型业务解释</li>
             </ul>
@@ -252,24 +252,24 @@ class InventoryAnalysisWebApp:
             <div class="info-box">
             <h4>因果关系</h4>
             <ul>
-                <li>产品A销量 → 部件A消耗量 → 部件A库存</li>
-                <li>产品B销量 → 部件A消耗量（如果产品B使用部件A）</li>
-                <li>产品B使用部件A → 部件A消耗量</li>
+                <li>昆仑2280销量 → PAC900S12-B2消耗量 → PAC900S12-B2库存</li>
+                <li>2288HV7销量 → PAC900S12-B2消耗量（如果2288HV7使用PAC900S12-B2）</li>
+                <li>2288HV7使用PAC900S12-B2 → PAC900S12-B2消耗量</li>
             </ul>
             </div>
             
             <div class="warning-box">
             <h4>问题描述</h4>
             <ul>
-                <li>产品A销量在11月开始下降40%</li>
-                <li>产品B未使用部件A（历史全为0）</li>
-                <li>部件A库存持续升高，占用资金</li>
+                <li>昆仑2280销量在11月开始下降40%</li>
+                <li>2288HV7未使用PAC900S12-B2（历史全为0）</li>
+                <li>PAC900S12-B2库存持续升高，占用资金</li>
             </ul>
             </div>
             
             <div class="success-box">
             <h4>分析目标</h4>
-            <p>使用DoWhy因果推断框架，量化产品B未使用部件A对库存的影响，验证其是否为核心根因。</p>
+            <p>使用DoWhy因果推断框架，量化2288HV7未使用PAC900S12-B2对库存的影响，验证其是否为核心根因。</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -695,8 +695,8 @@ class InventoryAnalysisWebApp:
             <h4>结论</h4>
             <p>当前库存数据显示，有一些商品的库存数量异常高，导致库存高位问题。</p>
             <ul>
-                <li>产品A销量在11月开始下降</li>
-                <li>部件A库存持续升高</li>
+                <li>昆仑2280销量在11月开始下降</li>
+                <li>PAC900S12-B2库存持续升高</li>
                 <li>库存占用资金增加</li>
             </ul>
             </div>
@@ -840,7 +840,7 @@ class InventoryAnalysisWebApp:
                 st.metric(
                     "反事实库存均值",
                     f"{cf_results.get('counterfactual_inventory_mean', 0):.0f}",
-                    "如果产品B使用部件A"
+                    "如果2288HV7使用PAC900S12-B2"
                 )
             
             st.markdown("---")
@@ -861,7 +861,7 @@ class InventoryAnalysisWebApp:
                 st.metric(
                     "下降期反事实库存",
                     f"{cf_results.get('decline_period_counterfactual_inventory', 0):.0f}",
-                    "如果产品B使用部件A"
+                    "如果2288HV7使用PAC900S12-B2"
                 )
             
             with col3:
@@ -1180,12 +1180,12 @@ class InventoryAnalysisWebApp:
         G = nx.DiGraph()
         
         edges = [
-            ("产品A销量", "部件A消耗量"),
-            ("产品B销量", "部件A消耗量"),
-            ("产品B使用部件A", "部件A消耗量"),
-            ("部件A消耗量", "部件A库存"),
-            ("部件A采购量", "部件A库存"),
-            ("产品A销量", "部件A采购量"),
+            ("昆仑2280销量", "PAC900S12-B2消耗量"),
+            ("2288HV7销量", "PAC900S12-B2消耗量"),
+            ("2288HV7使用PAC900S12-B2", "PAC900S12-B2消耗量"),
+            ("PAC900S12-B2消耗量", "PAC900S12-B2库存"),
+            ("PAC900S12-B2采购量", "PAC900S12-B2库存"),
+            ("昆仑2280销量", "PAC900S12-B2采购量"),
         ]
         
         for edge in edges:
@@ -1235,9 +1235,9 @@ class InventoryAnalysisWebApp:
             node_x.append(x)
             node_y.append(y)
             node_text.append(node)
-            if node == "部件A库存":
+            if node == "PAC900S12-B2库存":
                 node_color.append('#A23B72')
-            elif node in ["产品B使用部件A", "产品A销量"]:
+            elif node in ["2288HV7使用PAC900S12-B2", "昆仑2280销量"]:
                 node_color.append('#2E86AB')
             else:
                 node_color.append('#17A2B8')
@@ -1402,7 +1402,7 @@ class InventoryAnalysisWebApp:
         prompt = """你是一个专业的因果分析专家。请根据以下信息构建因果图。
 
 ## 问题描述
-某制造企业发现部件A库存持续升高，占用大量资金，需要找出根本原因。
+某制造企业发现PAC900S12-B2库存持续升高，占用大量资金，需要找出根本原因。
 
 ## 本体信息
 以下是产品与部件的关系：
@@ -1411,8 +1411,8 @@ class InventoryAnalysisWebApp:
 
 ## 业务规则
 - 部件A和部件A1是相同型号，可以通用
-- 产品A销量在近期出现下降
-- 产品B销量保持稳定
+- 昆仑2280销量在近期出现下降
+- 2288HV7销量保持稳定
 
 ## 数据字段
 - kunlun_2280_sales: 昆仑2280销量
@@ -1521,7 +1521,7 @@ digraph {
         # 创建子图：上面是趋势图，下面是月度柱状图
         fig = make_subplots(
             rows=2, cols=1,
-            subplot_titles=('部件A库存趋势', '部件A库存月度指标'),
+            subplot_titles=('PAC900S12-B2库存趋势', 'PAC900S12-B2库存月度指标'),
             vertical_spacing=0.15,
             row_heights=[0.6, 0.4]
         )
@@ -1592,7 +1592,7 @@ digraph {
             showlegend=True,
             template='plotly_white',
             hovermode='x unified',
-            title_text="部件A库存分析",
+            title_text="PAC900S12-B2库存分析",
             title_x=0.5,
             title_font_size=16,
             # 在第一个子图添加垂直线标记
@@ -1616,7 +1616,7 @@ digraph {
                     x=decline_start,
                     y=1,
                     yref='paper',
-                    text='产品A销量下降开始',
+                    text='昆仑2280销量下降开始',
                     showarrow=False,
                     font=dict(color='orange', size=12),
                     yanchor='bottom',

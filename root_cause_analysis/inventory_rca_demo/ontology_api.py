@@ -1,11 +1,12 @@
 """
-部件A库存高因果根因分析 - 本体图API
+PAC900S12-B2库存高因果根因分析 - 本体图API
 
 提供本体图的JSON数据，用于展示产品与部件的关系
 """
 
 from typing import Dict, List
 import json
+import os
 
 
 class OntologyAPI:
@@ -19,55 +20,50 @@ class OntologyAPI:
         Returns:
             本体图JSON数据
         """
+        # 读取server_inventory_schema.json文件
+        schema_path = os.path.join(os.path.dirname(__file__), 'server_inventory_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_data = json.load(f)
+        
+        # 转换为标准本体格式
+        entities = []
+        relations = []
+        rules = []
+        
+        # 处理实体
+        for entity_type in schema_data.get('entity_types', []):
+            entity = {
+                "id": entity_type.get('id'),
+                "name": entity_type.get('name'),
+                "type": entity_type.get('type'),
+                "description": entity_type.get('description')
+            }
+            entities.append(entity)
+        
+        # 处理关系
+        for relation_type in schema_data.get('relation_types', []):
+            for source_type in relation_type.get('source_types', []):
+                for target_type in relation_type.get('target_types', []):
+                    relation = {
+                        "source": source_type,
+                        "target": target_type,
+                        "relation_type": relation_type.get('name'),
+                        "description": relation_type.get('description')
+                    }
+                    relations.append(relation)
+        
+        # 添加规则
+        rules.append({
+            "id": "rule_1",
+            "name": "部件通用规则",
+            "description": "相同类型的部件可以通用",
+            "type": "constraint"
+        })
+        
         ontology_data = {
-            "entities": [
-                {
-                    "id": "product_a",
-                    "name": "产品A",
-                    "type": "Product",
-                    "description": "产品A，销量下降导致部件A库存高"
-                },
-                {
-                    "id": "product_b",
-                    "name": "产品B",
-                    "type": "Product",
-                    "description": "产品B，未使用部件A"
-                },
-                {
-                    "id": "component_a",
-                    "name": "部件A",
-                    "type": "Component",
-                    "description": "部件A，库存高位问题"
-                },
-                {
-                    "id": "component_a1",
-                    "name": "部件A1",
-                    "type": "Component",
-                    "description": "部件A1，与部件A型号相同，可以通用"
-                }
-            ],
-            "relations": [
-                {
-                    "source": "product_a",
-                    "target": "component_a",
-                    "relation_type": "使用",
-                    "description": "产品A使用部件A"
-                },
-                {
-                    "source": "product_b",
-                    "target": "component_a1",
-                    "relation_type": "使用",
-                    "description": "产品B使用部件A1"
-                }
-            ],
-            "rules": [
-                {
-                    "id": "rule_1",
-                    "name": "部件通用规则",
-                    "description": "部件A和部件A1是相同型号，可以通用",
-                    "type": "constraint"
-                }
-            ]
+            "entities": entities,
+            "relations": relations,
+            "rules": rules
         }
         
         return ontology_data

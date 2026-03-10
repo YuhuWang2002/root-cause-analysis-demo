@@ -1,12 +1,7 @@
 """
-部件A库存高因果根因分析 - 因果分析模块
+PAC900S12-B2库存高因果根因分析 - 因果分析模块
 
-使用DoWhy框架进行因果推断分析，包括：
-1. 因果建模
-2. 因果识别
-3. 因果估计
-4. 驳斥检验
-5. 反事实分析
+使用DoWhy进行因果推断分析
 """
 
 import pandas as pd
@@ -20,7 +15,7 @@ from dowhy import CausalModel
 
 
 class InventoryCausalAnalyzer:
-    """部件A库存因果分析器"""
+    """PAC900S12-B2库存因果分析器"""
     
     def __init__(self, data: pd.DataFrame):
         """
@@ -178,7 +173,7 @@ class InventoryCausalAnalyzer:
         反事实分析 - 比较实际库存与反事实库存
         
         Args:
-            counterfactual_data: 反事实数据（产品B使用部件A）
+            counterfactual_data: 反事实数据（2288HV7使用PAC900S12-B2）
             treatment: 处理变量
             outcome: 结果变量
             
