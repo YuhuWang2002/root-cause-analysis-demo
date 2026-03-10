@@ -36,25 +36,25 @@ class InventoryCausalAnalyzer:
         self.refutation_results = {}
         
     def create_causal_model(self,
-                           treatment: str = "product_b_uses_component_a",
-                           outcome: str = "component_a_inventory") -> CausalModel:
+                           treatment: str = "server_2288hv7_uses_pac900s12_b2",
+                           outcome: str = "pac900s12_b2_inventory") -> CausalModel:
         """
         创建因果模型
         
         Args:
-            treatment: 处理变量（产品B是否使用部件A）
-            outcome: 结果变量（部件A库存）
+            treatment: 处理变量（2288HV7是否使用PAC900S12-B2）
+            outcome: 结果变量（PAC900S12-B2库存）
             
         Returns:
             DoWhy因果模型
         """
         causal_graph = """digraph {
-            product_a_sales -> component_a_consumption;
-            product_b_sales -> component_a_consumption;
-            product_b_uses_component_a -> component_a_consumption;
-            component_a_consumption -> component_a_inventory;
-            component_a_procurement -> component_a_inventory;
-            product_a_sales -> component_a_procurement;
+            kunlun_2280_sales -> pac900s12_b2_consumption;
+            server_2288hv7_sales -> pac900s12_b2_consumption;
+            server_2288hv7_uses_pac900s12_b2 -> pac900s12_b2_consumption;
+            pac900s12_b2_consumption -> pac900s12_b2_inventory;
+            pac900s12_b2_procurement -> pac900s12_b2_inventory;
+            kunlun_2280_sales -> pac900s12_b2_procurement;
         }"""
         
         self.model = CausalModel(
@@ -172,8 +172,8 @@ class InventoryCausalAnalyzer:
     
     def counterfactual_analysis(self,
                                counterfactual_data: pd.DataFrame,
-                               treatment: str = "product_b_uses_component_a",
-                               outcome: str = "component_a_inventory") -> Dict:
+                               treatment: str = "server_2288hv7_uses_pac900s12_b2",
+                               outcome: str = "pac900s12_b2_inventory") -> Dict:
         """
         反事实分析 - 比较实际库存与反事实库存
         
@@ -208,7 +208,7 @@ class InventoryCausalAnalyzer:
     
     def analyze_causal_effects(self,
                               treatments: List[str],
-                              outcome: str = "component_a_inventory") -> pd.DataFrame:
+                              outcome: str = "pac900s12_b2_inventory") -> pd.DataFrame:
         """
         分析多个处理变量对结果变量的因果效应
         
@@ -265,7 +265,7 @@ class InventoryCausalAnalyzer:
     def run_full_analysis(self,
                          counterfactual_data: pd.DataFrame,
                          treatments: List[str] = None,
-                         outcome: str = "component_a_inventory",
+                         outcome: str = "pac900s12_b2_inventory",
                          fast_mode: bool = False) -> Dict:
         """
         运行完整的因果分析流程
@@ -280,10 +280,10 @@ class InventoryCausalAnalyzer:
             完整分析结果字典
         """
         if treatments is None:
-            treatments = ["product_b_uses_component_a", "product_a_sales", "product_b_sales"]
+            treatments = ["server_2288hv7_uses_pac900s12_b2", "kunlun_2280_sales", "server_2288hv7_sales"]
         
         print("步骤1: 创建因果模型...")
-        self.create_causal_model(treatment="product_b_uses_component_a", outcome=outcome)
+        self.create_causal_model(treatment="server_2288hv7_uses_pac900s12_b2", outcome=outcome)
         
         print("步骤2: 识别因果效应...")
         self.identify_effect()
@@ -295,7 +295,7 @@ class InventoryCausalAnalyzer:
             print("快速模式：跳过驳斥检验和多变量分析")
             refutation_results = {}
             causal_effects_df = pd.DataFrame([{
-                "treatment": "product_b_uses_component_a",
+                "treatment": "server_2288hv7_uses_pac900s12_b2",
                 "causal_effect": estimate.value,
                 "note": "快速模式"
             }])
