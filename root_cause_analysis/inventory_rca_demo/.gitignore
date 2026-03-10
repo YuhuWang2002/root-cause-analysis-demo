@@ -39,6 +39,7 @@ env/
 *.csv
 *.xlsx
 *.json
+!server_inventory_schema.json
 
 # Prompts
 prompts/

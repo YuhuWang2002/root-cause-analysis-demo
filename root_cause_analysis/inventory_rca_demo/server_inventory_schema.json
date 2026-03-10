@@ -1,0 +1,591 @@
+{
+  "entity_types": [
+    {
+      "id": "KunLun 2280",
+      "name": "昆仑 2280",
+      "description": "型号为KunLun 2280 服务器",
+      "type": "Server",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "EW073063",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "countryCode",
+          "type": "string",
+          "value": "CN",
+          "description": "国家代码"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Power",
+      "name": "电源",
+      "description": "可被服务器KunLun 2280使用的电源组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "02313XSF",
+            "0231Y019"
+          ],
+          "description": "可被使用的昆仑2280服务器的电源组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PAC900S12-B2",
+      "name": "服务器白金900W",
+      "description": "一次电源-PAC900S12-B2-服务器白金900W 2.0 版本交流电源-ST",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "02313XSF",
+          "description": "电源产品编码"
+        }
+      ]
+    },
+    {
+      "id": "PAC2000S12-B1",
+      "name": "服务器白金2000W",
+      "description": "功能模块-一次电源-PAC2000S12-B1-服务器白金2000W 2.0版本交流电源",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0231Y019",
+          "description": "电源产品编码"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 CPU",
+      "name": "CPU",
+      "description": "可被服务器KunLun 2280使用的CPU组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "03050SNB",
+            "03050SND",
+            "03050QFT"
+          ],
+          "description": "可被使用的昆仑2280服务器的CPU组件列表"
+        }
+      ]
+    },
+    {
+      "id": "S920S00",
+      "name": "鲲鹏920S",
+      "description": "成品板单元-KunLun 2280-S920S00-5220-BE-鲲鹏服务器主板 2*(鲲鹏920,32Core@2.6GHz,8DIMM)(散件发货)-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "03050SNB",
+          "description": "服务器产品编码"
+        }
+      ]
+    },
+    {
+      "id": "S920X00",
+      "name": "鲲鹏920X",
+      "description": "成品板单元-Kunpeng Server Board-S920X00-S920X00-7260-CX-鲲鹏主板(VD) 2*(鲲鹏920,64Core@2.6GHz,16DIMM)(散件发货)-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "03050SND",
+          "description": "服务器产品编码"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Disk",
+      "name": "磁盘",
+      "description": "可被服务器KunLun 2280使用的磁盘组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "0255Y819",
+            "0254Y524"
+          ],
+          "description": "可被使用的昆仑2280服务器的磁盘组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PM893-480GB",
+      "name": "480GB SATA SSD",
+      "description": "固态硬盘模组-Servers-固态硬盘-480GB-SATA 6Gb/s-读密集型-PM893系列-2.5英寸(2.5英寸托架)-KUNLUN专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0255Y819",
+          "description": "磁盘产品编码"
+        }
+      ]
+    },
+    {
+      "id": "ST-4000GB-SATA",
+      "name": "4000GB SATA HDD",
+      "description": "通用硬盘模组-Servers-通用硬盘-4000GB-SATA 6.0Gb/s-7200rpm-3.5inch-128MB或以上-热插拔-内置式-3.5英寸拉手条-客户指定-Seagate-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0254Y524",
+          "description": "磁盘产品编码"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Memory",
+      "name": "内存",
+      "description": "可被服务器KunLun 2280使用的内存组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "2510318"
+          ],
+          "description": "可被使用的昆仑2280服务器的内存组件列表"
+        }
+      ]
+    },
+    {
+      "id": "BC82M32G46-32GB",
+      "name": "32GB DDR4 RDIMM",
+      "description": "内存模组-KunLun 2280-BC82M32G46-通用内存-DDR4-RDIMM-32GB-288pin-0.625ns-3200000KHz-1.2V-ECC-2Rank(2G*8bit)-MZ-计算专用-(OEM专用)-Kunlun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "2510318",
+          "description": "内存产品编码"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7",
+      "name": "2288HV7",
+      "description": "型号为2288HV7服务器",
+      "type": "Server",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "EW072949",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "countryCode",
+          "type": "string",
+          "value": "CN",
+          "description": "国家代码"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Power",
+      "name": "电源",
+      "description": "可被服务器2288HV7使用的电源组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "02313XSF",
+            "0231Y033"
+          ],
+          "description": "可被使用的2288HV7服务器的电源组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PAC900S12-B2",
+      "name": "服务器白金900W",
+      "description": "功能模块-一次电源-PAC900S12-B2-服务器白金900W 2.0 版本交流电源-ST",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "02313XSF",
+          "description": "电源产品编码"
+        }
+      ]
+    },
+    {
+      "id": "PAC1500S12-B1",
+      "name": "服务器白金1500W",
+      "description": "功能模块-2288H V5-PAC1500S12-B1-服务器白金1500W 2.0版本交流电源",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0231Y033",
+          "description": "电源产品编码"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 CPU",
+      "name": "CPU",
+      "description": "可被服务器2288HV7使用的CPU组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0253Y909",
+            "0253Y163",
+            "0253Y322"
+          ],
+          "description": "可被使用的2288HV7服务器的CPU组件列表"
+        }
+      ]
+    },
+    {
+      "id": "BC1CPU6544Y",
+      "name": "Intel Xeon Gold 6544Y",
+      "description": "CPU模组-Server-BC1CPU6544Y-英特尔至强金牌6544Y(3.6GHz/16-Core/45MB/270W)Emerald Rapids MCC CPU(带2U拉远散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y909",
+          "description": "CPU产品编码"
+        }
+      ]
+    },
+    {
+      "id": "BC7MX001CPU",
+      "name": "Intel Xeon Platinum 8480+",
+      "description": "CPU模组-Server-BC7MX001CPU-英特尔至强铂金8480+(2.0GHz/56-core/105MB/350W)Sapphire Rapids XCC CPU(带2U拉远散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y163",
+          "description": "CPU产品编码"
+        }
+      ]
+    },
+    {
+      "id": "BC7MX093CPU",
+      "name": "Intel Xeon Gold 5418Y",
+      "description": "CPU模组-Server-BC7MX093CPU-英特尔至强金牌5418Y(2.0GHz/24-Core/45MB/185W)Sapphire Rapids MCC CPU(带2U热管单体散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y322",
+          "description": "CPU产品编码"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Disk",
+      "name": "磁盘",
+      "description": "可被服务器2288HV7使用的磁盘组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0254Y057",
+            "0255YCDN"
+          ],
+          "description": "可被使用的2288HV7服务器的磁盘组件列表"
+        }
+      ]
+    },
+    {
+      "id": "SAS-600GB-10K",
+      "name": "600GB SAS HDD",
+      "description": "通用硬盘模组-Servers-通用硬盘-600GB-SAS 12Gb/s-10000rpm-2.5inch-128MB及以上-热插拔-内置式-2.5寸拉手条-V7服务器专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0254Y057",
+          "description": "磁盘产品编码"
+        }
+      ]
+    },
+    {
+      "id": "UH631a-1600GB",
+      "name": "1600GB SAS SSD",
+      "description": "固态硬盘模组-Servers-固态硬盘-1600GB-SAS 12Gb/s-读写混合型-UH631a-Y系列-2.5英寸(2.5英寸托架)-V7专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0255YCDN",
+          "description": "磁盘产品编码"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Memory",
+      "name": "内存",
+      "description": "可被服务器2288HV7使用的内存组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0620Y029",
+            "0620Y031"
+          ],
+          "description": "可被使用的2288HV7服务器的内存组件列表"
+        }
+      ]
+    },
+    {
+      "id": "DDR5-32GB-5600",
+      "name": "32GB DDR5 RDIMM",
+      "description": "通用内存-DDR5-RDIMM-32GB-288pin-0.357ns-5600000KHz-1.1V-ECC-2Rank(2G*8bit)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0620Y029",
+          "description": "内存产品编码"
+        }
+      ]
+    },
+    {
+      "id": "DDR5-64GB-5600",
+      "name": "64GB DDR5 RDIMM",
+      "description": "通用内存-DDR5-RDIMM-64GB-288pin-0.357ns-5600000KHz-1.1V-ECC-2Rank(4G*4bit)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0620Y031",
+          "description": "内存产品编码"
+        }
+      ]
+    }
+  ],
+  "relation_types": [
+    {
+      "id": "kunlun2280_contains_power",
+      "name": "服务器包含电源组件",
+      "description": "KunLun 2280服务器包含电源组件集合",
+      "source_types": [
+        "KunLun 2280"
+      ],
+      "target_types": [
+        "KunLun 2280 Power"
+      ]
+    },
+    {
+      "id": "kunlun2280_contains_cpu",
+      "name": "服务器包含CPU组件",
+      "description": "KunLun 2280服务器包含CPU组件集合",
+      "source_types": [
+        "KunLun 2280"
+      ],
+      "target_types": [
+        "KunLun 2280 CPU"
+      ]
+    },
+    {
+      "id": "kunlun2280_contains_disk",
+      "name": "服务器包含磁盘组件",
+      "description": "KunLun 2280服务器包含磁盘组件集合",
+      "source_types": [
+        "KunLun 2280"
+      ],
+      "target_types": [
+        "KunLun 2280 Disk"
+      ]
+    },
+    {
+      "id": "kunlun2280_contains_memory",
+      "name": "服务器包含内存组件",
+      "description": "KunLun 2280服务器包含内存组件集合",
+      "source_types": [
+        "KunLun 2280"
+      ],
+      "target_types": [
+        "KunLun 2280 Memory"
+      ]
+    },
+    {
+      "id": "kunlun2280_power_contains_models",
+      "name": "电源组件包含具体电源",
+      "description": "KunLun 2280电源组件包含具体电源型号",
+      "source_types": [
+        "KunLun 2280 Power"
+      ],
+      "target_types": [
+        "PAC900S12-B2",
+        "PAC2000S12-B1"
+      ]
+    },
+    {
+      "id": "kunlun2280_cpu_contains_models",
+      "name": "CPU组件包含具体CPU",
+      "description": "KunLun 2280 CPU组件包含具体CPU型号",
+      "source_types": [
+        "KunLun 2280 CPU"
+      ],
+      "target_types": [
+        "S920S00",
+        "S920X00"
+      ]
+    },
+    {
+      "id": "kunlun2280_disk_contains_models",
+      "name": "磁盘组件包含具体磁盘",
+      "description": "KunLun 2280磁盘组件包含具体磁盘型号",
+      "source_types": [
+        "KunLun 2280 Disk"
+      ],
+      "target_types": [
+        "PM893-480GB",
+        "ST-4000GB-SATA"
+      ]
+    },
+    {
+      "id": "kunlun2280_memory_contains_models",
+      "name": "内存组件包含具体内存",
+      "description": "KunLun 2280内存组件包含具体内存型号",
+      "source_types": [
+        "KunLun 2280 Memory"
+      ],
+      "target_types": [
+        "BC82M32G46-32GB"
+      ]
+    },
+    {
+      "id": "hv7_contains_power",
+      "name": "服务器包含电源组件",
+      "description": "2288HV7服务器包含电源组件集合",
+      "source_types": [
+        "2288HV7"
+      ],
+      "target_types": [
+        "2288HV7 Power"
+      ]
+    },
+    {
+      "id": "hv7_contains_cpu",
+      "name": "服务器包含CPU组件",
+      "description": "2288HV7服务器包含CPU组件集合",
+      "source_types": [
+        "2288HV7"
+      ],
+      "target_types": [
+        "2288HV7 CPU"
+      ]
+    },
+    {
+      "id": "hv7_contains_disk",
+      "name": "服务器包含磁盘组件",
+      "description": "2288HV7服务器包含磁盘组件集合",
+      "source_types": [
+        "2288HV7"
+      ],
+      "target_types": [
+        "2288HV7 Disk"
+      ]
+    },
+    {
+      "id": "hv7_contains_memory",
+      "name": "服务器包含内存组件",
+      "description": "2288HV7服务器包含内存组件集合",
+      "source_types": [
+        "2288HV7"
+      ],
+      "target_types": [
+        "2288HV7 Memory"
+      ]
+    },
+    {
+      "id": "hv7_power_contains_models",
+      "name": "电源组件包含具体电源",
+      "description": "2288HV7电源组件包含具体电源型号",
+      "source_types": [
+        "2288HV7 Power"
+      ],
+      "target_types": [
+        "PAC900S12-B2",
+        "PAC1500S12-B1"
+      ]
+    },
+    {
+      "id": "hv7_cpu_contains_models",
+      "name": "CPU组件包含具体CPU",
+      "description": "2288HV7 CPU组件包含具体CPU型号",
+      "source_types": [
+        "2288HV7 CPU"
+      ],
+      "target_types": [
+        "BC1CPU6544Y",
+        "BC7MX001CPU",
+        "BC7MX093CPU"
+      ]
+    },
+    {
+      "id": "hv7_disk_contains_models",
+      "name": "磁盘组件包含具体磁盘",
+      "description": "2288HV7磁盘组件包含具体磁盘型号",
+      "source_types": [
+        "2288HV7 Disk"
+      ],
+      "target_types": [
+        "SAS-600GB-10K",
+        "UH631a-1600GB"
+      ]
+    },
+    {
+      "id": "hv7_memory_contains_models",
+      "name": "内存组件包含具体内存",
+      "description": "2288HV7内存组件包含具体内存型号",
+      "source_types": [
+        "2288HV7 Memory"
+      ],
+      "target_types": [
+        "DDR5-32GB-5600",
+        "DDR5-64GB-5600"
+      ]
+    }
+  ]
+}
