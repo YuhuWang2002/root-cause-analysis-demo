@@ -282,9 +282,9 @@ class InventoryAnalysisWebApp:
             st.markdown(f"**时间范围**: {actual_data['date'].min().strftime('%Y-%m-%d')} 至 {actual_data['date'].max().strftime('%Y-%m-%d')}")
             
             st.markdown("**关键指标**:")
-            st.markdown(f"- 产品A平均销量: {actual_data['product_a_sales'].mean():.0f}")
-            st.markdown(f"- 产品B平均销量: {actual_data['product_b_sales'].mean():.0f}")
-            st.markdown(f"- 部件A平均库存: {actual_data['component_a_inventory'].mean():.0f}")
+            st.markdown(f"- 昆仑2280平均销量: {actual_data['kunlun_2280_sales'].mean():.0f}")
+            st.markdown(f"- 2288HV7平均销量: {actual_data['server_2288hv7_sales'].mean():.0f}")
+            st.markdown(f"- PAC900S12-B2平均库存: {actual_data['pac900s12_b2_inventory'].mean():.0f}")
             
             if st.button("开始分析", key="start_analysis"):
                 self.run_analysis()
@@ -474,44 +474,169 @@ class InventoryAnalysisWebApp:
         </div>
         """, unsafe_allow_html=True)
         
+        # 初始化会话状态
         if 'step4_ontology_loaded' not in st.session_state:
             st.session_state.step4_ontology_loaded = False
+        if 'ontology_data' not in st.session_state:
+            st.session_state.ontology_data = None
+        if 'selected_nodes' not in st.session_state:
+            st.session_state.selected_nodes = []
+        if 'selected_edges' not in st.session_state:
+            st.session_state.selected_edges = []
+        if 'selected_source' not in st.session_state:
+            st.session_state.selected_source = None
+        if 'node_click_processed' not in st.session_state:
+            st.session_state.node_click_processed = False
         
         col1, col2, col3 = st.columns([1, 1, 2])
         
         with col1:
             if st.button("🔗 读取本体信息", key="load_ontology_step4"):
+                st.session_state.ontology_data = OntologyAPI.get_ontology_graph_data()
                 st.session_state.step4_ontology_loaded = True
                 st.success("✅ 本体信息读取成功！")
         
-        if st.session_state.step4_ontology_loaded:
+        if st.session_state.step4_ontology_loaded and st.session_state.ontology_data:
             st.markdown("---")
             
-            ontology_data = OntologyAPI.get_ontology_graph_data()
+            ontology_data = st.session_state.ontology_data
             
             st.markdown("#### 📊 本体信息概览")
             col_info1, col_info2, col_info3 = st.columns(3)
+            
+            # 实体数量，点击展开详情
             with col_info1:
-                st.info(f"🏢 **实体数量**: {len(ontology_data['nodes'])} 个")
+                with st.expander(f"🏢 **实体数量**: {len(ontology_data['nodes'])} 个"):
+                    st.markdown("**实体详情**:")
+                    entities_df = pd.DataFrame([
+                        {"ID": node['id'], "名称": node['label'], "类型": node['type'], "描述": node['description']}
+                        for node in ontology_data['nodes']
+                    ])
+                    st.dataframe(entities_df, use_container_width=True)
+            
+            # 关系数量，点击展开详情
             with col_info2:
-                st.info(f"🔗 **关系数量**: {len(ontology_data['edges'])} 个")
+                with st.expander(f"🔗 **关系数量**: {len(ontology_data['edges'])} 个"):
+                    st.markdown("**关系详情**:")
+                    relations_df = pd.DataFrame([
+                        {"源节点": edge['source'], "目标节点": edge['target'], "关系类型": edge['label']}
+                        for edge in ontology_data['edges']
+                    ])
+                    st.dataframe(relations_df, use_container_width=True)
+            
+            # 规则数量，点击展开详情
             with col_info3:
-                st.info(f"📋 **规则数量**: {len(ontology_data['rules'])} 个")
+                with st.expander(f"📋 **规则数量**: {len(ontology_data['rules'])} 个"):
+                    st.markdown("**规则详情**:")
+                    for rule in ontology_data['rules']:
+                        st.info(f"📋 {rule['name']}: {rule['description']}")
             
-            col1, col2 = st.columns([2, 1])
+            st.markdown("---")
             
-            with col1:
-                st.markdown("**本体图可视化**:")
-                fig = self._plot_ontology_graph(ontology_data)
-                st.plotly_chart(fig, use_container_width=True)
+            # 节点选择和添加功能
+            st.markdown("#### 🎯 节点选择与添加")
             
-            with col2:
-                st.markdown("**本体关系**:")
-                st.code(OntologyAPI.get_ontology_text(), language='text')
+            # 处理节点点击事件
+            pass
+            
+            # 源节点选择，默认值为session_state中的selected_source
+            node_options = [node['id'] for node in ontology_data['nodes']]
+            print(f"节点选项: {node_options}")
+            print(f"当前 selected_source: {st.session_state.selected_source}")
+            default_index = 0
+            if 'selected_source' in st.session_state and st.session_state.selected_source in node_options:
+                default_index = node_options.index(st.session_state.selected_source)
+                print(f"计算的 default_index: {default_index}")
+            selected_source = st.selectbox("选择源节点", node_options, index=default_index)
+            # 更新session_state
+            st.session_state.selected_source = selected_source
+            
+            # 目标节点选择，添加空选项
+            target_options = [""]  # 空选项，代表只添加源节点
+            if selected_source:
+                # 找到与源节点相关的目标节点
+                for edge in ontology_data['edges']:
+                    if edge['source'] == selected_source:
+                        target_options.append(edge['target'])
+                # 去重
+                target_options = list(set(target_options))
+            
+            selected_target = st.selectbox("选择目标节点（为空则只添加源节点）", target_options, key="target_node")
+            
+            if st.button("添加到画布", key="add_to_canvas"):
+                # 添加源节点（如果不存在）
+                if selected_source:
+                    if selected_source not in [n['id'] for n in st.session_state.selected_nodes]:
+                        node = next(n for n in ontology_data['nodes'] if n['id'] == selected_source)
+                        st.session_state.selected_nodes.append(node)
+                    
+                    # 如果选择了目标节点，添加目标节点和边
+                    if selected_target:
+                        if selected_target not in [n['id'] for n in st.session_state.selected_nodes]:
+                            node = next(n for n in ontology_data['nodes'] if n['id'] == selected_target)
+                            st.session_state.selected_nodes.append(node)
+                        
+                        # 添加边（如果不存在）
+                        edge_exists = any(
+                            e['source'] == selected_source and e['target'] == selected_target 
+                            for e in st.session_state.selected_edges
+                        )
+                        if not edge_exists:
+                            edge = next(e for e in ontology_data['edges'] if e['source'] == selected_source and e['target'] == selected_target)
+                            st.session_state.selected_edges.append(edge)
+                            st.success(f"已添加关系: {selected_source} → {selected_target}")
+                    else:
+                        st.success(f"已添加节点: {selected_source}")
+            
+            # 绘制选中的内容（无论是否点击了添加按钮）
+            if st.session_state.selected_nodes or st.session_state.selected_edges:
+                st.markdown("**关系图**:")
+                selected_graph_data = {
+                    "nodes": st.session_state.selected_nodes,
+                    "edges": st.session_state.selected_edges,
+                    "rules": []
+                }
+                fig = self._plot_ontology_graph(selected_graph_data)
                 
-                st.markdown("**本体规则**:")
-                for rule in ontology_data['rules']:
-                    st.info(f"📋 {rule['name']}: {rule['description']}")
+                # 使用 st.plotly_chart 的 on_select 参数来处理点击事件
+                selected_points = st.plotly_chart(fig, on_select="rerun", use_container_width=True)
+                
+                print(f"selected_points: {selected_points}")
+                
+                # 处理点击事件
+                if selected_points and 'selection' in selected_points:
+                    selection = selected_points['selection']
+                    print(f"selection: {selection}")
+                    if 'point_indices' in selection and len(selection['point_indices']) > 0:
+                        point_index = selection['point_indices'][0]
+                        # 获取节点 ID
+                        node_ids = [node['id'] for node in st.session_state.selected_nodes]
+                        if point_index < len(node_ids):
+                            clicked_node_id = node_ids[point_index]
+                            print(f"点击了节点: {clicked_node_id}")
+                            print(f"点击前 selected_source: {st.session_state.selected_source}")
+                            # 自动设置为源节点
+                            st.session_state.selected_source = clicked_node_id
+                            print(f"点击后 selected_source: {st.session_state.selected_source}")
+                            # 扩展图形，添加与该节点相关的所有节点和边
+                            for edge in ontology_data['edges']:
+                                if edge['source'] == clicked_node_id:
+                                    # 添加目标节点
+                                    if edge['target'] not in [n['id'] for n in st.session_state.selected_nodes]:
+                                        node = next(n for n in ontology_data['nodes'] if n['id'] == edge['target'])
+                                        st.session_state.selected_nodes.append(node)
+                                    # 添加边
+                                    if edge not in st.session_state.selected_edges:
+                                        st.session_state.selected_edges.append(edge)
+                            print(f"节点点击处理完成")
+                            # 强制重新渲染
+                            st.rerun()
+            
+            # 清空选中列表
+            if st.button("清空画布", key="clear_canvas"):
+                st.session_state.selected_nodes = []
+                st.session_state.selected_edges = []
+                st.success("已清空画布")
     
     def _render_step5(self):
         """步骤5：What constrain should applied to control the data quality?"""
@@ -590,12 +715,12 @@ class InventoryAnalysisWebApp:
         # 初始化session_state
         if 'causal_graph' not in st.session_state:
             st.session_state.causal_graph = """digraph {
-    product_a_sales -> component_a_consumption;
-    product_b_sales -> component_a_consumption;
-    product_b_uses_component_a -> component_a_consumption;
-    component_a_consumption -> component_a_inventory;
-    component_a_procurement -> component_a_inventory;
-    product_a_sales -> component_a_procurement;
+    kunlun_2280_sales -> pac900s12_b2_consumption;
+    server_2288hv7_sales -> pac900s12_b2_consumption;
+    server_2288hv7_uses_pac900s12_b2 -> pac900s12_b2_consumption;
+    pac900s12_b2_consumption -> pac900s12_b2_inventory;
+    pac900s12_b2_procurement -> pac900s12_b2_inventory;
+    kunlun_2280_sales -> pac900s12_b2_procurement;
 }"""
         
         if 'edited_causal_graph' not in st.session_state:
@@ -657,12 +782,12 @@ class InventoryAnalysisWebApp:
         with col_btn2:
             if st.button("🔄 重置为默认"):
                 default_graph = """digraph {
-    product_a_sales -> component_a_consumption;
-    product_b_sales -> component_a_consumption;
-    product_b_uses_component_a -> component_a_consumption;
-    component_a_consumption -> component_a_inventory;
-    component_a_procurement -> component_a_inventory;
-    product_a_sales -> component_a_procurement;
+    kunlun_2280_sales -> pac900s12_b2_consumption;
+    server_2288hv7_sales -> pac900s12_b2_consumption;
+    server_2288hv7_uses_pac900s12_b2 -> pac900s12_b2_consumption;
+    pac900s12_b2_consumption -> pac900s12_b2_inventory;
+    pac900s12_b2_procurement -> pac900s12_b2_inventory;
+    kunlun_2280_sales -> pac900s12_b2_procurement;
 }"""
                 st.session_state.causal_graph = default_graph
                 st.session_state.edited_causal_graph = default_graph
@@ -944,6 +1069,7 @@ class InventoryAnalysisWebApp:
         pos = nx.spring_layout(G, k=0.8, iterations=100)
         
         arrows = []
+        edge_labels = []
         for edge in G.edges():
             x0, y0 = pos[edge[0]]
             x1, y1 = pos[edge[1]]
@@ -974,6 +1100,27 @@ class InventoryAnalysisWebApp:
                         arrowside='end'
                     )
                 )
+                
+                # 添加边的标签
+                edge_label = G.edges[edge]['label']
+                mid_x = (x0 + x1) / 2
+                mid_y = (y0 + y1) / 2
+                
+                edge_labels.append(
+                    dict(
+                        x=mid_x,
+                        y=mid_y,
+                        xref='x',
+                        yref='y',
+                        text=edge_label,
+                        showarrow=False,
+                        font=dict(size=10, color='#666'),
+                        bgcolor='rgba(255, 255, 255, 0.8)',
+                        bordercolor='#ccc',
+                        borderwidth=1,
+                        borderpad=2
+                    )
+                )
         
         node_x = []
         node_y = []
@@ -987,7 +1134,15 @@ class InventoryAnalysisWebApp:
             node_label = G.nodes[node]['label']
             node_type = G.nodes[node]['type']
             node_text.append(node_label)
-            node_color.append('#2E86AB' if node_type == 'Product' else '#A23B72')
+            if node_type in ['Product', 'Server']:
+                node_color.append('#2E86AB')  # 蓝色 - 服务器
+            elif node_type == 'PartType':
+                node_color.append('#28A745')  # 绿色 - 部件类型
+            else:
+                node_color.append('#A23B72')  # 紫色 - 具体部件
+        
+        # 准备节点数据
+        node_ids = [node for node in G.nodes()]
         
         node_trace = go.Scatter(
             x=node_x, y=node_y,
@@ -1001,7 +1156,8 @@ class InventoryAnalysisWebApp:
             ),
             text=node_text,
             textposition="top center",
-            textfont=dict(size=12)
+            textfont=dict(size=12),
+            customdata=node_ids
         )
         
         fig = go.Figure(data=[node_trace],
@@ -1010,9 +1166,12 @@ class InventoryAnalysisWebApp:
                            showlegend=False,
                            hovermode='closest',
                            margin=dict(b=20, l=5, r=5, t=40),
-                           annotations=arrows,
+                           annotations=arrows + edge_labels,
                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                           yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
+                           yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                           clickmode='event+select',
+                           dragmode='select'
+                       ))
         
         return fig
     
@@ -1124,12 +1283,12 @@ class InventoryAnalysisWebApp:
         
         # 英文变量名到中文的映射
         variable_name_mapping = {
-            'product_a_sales': '产品A销量',
-            'product_b_sales': '产品B销量',
-            'product_b_uses_component_a': '产品B使用部件A',
-            'component_a_consumption': '部件A消耗量',
-            'component_a_inventory': '部件A库存',
-            'component_a_procurement': '部件A采购量'
+            'kunlun_2280_sales': '昆仑2280销量',
+            'server_2288hv7_sales': '2288HV7销量',
+            'server_2288hv7_uses_pac900s12_b2': '2288HV7使用PAC900S12-B2',
+            'pac900s12_b2_consumption': 'PAC900S12-B2消耗量',
+            'pac900s12_b2_inventory': 'PAC900S12-B2库存',
+            'pac900s12_b2_procurement': 'PAC900S12-B2采购量'
         }
         
         # 解析DOT格式字符串
@@ -1256,12 +1415,12 @@ class InventoryAnalysisWebApp:
 - 产品B销量保持稳定
 
 ## 数据字段
-- product_a_sales: 产品A销量
-- product_b_sales: 产品B销量
-- product_b_uses_component_a: 产品B是否使用部件A（0或1）
-- component_a_consumption: 部件A消耗量
-- component_a_inventory: 部件A库存
-- component_a_procurement: 部件A采购量
+- kunlun_2280_sales: 昆仑2280销量
+- server_2288hv7_sales: 2288HV7销量
+- server_2288hv7_uses_pac900s12_b2: 2288HV7是否使用PAC900S12-B2（0或1）
+- pac900s12_b2_consumption: PAC900S12-B2消耗量
+- pac900s12_b2_inventory: PAC900S12-B2库存
+- pac900s12_b2_procurement: PAC900S12-B2采购量
 
 ## 分析任务
 请分析以下问题：
@@ -1371,7 +1530,7 @@ digraph {
         fig.add_trace(
             go.Scatter(
                 x=self.actual_data['date'],
-                y=self.actual_data['component_a_inventory'],
+                y=self.actual_data['pac900s12_b2_inventory'],
                 mode='lines',
                 name='实际库存',
                 line=dict(color='#DC3545', width=2),
@@ -1384,12 +1543,12 @@ digraph {
         monthly_data = self.actual_data.copy()
         monthly_data['month'] = pd.to_datetime(monthly_data['date']).dt.to_period('M')
         monthly_stats = monthly_data.groupby('month').agg({
-            'component_a_inventory': ['mean', 'max', 'min'],
-            'product_a_sales': 'sum',
-            'product_b_sales': 'sum'
+            'pac900s12_b2_inventory': ['mean', 'max', 'min'],
+            'kunlun_2280_sales': 'sum',
+            'server_2288hv7_sales': 'sum'
         }).reset_index()
         
-        monthly_stats.columns = ['month', 'avg_inventory', 'max_inventory', 'min_inventory', 'product_a_sales', 'product_b_sales']
+        monthly_stats.columns = ['month', 'avg_inventory', 'max_inventory', 'min_inventory', 'kunlun_2280_sales', 'server_2288hv7_sales']
         monthly_stats['month_str'] = monthly_stats['month'].astype(str)
         
         # 月度柱状图：平均库存
