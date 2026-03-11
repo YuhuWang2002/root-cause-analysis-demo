@@ -1,16 +1,16 @@
 """
-部件PAC900S12-B2库存高因果根因分析 - 数据生成模块
+部件PAC900S12-B2-1库存高因果根因分析 - 数据生成模块
 
 场景说明：
-- 昆仑2280销量下降，导致PAC900S12-B2（服务器白金900W）库存偏高
-- 2288HV7未使用PAC900S12-B2（历史全为0）
-- 需要验证：2288HV7未使用PAC900S12-B2是PAC900S12-B2库存高的核心因果根因
+- 昆仑2280销量下降，导致PAC900S12-B2-1（服务器白金900W）库存偏高
+- 2288HV7未使用PAC900S12-B2-1（历史全为0）
+- 需要验证：2288HV7未使用PAC900S12-B2-1是PAC900S12-B2-1库存高的核心因果根因
 
 数据字段：
 - 日期
 - 昆仑2280销量、2288HV7销量
-- 2288HV7是否使用PAC900S12-B2（历史全为0）
-- PAC900S12-B2消耗量、PAC900S12-B2期末库存
+- 2288HV7是否使用PAC900S12-B2-1（历史全为0）
+- PAC900S12-B2-1消耗量、PAC900S12-B2-1期末库存
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ from typing import Dict, Tuple
 
 
 class InventoryDataGenerator:
-    """PAC900S12-B2库存数据生成器"""
+    """PAC900S12-B2-1库存数据生成器"""
     
     def __init__(self, seed: int = 42):
         """
@@ -62,31 +62,31 @@ class InventoryDataGenerator:
             kunlun_2280_sales = self._generate_kunlun_2280_sales(is_decline_period, kunlun_2280_decline_rate)
             server_2288hv7_sales = self._generate_server_2288hv7_sales()
             
-            server_2288hv7_uses_pac900s12_b2 = 0
+            server_2288hv7_uses_pac900s12_b2_1 = 0
             
-            pac900s12_b2_consumption = self._calculate_consumption(
+            pac900s12_b2_1_consumption = self._calculate_consumption(
                 kunlun_2280_sales, 
                 server_2288hv7_sales, 
-                server_2288hv7_uses_pac900s12_b2
+                server_2288hv7_uses_pac900s12_b2_1
             )
             
-            pac900s12_b2_procurement = self._calculate_procurement(
+            pac900s12_b2_1_procurement = self._calculate_procurement(
                 current_inventory,
-                pac900s12_b2_consumption,
+                pac900s12_b2_1_consumption,
                 is_decline_period
             )
             
-            current_inventory = current_inventory + pac900s12_b2_procurement - pac900s12_b2_consumption
+            current_inventory = current_inventory + pac900s12_b2_1_procurement - pac900s12_b2_1_consumption
             current_inventory = max(0, current_inventory)
             
             record = {
                 "date": current_date,
                 "kunlun_2280_sales": kunlun_2280_sales,
                 "server_2288hv7_sales": server_2288hv7_sales,
-                "server_2288hv7_uses_pac900s12_b2": server_2288hv7_uses_pac900s12_b2,
-                "pac900s12_b2_consumption": pac900s12_b2_consumption,
-                "pac900s12_b2_inventory": current_inventory,
-                "pac900s12_b2_procurement": pac900s12_b2_procurement,
+                "server_2288hv7_uses_pac900s12_b2_1": server_2288hv7_uses_pac900s12_b2_1,
+                "pac900s12_b2_1_consumption": pac900s12_b2_1_consumption,
+                "pac900s12_b2_1_inventory": current_inventory,
+                "pac900s12_b2_1_procurement": pac900s12_b2_1_procurement,
                 "is_decline_period": is_decline_period
             }
             records.append(record)
@@ -129,21 +129,21 @@ class InventoryDataGenerator:
     def _calculate_consumption(self, 
                               kunlun_2280_sales: int,
                               server_2288hv7_sales: int,
-                              server_2288hv7_uses_pac900s12_b2: int) -> int:
+                              server_2288hv7_uses_pac900s12_b2_1: int) -> int:
         """
-        计算PAC900S12-B2消耗量
+        计算PAC900S12-B2-1消耗量
         
         Args:
             kunlun_2280_sales: 昆仑2280销量
             server_2288hv7_sales: 2288HV7销量
-            server_2288hv7_uses_pac900s12_b2: 2288HV7是否使用PAC900S12-B2
+            server_2288hv7_uses_pac900s12_b2_1: 2288HV7是否使用PAC900S12-B2-1
             
         Returns:
-            PAC900S12-B2消耗量
+            PAC900S12-B2-1消耗量
         """
         consumption_from_kunlun_2280 = kunlun_2280_sales * 1
         
-        consumption_from_2288hv7 = server_2288hv7_sales * server_2288hv7_uses_pac900s12_b2
+        consumption_from_2288hv7 = server_2288hv7_sales * server_2288hv7_uses_pac900s12_b2_1
         
         total_consumption = consumption_from_kunlun_2280 + consumption_from_2288hv7
         
@@ -154,7 +154,7 @@ class InventoryDataGenerator:
                                consumption: int,
                                is_decline_period: bool) -> int:
         """
-        计算PAC900S12-B2采购量
+        计算PAC900S12-B2-1采购量
         
         Args:
             current_inventory: 当前库存
@@ -162,7 +162,7 @@ class InventoryDataGenerator:
             is_decline_period: 是否为销量下降期
             
         Returns:
-            PAC900S12-B2采购量
+            PAC900S12-B2-1采购量
         """
         target_inventory = 150
         
@@ -183,16 +183,16 @@ class InventoryDataGenerator:
                                     end_date: str = "2024-12-31",
                                     kunlun_2280_sales_decline_start: str = "2024-11-01",
                                     kunlun_2280_decline_rate: float = 0.4,
-                                    server_2288hv7_uses_pac900s12_b2: int = 1) -> pd.DataFrame:
+                                    server_2288hv7_uses_pac900s12_b2_1: int = 1) -> pd.DataFrame:
         """
-        生成反事实数据（如果2288HV7使用PAC900S12-B2）
+        生成反事实数据（如果2288HV7使用PAC900S12-B2-1）
         
         Args:
             start_date: 开始日期
             end_date: 结束日期
             kunlun_2280_sales_decline_start: 昆仑2280销量开始下降的日期
             kunlun_2280_decline_rate: 昆仑2280销量下降比例
-            server_2288hv7_uses_pac900s12_b2: 2288HV7是否使用PAC900S12-B2（反事实场景中为1）
+            server_2288hv7_uses_pac900s12_b2_1: 2288HV7是否使用PAC900S12-B2-1（反事实场景中为1）
             
         Returns:
             包含反事实库存数据的DataFrame
@@ -211,29 +211,29 @@ class InventoryDataGenerator:
             kunlun_2280_sales = self._generate_kunlun_2280_sales(is_decline_period, kunlun_2280_decline_rate)
             server_2288hv7_sales = self._generate_server_2288hv7_sales()
             
-            pac900s12_b2_consumption = self._calculate_consumption(
+            pac900s12_b2_1_consumption = self._calculate_consumption(
                 kunlun_2280_sales, 
                 server_2288hv7_sales, 
-                server_2288hv7_uses_pac900s12_b2
+                server_2288hv7_uses_pac900s12_b2_1
             )
             
-            pac900s12_b2_procurement = self._calculate_procurement(
+            pac900s12_b2_1_procurement = self._calculate_procurement(
                 current_inventory,
-                pac900s12_b2_consumption,
+                pac900s12_b2_1_consumption,
                 is_decline_period
             )
             
-            current_inventory = current_inventory + pac900s12_b2_procurement - pac900s12_b2_consumption
+            current_inventory = current_inventory + pac900s12_b2_1_procurement - pac900s12_b2_1_consumption
             current_inventory = max(0, current_inventory)
             
             record = {
                 "date": current_date,
                 "kunlun_2280_sales": kunlun_2280_sales,
                 "server_2288hv7_sales": server_2288hv7_sales,
-                "server_2288hv7_uses_pac900s12_b2": server_2288hv7_uses_pac900s12_b2,
-                "pac900s12_b2_consumption": pac900s12_b2_consumption,
-                "pac900s12_b2_inventory": current_inventory,
-                "pac900s12_b2_procurement": pac900s12_b2_procurement,
+                "server_2288hv7_uses_pac900s12_b2_1": server_2288hv7_uses_pac900s12_b2_1,
+                "pac900s12_b2_1_consumption": pac900s12_b2_1_consumption,
+                "pac900s12_b2_1_inventory": current_inventory,
+                "pac900s12_b2_1_procurement": pac900s12_b2_1_procurement,
                 "is_decline_period": is_decline_period
             }
             records.append(record)
@@ -267,7 +267,7 @@ def create_inventory_scenario():
         end_date="2024-12-31",
         kunlun_2280_sales_decline_start="2024-11-01",
         kunlun_2280_decline_rate=0.4,
-        server_2288hv7_uses_pac900s12_b2=1
+        server_2288hv7_uses_pac900s12_b2_1=1
     )
     
     return actual_data, counterfactual_data
@@ -276,12 +276,12 @@ def create_inventory_scenario():
 if __name__ == "__main__":
     actual_data, counterfactual_data = create_inventory_scenario()
     
-    print("实际数据（2288HV7未使用PAC900S12-B2）：")
+    print("实际数据（2288HV7未使用PAC900S12-B2-1）：")
     print(actual_data.head(10))
     print(f"\n总记录数: {len(actual_data)}")
     print(f"日期范围: {actual_data['date'].min()} 至 {actual_data['date'].max()}")
     
-    print("\n\n反事实数据（2288HV7使用PAC900S12-B2）：")
+    print("\n\n反事实数据（2288HV7使用PAC900S12-B2-1）：")
     print(counterfactual_data.head(10))
     
     actual_data.to_csv("inventory_actual_data.csv", index=False, encoding='utf-8')

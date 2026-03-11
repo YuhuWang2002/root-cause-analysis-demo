@@ -1,5 +1,5 @@
 """
-部件PAC900S12-B2库存高因果根因分析 - Web应用（重构版）
+部件PAC900S12-B2-1库存高因果根因分析 - Web应用（重构版）
 
 根据refactor.md要求重构：
 - 只保留场景介绍和根因分析两个页面
@@ -21,7 +21,7 @@ from llm_explainer import LLMExplainer
 from ontology_api import OntologyAPI
 
 st.set_page_config(
-    page_title="PAC900S12-B2库存高因果根因分析",
+    page_title="PAC900S12-B2-1库存高因果根因分析",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -112,9 +112,11 @@ class InventoryAnalysisWebApp:
         if self.analysis_results is None:
             with st.spinner("运行因果分析..." + ("（快速模式）" if fast_mode else "")):
                 analyzer = InventoryCausalAnalyzer(data=self.actual_data)
+                causal_graph = st.session_state.get('causal_graph', None)
                 self.analysis_results = analyzer.run_full_analysis(
                     self.counterfactual_data,
-                    fast_mode=fast_mode
+                    fast_mode=fast_mode,
+                    causal_graph=causal_graph
                 )
                 st.session_state.analysis_results = self.analysis_results
                 st.success("✅ 因果分析完成！" + ("（快速模式）" if fast_mode else ""))
@@ -137,11 +139,16 @@ class InventoryAnalysisWebApp:
                 st.warning("请先运行因果分析")
                 return None
             
+            ontology_info = self._get_selected_ontology_info_for_llm()
+            causal_graph = st.session_state.get('causal_graph', None)
+            
             with st.spinner("大模型正在生成根因解释..."):
                 self.root_cause_explanation = self.llm_explainer.generate_root_cause_explanation(
                     self.analysis_results,
                     self.actual_data,
-                    self.counterfactual_data
+                    self.counterfactual_data,
+                    ontology_info,
+                    causal_graph
                 )
                 st.session_state.root_cause_explanation = self.root_cause_explanation
         
@@ -154,11 +161,18 @@ class InventoryAnalysisWebApp:
                 st.warning("请先运行因果分析")
                 return None
             
+            ontology_info = self._get_selected_ontology_info_for_llm()
+            causal_graph = st.session_state.get('causal_graph', None)
+            root_cause_text = self.root_cause_explanation
+            
             with st.spinner("大模型正在生成解决方案..."):
                 self.solution = self.llm_explainer.generate_solution(
                     self.analysis_results,
                     self.actual_data,
-                    self.counterfactual_data
+                    self.counterfactual_data,
+                    ontology_info,
+                    causal_graph,
+                    root_cause_text
                 )
                 st.session_state.solution = self.solution
         
@@ -232,18 +246,18 @@ class InventoryAnalysisWebApp:
         with col1:
             st.markdown("""
             <div class="step-header">
-                PAC900S12-B2库存高因果根因分析场景
+                PAC900S12-B2-1库存高因果根因分析场景
             </div>
             
             <div class="info-box">
             <h4>场景背景</h4>
-            <p>昆仑2280销量下降，导致PAC900S12-B2（服务器白金900W电源）库存偏高。需要验证：<strong>2288HV7未使用PAC900S12-B2</strong> 是PAC900S12-B2库存高的<strong>核心因果根因</strong>，而非仅由昆仑2280销量下降导致。</p>
+            <p>昆仑2280销量下降，导致PAC900S12-B2-1（服务器白金900W电源）库存偏高。需要验证：<strong>2288HV7未使用PAC900S12-B2-1</strong> 是PAC900S12-B2-1库存高的<strong>核心因果根因</strong>，而非仅由昆仑2280销量下降导致。</p>
             </div>
             
             <div class="info-box">
             <h4>核心目标</h4>
             <ul>
-                <li>用因果分析量化：若2288HV7使用PAC900S12-B2，库存可下降多少</li>
+                <li>用因果分析量化：若2288HV7使用PAC900S12-B2-1，库存可下降多少</li>
                 <li>通过反事实与稳健检验证明因果结论可靠</li>
                 <li>输出Web可视化页面 + 大模型业务解释</li>
             </ul>
@@ -252,9 +266,9 @@ class InventoryAnalysisWebApp:
             <div class="info-box">
             <h4>因果关系</h4>
             <ul>
-                <li>昆仑2280销量 → PAC900S12-B2消耗量 → PAC900S12-B2库存</li>
-                <li>2288HV7销量 → PAC900S12-B2消耗量（如果2288HV7使用PAC900S12-B2）</li>
-                <li>2288HV7使用PAC900S12-B2 → PAC900S12-B2消耗量</li>
+                <li>昆仑2280销量 → PAC900S12-B2-1消耗量 → PAC900S12-B2-1库存</li>
+                <li>2288HV7销量 → PAC900S12-B2-1消耗量（如果2288HV7使用PAC900S12-B2-1）</li>
+                <li>2288HV7使用PAC900S12-B2-1 → PAC900S12-B2-1消耗量</li>
             </ul>
             </div>
             
@@ -262,14 +276,14 @@ class InventoryAnalysisWebApp:
             <h4>问题描述</h4>
             <ul>
                 <li>昆仑2280销量在11月开始下降40%</li>
-                <li>2288HV7未使用PAC900S12-B2（历史全为0）</li>
-                <li>PAC900S12-B2库存持续升高，占用资金</li>
+                <li>2288HV7未使用PAC900S12-B2-1（历史全为0）</li>
+                <li>PAC900S12-B2-1库存持续升高，占用资金</li>
             </ul>
             </div>
             
             <div class="success-box">
             <h4>分析目标</h4>
-            <p>使用DoWhy因果推断框架，量化2288HV7未使用PAC900S12-B2对库存的影响，验证其是否为核心根因。</p>
+            <p>使用DoWhy因果推断框架，量化2288HV7未使用PAC900S12-B2-1对库存的影响，验证其是否为核心根因。</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -284,7 +298,7 @@ class InventoryAnalysisWebApp:
             st.markdown("**关键指标**:")
             st.markdown(f"- 昆仑2280平均销量: {actual_data['kunlun_2280_sales'].mean():.0f}")
             st.markdown(f"- 2288HV7平均销量: {actual_data['server_2288hv7_sales'].mean():.0f}")
-            st.markdown(f"- PAC900S12-B2平均库存: {actual_data['pac900s12_b2_inventory'].mean():.0f}")
+            st.markdown(f"- PAC900S12-B2-1平均库存: {actual_data['pac900s12_b2_1_inventory'].mean():.0f}")
             
             if st.button("开始分析", key="start_analysis"):
                 self.run_analysis()
@@ -502,34 +516,40 @@ class InventoryAnalysisWebApp:
             ontology_data = st.session_state.ontology_data
             
             st.markdown("#### 📊 本体信息概览")
-            col_info1, col_info2, col_info3 = st.columns(3)
             
-            # 实体数量，点击展开详情
-            with col_info1:
-                with st.expander(f"🏢 **实体数量**: {len(ontology_data['nodes'])} 个"):
-                    st.markdown("**实体详情**:")
-                    entities_df = pd.DataFrame([
-                        {"ID": node['id'], "名称": node['label'], "类型": node['type'], "描述": node['description']}
-                        for node in ontology_data['nodes']
-                    ])
-                    st.dataframe(entities_df, use_container_width=True)
+            # 实体数量，点击展开详情（独占一行）
+            with st.expander(f"🏢 **实体数量**: {len(ontology_data['nodes'])} 个", expanded=True):
+                st.markdown("**实体详情**:")
+                for node in ontology_data['nodes']:
+                    with st.expander(f"{node['label']} ({node['id']})"):
+                        st.markdown(f"**类型**: {node['type']}")
+                        st.markdown(f"**描述**: {node['description']}")
+                        if node.get('attributes'):
+                            st.markdown("**属性**:")
+                            attrs_data = []
+                            for attr in node['attributes']:
+                                attrs_data.append({
+                                    "名称": attr.get('name', ''),
+                                    "类型": attr.get('type', ''),
+                                    "字段名": attr.get('fieldName', attr.get('value', '')),
+                                    "描述": attr.get('description', '')
+                                })
+                            st.dataframe(pd.DataFrame(attrs_data), use_container_width=True)
             
-            # 关系数量，点击展开详情
-            with col_info2:
-                with st.expander(f"🔗 **关系数量**: {len(ontology_data['edges'])} 个"):
-                    st.markdown("**关系详情**:")
-                    relations_df = pd.DataFrame([
-                        {"源节点": edge['source'], "目标节点": edge['target'], "关系类型": edge['label']}
-                        for edge in ontology_data['edges']
-                    ])
-                    st.dataframe(relations_df, use_container_width=True)
+            # 关系数量，点击展开详情（独占一行）
+            with st.expander(f"🔗 **关系数量**: {len(ontology_data['edges'])} 个", expanded=True):
+                st.markdown("**关系详情**:")
+                relations_df = pd.DataFrame([
+                    {"源节点": edge['source'], "目标节点": edge['target'], "关系类型": edge['label']}
+                    for edge in ontology_data['edges']
+                ])
+                st.dataframe(relations_df, use_container_width=True)
             
-            # 规则数量，点击展开详情
-            with col_info3:
-                with st.expander(f"📋 **规则数量**: {len(ontology_data['rules'])} 个"):
-                    st.markdown("**规则详情**:")
-                    for rule in ontology_data['rules']:
-                        st.info(f"📋 {rule['name']}: {rule['description']}")
+            # 规则数量，点击展开详情（独占一行）
+            with st.expander(f"📋 **规则数量**: {len(ontology_data['rules'])} 个"):
+                st.markdown("**规则详情**:")
+                for rule in ontology_data['rules']:
+                    st.info(f"📋 {rule['name']}: {rule['description']}")
             
             st.markdown("---")
             
@@ -551,13 +571,17 @@ class InventoryAnalysisWebApp:
             # 更新session_state
             st.session_state.selected_source = selected_source
             
-            # 目标节点选择，添加空选项
+            # 目标节点选择，显示相邻节点（出边目标 + 入边源）
             target_options = [""]  # 空选项，代表只添加源节点
             if selected_source:
-                # 找到与源节点相关的目标节点
+                # 找到与源节点相关的目标节点（出边）
                 for edge in ontology_data['edges']:
                     if edge['source'] == selected_source:
                         target_options.append(edge['target'])
+                # 找到以源节点为目标的节点（入边）
+                for edge in ontology_data['edges']:
+                    if edge['target'] == selected_source:
+                        target_options.append(edge['source'])
                 # 去重
                 target_options = list(set(target_options))
             
@@ -576,15 +600,24 @@ class InventoryAnalysisWebApp:
                             node = next(n for n in ontology_data['nodes'] if n['id'] == selected_target)
                             st.session_state.selected_nodes.append(node)
                         
-                        # 添加边（如果不存在）
+                        # 添加边（如果不存在）- 支持正向和反向
                         edge_exists = any(
-                            e['source'] == selected_source and e['target'] == selected_target 
+                            (e['source'] == selected_source and e['target'] == selected_target) or
+                            (e['source'] == selected_target and e['target'] == selected_source)
                             for e in st.session_state.selected_edges
                         )
                         if not edge_exists:
-                            edge = next(e for e in ontology_data['edges'] if e['source'] == selected_source and e['target'] == selected_target)
-                            st.session_state.selected_edges.append(edge)
-                            st.success(f"已添加关系: {selected_source} → {selected_target}")
+                            # 尝试找正向边
+                            forward_edge = next((e for e in ontology_data['edges'] if e['source'] == selected_source and e['target'] == selected_target), None)
+                            if forward_edge:
+                                st.session_state.selected_edges.append(forward_edge)
+                                st.success(f"已添加关系: {selected_source} → {selected_target}")
+                            else:
+                                # 尝试找反向边
+                                backward_edge = next((e for e in ontology_data['edges'] if e['source'] == selected_target and e['target'] == selected_source), None)
+                                if backward_edge:
+                                    st.session_state.selected_edges.append(backward_edge)
+                                    st.success(f"已添加关系: {selected_target} → {selected_source}")
                     else:
                         st.success(f"已添加节点: {selected_source}")
             
@@ -646,17 +679,53 @@ class InventoryAnalysisWebApp:
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("""
-        <div class="step-content">
-        <p><strong>规则：部件A和部件A1是相同型号，可以通用</strong></p>
-        <ul>
-            <li>数据完整性：无缺失值</li>
-            <li>数据准确性：数值范围合理</li>
-            <li>数据一致性：时间连续</li>
-            <li>业务约束：部件可以通用</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        # 初始化规则列表
+        if 'custom_rules' not in st.session_state:
+            st.session_state.custom_rules = [
+                {"id": "rule_1", "name": "部件通用规则", "content": "相同类型的部件可以通用"},
+                {"id": "rule_2", "name": "数据完整性", "content": "无缺失值"},
+                {"id": "rule_3", "name": "数据准确性", "content": "数值范围合理"},
+                {"id": "rule_4", "name": "数据一致性", "content": "时间连续"},
+            ]
+        
+        st.markdown("##### 规则列表")
+        
+        # 显示规则列表
+        if st.session_state.custom_rules:
+            for i, rule in enumerate(st.session_state.custom_rules):
+                col1, col2 = st.columns([5, 1])
+                with col1:
+                    st.markdown(f"**{rule['name']}**: {rule['content']}")
+                with col2:
+                    if st.button("🗑️ 删除", key=f"delete_rule_{i}"):
+                        st.session_state.custom_rules.pop(i)
+                        st.rerun()
+        else:
+            st.info("暂无规则，请添加规则")
+        
+        st.markdown("---")
+        
+        # 添加规则
+        st.markdown("##### 添加规则")
+        
+        col_name, col_content = st.columns(2)
+        with col_name:
+            new_rule_name = st.text_input("规则名称", key="new_rule_name")
+        with col_content:
+            new_rule_content = st.text_input("规则内容", key="new_rule_content")
+        
+        if st.button("➕ 添加规则", type="primary"):
+            if new_rule_name and new_rule_content:
+                new_rule = {
+                    "id": f"rule_{len(st.session_state.custom_rules) + 1}",
+                    "name": new_rule_name,
+                    "content": new_rule_content
+                }
+                st.session_state.custom_rules.append(new_rule)
+                st.success(f"已添加规则: {new_rule_name}")
+                st.rerun()
+            else:
+                st.warning("请填写规则名称和规则内容")
     
     def _render_step6(self):
         """步骤6：How should the data asset be leveraged?"""
@@ -687,20 +756,29 @@ class InventoryAnalysisWebApp:
         """, unsafe_allow_html=True)
         
         if self.actual_data is not None:
-            fig = self._plot_inventory_trend()
-            st.plotly_chart(fig, use_container_width=True)
+            if 'show_step6_1_analysis' not in st.session_state:
+                st.session_state.show_step6_1_analysis = False
             
-            st.markdown("""
-            <div class="success-box">
-            <h4>结论</h4>
-            <p>当前库存数据显示，有一些商品的库存数量异常高，导致库存高位问题。</p>
-            <ul>
-                <li>昆仑2280销量在11月开始下降</li>
-                <li>PAC900S12-B2库存持续升高</li>
-                <li>库存占用资金增加</li>
-            </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            col_btn, col_space = st.columns([1, 4])
+            with col_btn:
+                if st.button("📊 数据分析", type="primary"):
+                    st.session_state.show_step6_1_analysis = True
+            
+            if st.session_state.show_step6_1_analysis:
+                fig = self._plot_inventory_trend()
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.markdown("""
+                <div class="success-box">
+                <h4>结论</h4>
+                <p>当前库存数据显示，有一些商品的库存数量异常高，导致库存高位问题。</p>
+                <ul>
+                    <li>昆仑2280销量在11月开始下降</li>
+                    <li>PAC900S12-B2-1库存持续升高</li>
+                    <li>库存占用资金增加</li>
+                </ul>
+                </div>
+                """, unsafe_allow_html=True)
     
     def _render_step6_2(self):
         """步骤6.2：为什么会发生？"""
@@ -715,12 +793,12 @@ class InventoryAnalysisWebApp:
         # 初始化session_state
         if 'causal_graph' not in st.session_state:
             st.session_state.causal_graph = """digraph {
-    kunlun_2280_sales -> pac900s12_b2_consumption;
-    server_2288hv7_sales -> pac900s12_b2_consumption;
-    server_2288hv7_uses_pac900s12_b2 -> pac900s12_b2_consumption;
-    pac900s12_b2_consumption -> pac900s12_b2_inventory;
-    pac900s12_b2_procurement -> pac900s12_b2_inventory;
-    kunlun_2280_sales -> pac900s12_b2_procurement;
+    kunlun_2280_sales -> pac900s12_b2_1_consumption;
+    server_2288hv7_sales -> pac900s12_b2_1_consumption;
+    server_2288hv7_uses_pac900s12_b2_1 -> pac900s12_b2_1_consumption;
+    pac900s12_b2_1_consumption -> pac900s12_b2_1_inventory;
+    pac900s12_b2_1_procurement -> pac900s12_b2_1_inventory;
+    kunlun_2280_sales -> pac900s12_b2_1_procurement;
 }"""
         
         if 'edited_causal_graph' not in st.session_state:
@@ -782,12 +860,12 @@ class InventoryAnalysisWebApp:
         with col_btn2:
             if st.button("🔄 重置为默认"):
                 default_graph = """digraph {
-    kunlun_2280_sales -> pac900s12_b2_consumption;
-    server_2288hv7_sales -> pac900s12_b2_consumption;
-    server_2288hv7_uses_pac900s12_b2 -> pac900s12_b2_consumption;
-    pac900s12_b2_consumption -> pac900s12_b2_inventory;
-    pac900s12_b2_procurement -> pac900s12_b2_inventory;
-    kunlun_2280_sales -> pac900s12_b2_procurement;
+    kunlun_2280_sales -> pac900s12_b2_1_consumption;
+    server_2288hv7_sales -> pac900s12_b2_1_consumption;
+    server_2288hv7_uses_pac900s12_b2_1 -> pac900s12_b2_1_consumption;
+    pac900s12_b2_1_consumption -> pac900s12_b2_1_inventory;
+    pac900s12_b2_1_procurement -> pac900s12_b2_1_inventory;
+    kunlun_2280_sales -> pac900s12_b2_1_procurement;
 }"""
                 st.session_state.causal_graph = default_graph
                 st.session_state.edited_causal_graph = default_graph
@@ -840,7 +918,7 @@ class InventoryAnalysisWebApp:
                 st.metric(
                     "反事实库存均值",
                     f"{cf_results.get('counterfactual_inventory_mean', 0):.0f}",
-                    "如果2288HV7使用PAC900S12-B2"
+                    "如果2288HV7使用PAC900S12-B2-1"
                 )
             
             st.markdown("---")
@@ -861,7 +939,7 @@ class InventoryAnalysisWebApp:
                 st.metric(
                     "下降期反事实库存",
                     f"{cf_results.get('decline_period_counterfactual_inventory', 0):.0f}",
-                    "如果2288HV7使用PAC900S12-B2"
+                    "如果2288HV7使用PAC900S12-B2-1"
                 )
             
             with col3:
@@ -1057,7 +1135,7 @@ class InventoryAnalysisWebApp:
         """, unsafe_allow_html=True)
     
     def _plot_ontology_graph(self, ontology_data):
-        """绘制本体图"""
+        """绘制本体图（从左到右的层级布局，分叉间隔大）"""
         G = nx.DiGraph()
         
         for node in ontology_data['nodes']:
@@ -1066,7 +1144,61 @@ class InventoryAnalysisWebApp:
         for edge in ontology_data['edges']:
             G.add_edge(edge['source'], edge['target'], label=edge['label'])
         
-        pos = nx.spring_layout(G, k=0.8, iterations=100)
+        # 使用从左到右的层级布局
+        # 1. 找到没有入边的节点作为起点（源节点）
+        sources = [n for n in G.nodes() if G.in_degree(n) == 0]
+        
+        # 2. 使用 BFS 计算每个节点的深度和分支信息
+        pos = {}
+        if sources:
+            visited = set()
+            branch_counter = [0]
+            
+            # 按深度分层，每层内按分支分组
+            depth_groups = {}  # depth -> list of (node, branch_id)
+            
+            queue = [(s, 0, i) for i, s in enumerate(sources)]
+            
+            while queue:
+                node, depth, branch_id = queue.pop(0)
+                if node not in visited:
+                    visited.add(node)
+                    
+                    if depth not in depth_groups:
+                        depth_groups[depth] = []
+                    depth_groups[depth].append((node, branch_id))
+                    
+                    # 按照边添加子节点，为每个子节点分配新的分支ID
+                    successors = list(G.successors(node))
+                    for i, successor in enumerate(successors):
+                        if successor not in visited:
+                            new_branch_id = branch_counter[0]
+                            branch_counter[0] += 1
+                            queue.append((successor, depth + 1, new_branch_id))
+            
+            # 根据深度和分支计算坐标
+            # x = 深度 * 1.5（水平间隔），y = 基于分支ID和位置计算（垂直方向）
+            for depth, nodes in depth_groups.items():
+                branch_nodes = {}
+                for node, branch_id in nodes:
+                    if branch_id not in branch_nodes:
+                        branch_nodes[branch_id] = []
+                    branch_nodes[branch_id].append(node)
+                
+                branch_list = sorted(branch_nodes.keys())
+                for branch_id in branch_list:
+                    nodes_in_branch = branch_nodes[branch_id]
+                    for i, node in enumerate(nodes_in_branch):
+                        # x坐标基于深度，y坐标基于分支ID
+                        x = depth * 1.5
+                        y = branch_id * 3 + i * 0.8
+                        pos[node] = (x, y)
+        
+        # 处理孤立节点
+        for node in G.nodes():
+            if node not in pos:
+                max_x = max(x for x, y in pos.values()) if pos else 0
+                pos[node] = (max_x + 1.5, len(pos) * 0.5)
         
         arrows = []
         edge_labels = []
@@ -1176,22 +1308,67 @@ class InventoryAnalysisWebApp:
         return fig
     
     def _plot_causal_graph(self):
-        """绘制因果图"""
+        """绘制因果图（从左到右的层级布局）"""
         G = nx.DiGraph()
         
         edges = [
-            ("昆仑2280销量", "PAC900S12-B2消耗量"),
-            ("2288HV7销量", "PAC900S12-B2消耗量"),
-            ("2288HV7使用PAC900S12-B2", "PAC900S12-B2消耗量"),
-            ("PAC900S12-B2消耗量", "PAC900S12-B2库存"),
-            ("PAC900S12-B2采购量", "PAC900S12-B2库存"),
-            ("昆仑2280销量", "PAC900S12-B2采购量"),
+            ("昆仑2280销量", "PAC900S12-B2-1消耗量"),
+            ("2288HV7销量", "PAC900S12-B2-1消耗量"),
+            ("2288HV7使用PAC900S12-B2-1", "PAC900S12-B2-1消耗量"),
+            ("PAC900S12-B2-1消耗量", "PAC900S12-B2-1库存"),
+            ("PAC900S12-B2-1采购量", "PAC900S12-B2-1库存"),
+            ("昆仑2280销量", "PAC900S12-B2-1采购量"),
         ]
         
         for edge in edges:
             G.add_edge(edge[0], edge[1])
         
-        pos = nx.spring_layout(G, k=0.8, iterations=100)
+        # 使用从左到右的层级布局
+        sources = [n for n in G.nodes() if G.in_degree(n) == 0]
+        
+        pos = {}
+        if sources:
+            visited = set()
+            branch_counter = [0]
+            depth_groups = {}
+            
+            queue = [(s, 0, i) for i, s in enumerate(sources)]
+            
+            while queue:
+                node, depth, branch_id = queue.pop(0)
+                if node not in visited:
+                    visited.add(node)
+                    
+                    if depth not in depth_groups:
+                        depth_groups[depth] = []
+                    depth_groups[depth].append((node, branch_id))
+                    
+                    successors = list(G.successors(node))
+                    for i, successor in enumerate(successors):
+                        if successor not in visited:
+                            new_branch_id = branch_counter[0]
+                            branch_counter[0] += 1
+                            queue.append((successor, depth + 1, new_branch_id))
+            
+            for depth, nodes in depth_groups.items():
+                branch_nodes = {}
+                for node, branch_id in nodes:
+                    if branch_id not in branch_nodes:
+                        branch_nodes[branch_id] = []
+                    branch_nodes[branch_id].append(node)
+                
+                branch_list = sorted(branch_nodes.keys())
+                for branch_id in branch_list:
+                    nodes_in_branch = branch_nodes[branch_id]
+                    for i, node in enumerate(nodes_in_branch):
+                        x = depth * 1.5
+                        y = branch_id * 3 + i * 0.8
+                        pos[node] = (x, y)
+        
+        for node in G.nodes():
+            if node not in pos:
+                max_x = max(x for x, y in pos.values()) if pos else 0
+                pos[node] = (max_x + 1.5, len(pos) * 0.5)
         
         arrows = []
         for edge in G.edges():
@@ -1235,9 +1412,9 @@ class InventoryAnalysisWebApp:
             node_x.append(x)
             node_y.append(y)
             node_text.append(node)
-            if node == "PAC900S12-B2库存":
+            if node == "PAC900S12-B2-1库存":
                 node_color.append('#A23B72')
-            elif node in ["2288HV7使用PAC900S12-B2", "昆仑2280销量"]:
+            elif node in ["2288HV7使用PAC900S12-B2-1", "昆仑2280销量"]:
                 node_color.append('#2E86AB')
             else:
                 node_color.append('#17A2B8')
@@ -1285,10 +1462,10 @@ class InventoryAnalysisWebApp:
         variable_name_mapping = {
             'kunlun_2280_sales': '昆仑2280销量',
             'server_2288hv7_sales': '2288HV7销量',
-            'server_2288hv7_uses_pac900s12_b2': '2288HV7使用PAC900S12-B2',
-            'pac900s12_b2_consumption': 'PAC900S12-B2消耗量',
-            'pac900s12_b2_inventory': 'PAC900S12-B2库存',
-            'pac900s12_b2_procurement': 'PAC900S12-B2采购量'
+            'server_2288hv7_uses_pac900s12_b2_1': '2288HV7使用PAC900S12-B2-1',
+            'pac900s12_b2_1_consumption': 'PAC900S12-B2-1消耗量',
+            'pac900s12_b2_1_inventory': 'PAC900S12-B2-1库存',
+            'pac900s12_b2_1_procurement': 'PAC900S12-B2-1采购量'
         }
         
         # 解析DOT格式字符串
@@ -1307,7 +1484,52 @@ class InventoryAnalysisWebApp:
             # 如果没有解析到节点，使用默认因果图
             return self._plot_causal_graph()
         
-        pos = nx.spring_layout(G, k=0.8, iterations=100)
+        # 使用从左到右的层级布局
+        sources = [n for n in G.nodes() if G.in_degree(n) == 0]
+        
+        pos = {}
+        if sources:
+            visited = set()
+            branch_counter = [0]
+            depth_groups = {}
+            
+            queue = [(s, 0, i) for i, s in enumerate(sources)]
+            
+            while queue:
+                node, depth, branch_id = queue.pop(0)
+                if node not in visited:
+                    visited.add(node)
+                    
+                    if depth not in depth_groups:
+                        depth_groups[depth] = []
+                    depth_groups[depth].append((node, branch_id))
+                    
+                    successors = list(G.successors(node))
+                    for i, successor in enumerate(successors):
+                        if successor not in visited:
+                            new_branch_id = branch_counter[0]
+                            branch_counter[0] += 1
+                            queue.append((successor, depth + 1, new_branch_id))
+            
+            for depth, nodes in depth_groups.items():
+                branch_nodes = {}
+                for node, branch_id in nodes:
+                    if branch_id not in branch_nodes:
+                        branch_nodes[branch_id] = []
+                    branch_nodes[branch_id].append(node)
+                
+                branch_list = sorted(branch_nodes.keys())
+                for branch_id in branch_list:
+                    nodes_in_branch = branch_nodes[branch_id]
+                    for i, node in enumerate(nodes_in_branch):
+                        x = depth * 1.5
+                        y = branch_id * 3 + i * 0.8
+                        pos[node] = (x, y)
+        
+        for node in G.nodes():
+            if node not in pos:
+                max_x = max(x for x, y in pos.values()) if pos else 0
+                pos[node] = (max_x + 1.5, len(pos) * 0.5)
         
         arrows = []
         for edge in G.edges():
@@ -1388,6 +1610,63 @@ class InventoryAnalysisWebApp:
         
         return fig
     
+    def _get_selected_ontology_info_for_llm(self) -> str:
+        """
+        从步骤4中选择的本体信息生成用于LLM推理的JSON格式文本
+        
+        Returns:
+            本体信息JSON文本，如果用户没有选择则返回空字符串
+        """
+        selected_nodes = st.session_state.get('selected_nodes', [])
+        selected_edges = st.session_state.get('selected_edges', [])
+        
+        if not selected_nodes:
+            return ""
+        
+        import json
+        import os
+        
+        schema_path = os.path.join(os.path.dirname(__file__), 'server_inventory_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_data = json.load(f)
+        
+        entity_map = {e['id']: e for e in schema_data.get('entity_types', [])}
+        
+        selected_entity_ids = [node.get('id') for node in selected_nodes]
+        
+        selected_entities = []
+        for node in selected_nodes:
+            node_id = node.get('id')
+            if node_id in entity_map:
+                entity = entity_map[node_id]
+                selected_entities.append(entity)
+        
+        selected_relations = []
+        relation_map = {r['id']: r for r in schema_data.get('relation_types', [])}
+        for edge in selected_edges:
+            source = edge.get('source')
+            target = edge.get('target')
+            if source in selected_entity_ids and target in selected_entity_ids:
+                for rel_id, rel in relation_map.items():
+                    if rel.get('source_types', []) == [source] and rel.get('target_types', []) == [target]:
+                        selected_relations.append(rel)
+                        break
+                else:
+                    selected_relations.append({
+                        "id": f"{source}_to_{target}",
+                        "name": edge.get('label', '相关'),
+                        "description": "",
+                        "source_types": [source],
+                        "target_types": [target]
+                    })
+        
+        result = {
+            "entity_types": selected_entities,
+            "relation_types": selected_relations
+        }
+        
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    
     def _build_causal_graph_with_llm(self):
         """
         使用大模型构建因果图
@@ -1398,52 +1677,48 @@ class InventoryAnalysisWebApp:
         if self.llm_explainer is None or self.llm_explainer.client is None:
             raise ValueError("大模型客户端未初始化")
         
-        # 构建提示词
-        prompt = """你是一个专业的因果分析专家。请根据以下信息构建因果图。
+        ontology_info = self._get_selected_ontology_info_for_llm()
+        
+        if not ontology_info:
+            from ontology_api import OntologyAPI
+            ontology_info = OntologyAPI.get_ontology_info_for_llm()
+        
+        prompt = f"""你是一个专业的因果分析专家。请根据以下本体信息构建因果图。
 
 ## 问题描述
-某制造企业发现PAC900S12-B2库存持续升高，占用大量资金，需要找出根本原因。
+某制造企业发现PAC900S12-B2-1库存持续升高，占用大量资金，需要找出根本原因。
 
 ## 本体信息
-以下是产品与部件的关系：
-- 产品A 使用 部件A
-- 产品B 使用 部件A1
+{ontology_info}
 
 ## 业务规则
-- 部件A和部件A1是相同型号，可以通用
+- PAC900S12-B2和PAC900S12-B2-1是相同型号（产品编码都是02313XSF），可以通用
 - 昆仑2280销量在近期出现下降
 - 2288HV7销量保持稳定
-
-## 数据字段
-- kunlun_2280_sales: 昆仑2280销量
-- server_2288hv7_sales: 2288HV7销量
-- server_2288hv7_uses_pac900s12_b2: 2288HV7是否使用PAC900S12-B2（0或1）
-- pac900s12_b2_consumption: PAC900S12-B2消耗量
-- pac900s12_b2_inventory: PAC900S12-B2库存
-- pac900s12_b2_procurement: PAC900S12-B2采购量
+- 2288HV7可以选择使用PAC900S12-B2或PAC1500S12-B1作为电源
 
 ## 分析任务
 请分析以下问题：
-1. 根据本体信息和业务规则，发现可能存在的问题
+1. 根据本体信息中的实体关系，分析服务器销量与零部件消耗、库存、采购之间的因果关系
 2. 构建因果图，展示变量之间的因果关系
-3. 特别关注：产品B是否应该使用部件A？这对库存有什么影响？
+3. 特别关注：2288HV7是否使用PAC900S12-B2-1对库存有什么影响？
 
 ## 输出要求
 请构建一个因果图，使用DOT格式输出。格式如下：
 ```
-digraph {
+digraph {{
     变量1 -> 变量2;
     变量2 -> 变量3;
     ...
-}
+}}
 ```
 
 注意事项：
 1. 只输出DOT格式的因果图，不要有其他解释
-2. 节点名称必须与数据字段名称一致
+2. 节点名称必须与本体信息中的数据字段名称一致
 3. 箭头方向表示因果关系（原因 -> 结果）
 4. 确保因果图是有向无环图（DAG）
-5. 特别注意：如果发现本体信息中缺少某些关系，请在因果图中体现出来
+5. 根据本体中的实体关系推理出合理的因果边
 """
         
         # 保存提示词到文件
@@ -1521,7 +1796,7 @@ digraph {
         # 创建子图：上面是趋势图，下面是月度柱状图
         fig = make_subplots(
             rows=2, cols=1,
-            subplot_titles=('PAC900S12-B2库存趋势', 'PAC900S12-B2库存月度指标'),
+            subplot_titles=('PAC900S12-B2-1库存趋势', 'PAC900S12-B2-1库存月度指标'),
             vertical_spacing=0.15,
             row_heights=[0.6, 0.4]
         )
@@ -1530,7 +1805,7 @@ digraph {
         fig.add_trace(
             go.Scatter(
                 x=self.actual_data['date'],
-                y=self.actual_data['pac900s12_b2_inventory'],
+                y=self.actual_data['pac900s12_b2_1_inventory'],
                 mode='lines',
                 name='实际库存',
                 line=dict(color='#DC3545', width=2),
@@ -1543,7 +1818,7 @@ digraph {
         monthly_data = self.actual_data.copy()
         monthly_data['month'] = pd.to_datetime(monthly_data['date']).dt.to_period('M')
         monthly_stats = monthly_data.groupby('month').agg({
-            'pac900s12_b2_inventory': ['mean', 'max', 'min'],
+            'pac900s12_b2_1_inventory': ['mean', 'max', 'min'],
             'kunlun_2280_sales': 'sum',
             'server_2288hv7_sales': 'sum'
         }).reset_index()
@@ -1592,7 +1867,7 @@ digraph {
             showlegend=True,
             template='plotly_white',
             hovermode='x unified',
-            title_text="PAC900S12-B2库存分析",
+            title_text="PAC900S12-B2-1库存分析",
             title_x=0.5,
             title_font_size=16,
             # 在第一个子图添加垂直线标记

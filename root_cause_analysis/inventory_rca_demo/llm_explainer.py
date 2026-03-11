@@ -1,5 +1,5 @@
 """
-PAC900S12-B2库存高因果根因分析 - LLM解释模块
+PAC900S12-B2-1库存高因果根因分析 - LLM解释模块
 
 使用大模型生成业务化的根因分析解释
 """
@@ -137,7 +137,9 @@ class LLMExplainer:
     def generate_root_cause_explanation(self,
                                        analysis_results: Dict,
                                        actual_data: pd.DataFrame,
-                                       counterfactual_data: pd.DataFrame) -> str:
+                                       counterfactual_data: pd.DataFrame,
+                                       ontology_info: str = None,
+                                       causal_graph: str = None) -> str:
         """
         生成根因解释（6.2步骤）
         
@@ -145,11 +147,13 @@ class LLMExplainer:
             analysis_results: 分析结果字典
             actual_data: 实际数据
             counterfactual_data: 反事实数据
+            ontology_info: 本体信息，如果为None则使用默认信息
+            causal_graph: 因果图，如果为None则使用默认因果图
             
         Returns:
             根因解释文本
         """
-        prompt = self._build_root_cause_prompt(analysis_results, actual_data, counterfactual_data)
+        prompt = self._build_root_cause_prompt(analysis_results, actual_data, counterfactual_data, ontology_info, causal_graph)
         
         if not self.client:
             return "错误：大模型客户端未初始化，请检查API配置"
@@ -173,7 +177,10 @@ class LLMExplainer:
     def generate_solution(self,
                          analysis_results: Dict,
                          actual_data: pd.DataFrame,
-                         counterfactual_data: pd.DataFrame) -> str:
+                         counterfactual_data: pd.DataFrame,
+                         ontology_info: str = None,
+                         causal_graph: str = None,
+                         root_cause_text: str = None) -> str:
         """
         生成解决方案（6.3步骤）
         
@@ -181,11 +188,21 @@ class LLMExplainer:
             analysis_results: 分析结果字典
             actual_data: 实际数据
             counterfactual_data: 反事实数据
+            ontology_info: 本体信息JSON
+            causal_graph: 因果图DOT字符串
+            root_cause_text: 根因分析文本
             
         Returns:
             解决方案文本
         """
-        prompt = self._build_solution_prompt(analysis_results, actual_data, counterfactual_data)
+        prompt = self._build_solution_prompt(
+            analysis_results, 
+            actual_data, 
+            counterfactual_data,
+            ontology_info,
+            causal_graph,
+            root_cause_text
+        )
         
         if not self.client:
             return "错误：大模型客户端未初始化，请检查API配置"
@@ -220,32 +237,32 @@ class LLMExplainer:
         prompt = f"""你是一个专业的供应链管理顾问。请根据以下数据分析结果，给出详细的根因分析和改进建议。
 
 ## 场景背景
-某制造企业发现昆仑2280销量下降后，PAC900S12-B2（服务器白金900W电源）库存处于高位。需要验证：2288HV7未使用PAC900S12-B2是PAC900S12-B2库存高的核心因果根因。
+某制造企业发现昆仑2280销量下降后，PAC900S12-B2-1（服务器白金900W电源）库存处于高位。需要验证：2288HV7未使用PAC900S12-B2-1是PAC900S12-B2-1库存高的核心因果根因。
 
 ## 因果图结构（有向无环图）
 
 以下是本次分析使用的因果图，表示变量之间的因果关系：
 
 ```
-昆仑2280销量 → PAC900S12-B2消耗量
-2288HV7销量 → PAC900S12-B2消耗量
-2288HV7使用PAC900S12-B2 → PAC900S12-B2消耗量
-PAC900S12-B2消耗量 → PAC900S12-B2库存
-PAC900S12-B2采购量 → PAC900S12-B2库存
-昆仑2280销量 → PAC900S12-B2采购量
+昆仑2280销量 → PAC900S12-B2-1消耗量
+2288HV7销量 → PAC900S12-B2-1消耗量
+2288HV7使用PAC900S12-B2-1 → PAC900S12-B2-1消耗量
+PAC900S12-B2-1消耗量 → PAC900S12-B2-1库存
+PAC900S12-B2-1采购量 → PAC900S12-B2-1库存
+昆仑2280销量 → PAC900S12-B2-1采购量
 ```
 
 **因果图说明**：
 - 箭头（→）表示因果关系方向，从原因指向结果
-- **2288HV7使用PAC900S12-B2** 是我们要干预的处理变量
-- **PAC900S12-B2库存** 是我们要分析的结果变量
+- **2288HV7使用PAC900S12-B2-1** 是我们要干预的处理变量
+- **PAC900S12-B2-1库存** 是我们要分析的结果变量
 - 其他变量是影响库存的中间变量或混杂变量
 
 ## 数据分析结果
 
 ### 1. 库存对比分析
 - 实际库存均值: {cf_results.get('actual_inventory_mean', 0):.2f}
-- 反事实库存均值（如果2288HV7使用PAC900S12-B2）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
+- 反事实库存均值（如果2288HV7使用PAC900S12-B2-1）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
 - 库存降低: {cf_results.get('inventory_reduction', 0):.2f} ({cf_results.get('reduction_percentage', 0):.2f}%)
 
 ### 2. 销量下降期库存分析
@@ -275,7 +292,7 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
 
 2. **影响机制**：产品B未使用部件A是如何导致库存积压的？请解释因果路径。
 
-3. **量化影响**：如果2288HV7使用PAC900S12-B2，库存可以降低多少？这个影响有多大？
+3. **量化影响**：如果2288HV7使用PAC900S12-B2-1，库存可以降低多少？这个影响有多大？
 
 4. **改进建议**：针对这个根因，应该采取哪些改进措施？请给出具体的建议。
 
@@ -289,47 +306,63 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
     def _build_root_cause_prompt(self,
                                 analysis_results: Dict,
                                 actual_data: pd.DataFrame,
-                                counterfactual_data: pd.DataFrame) -> str:
+                                counterfactual_data: pd.DataFrame,
+                                ontology_info: str = None,
+                                causal_graph: str = None) -> str:
         """构建根因解释prompt（6.2步骤）"""
         
         cf_results = analysis_results.get('counterfactual_analysis', {})
         
+        decline_start = "2024-11-01"
+        
+        actual_data_decline = actual_data[pd.to_datetime(actual_data['date']) >= decline_start]
+        
+        what_happened = f"""- 昆仑2280销量在{decline_start}开始下降，平均月销量从约{actual_data[pd.to_datetime(actual_data['date']) < decline_start]['kunlun_2280_sales'].mean():.0f}台下降到约{actual_data_decline['kunlun_2280_sales'].mean():.0f}台
+- PAC900S12-B2-1库存从约{actual_data[pd.to_datetime(actual_data['date']) < decline_start]['pac900s12_b2_1_inventory'].mean():.0f}个上升到约{actual_data_decline['pac900s12_b2_1_inventory'].mean():.0f}个
+- 2288HV7销量保持稳定，平均月销量约{actual_data['server_2288hv7_sales'].mean():.0f}台
+- 2288HV7未使用PAC900S12-B2-1（历史数据全为0）"""
+        
+        if ontology_info is None:
+            ontology_info = """以下是产品与部件的关系：
+- 昆仑2280 使用 PAC900S12-B2-1（服务器白金900W电源）
+- 2288HV7 使用 PAC900S12-B2-1（服务器白金900W电源）（当前未使用）"""
+        
+        default_causal_graph = """昆仑2280销量 → PAC900S12-B2-1消耗量
+2288HV7销量 → PAC900S12-B2-1消耗量
+2288HV7使用PAC900S12-B2-1 → PAC900S12-B2-1消耗量
+PAC900S12-B2-1消耗量 → PAC900S12-B2-1库存
+PAC900S12-B2-1采购量 → PAC900S12-B2-1库存
+昆仑2280销量 → PAC900S12-B2-1采购量"""
+        
+        causal_graph_text = causal_graph if causal_graph else default_causal_graph
+        
         prompt = f"""你是一个专业的供应链管理顾问。请根据以下数据分析结果，找出库存高的根本原因。
 
 ## 问题描述
-某制造企业发现PAC900S12-B2库存持续升高，占用大量资金，需要找出根本原因。
+某制造企业发现PAC900S12-B2-1库存持续升高，占用大量资金，需要找出根本原因。
+
+## 发生了什么（6.1数据分析结果）
+{what_happened}
 
 ## 本体信息
-以下是产品与部件的关系：
-- 昆仑2280 使用 PAC900S12-B2（服务器白金900W电源）
-- 2288HV7 使用 PAC900S12-B2（服务器白金900W电源）（当前未使用）
-
-## 业务规则
-- PAC900S12-B2是服务器白金900W电源，可用于昆仑2280和2288HV7
-- 昆仑2280销量在近期出现下降
-- 2288HV7销量保持稳定
+{ontology_info}
 
 ## 因果图结构（有向无环图）
 
 ```
-昆仑2280销量 → PAC900S12-B2消耗量
-2288HV7销量 → PAC900S12-B2消耗量
-2288HV7使用PAC900S12-B2 → PAC900S12-B2消耗量
-PAC900S12-B2消耗量 → PAC900S12-B2库存
-PAC900S12-B2采购量 → PAC900S12-B2库存
-昆仑2280销量 → PAC900S12-B2采购量
+{causal_graph_text}
 ```
 
 **因果图说明**：
 - 箭头（→）表示因果关系方向，从原因指向结果
-- **2288HV7使用PAC900S12-B2** 是我们要干预的处理变量
-- **PAC900S12-B2库存** 是我们要分析的结果变量
+- **2288HV7使用PAC900S12-B2-1** 是我们要干预的处理变量（Treatment）
+- **PAC900S12-B2-1库存** 是我们要分析的结果变量（Outcome）
 
 ## 数据分析结果
 
 ### 1. 库存对比分析
 - 实际库存均值: {cf_results.get('actual_inventory_mean', 0):.2f}
-- 反事实库存均值（如果2288HV7使用PAC900S12-B2）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
+- 反事实库存均值（如果2288HV7使用PAC900S12-B2-1）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
 - 库存降低: {cf_results.get('inventory_reduction', 0):.2f} ({cf_results.get('reduction_percentage', 0):.2f}%)
 
 ### 2. 销量下降期库存分析
@@ -338,7 +371,7 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
 - 销量下降期库存降低: {cf_results.get('decline_period_reduction', 0):.2f}
 
 ### 3. 因果效应分析
-- 因果效应值: {analysis_results.get('causal_effect', 0):.4f}
+- 因果效应值含义: {analysis_results.get('causal_effect', 0):.4f}，表示如果2288HV7使用PAC900S12-B2-1，每台2288HV7服务器会导致PAC900S12-B2-1库存增加多少个
 
 ### 4. 根因判定
 - 是否为根因: {'是' if cf_results.get('is_root_cause', False) else '否'}
@@ -347,9 +380,17 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
 ## 分析任务
 
 请分析以下问题：
-1. 根据本体信息和业务规则，发现可能存在的问题
-2. 结合数据分析结果，找出导致库存高的根本原因
-3. 解释为什么这是根本原因，而不是表面原因
+
+1. **发生了什么**：昆仑2280销量下降后，发生了什么变化？
+
+2. **本体关系分析**：请根据本体信息分析：
+   - 电源产品的供应商是谁？不同库存实体之间有什么关系？
+   - PAC900S12-B2-1和PAC900S12-B2是否是同一个产品？它们是什么关系？
+   - 这种关系如何影响库存？
+
+3. **因果机制**：结合因果图和数据，找出导致库存高的根本原因
+
+4. **输出根本原因**：明确给出库存高的根本原因是什么
 
 ## 输出要求
 
@@ -360,8 +401,9 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
 2. 用数据支撑你的结论
 3. 解释因果机制和推理过程
 4. 语言要简洁明了，适合向领导汇报
+5. **重点分析本体关系**：从本体信息中发现库存高的真正原因
 """
-        
+
         self._save_prompt(prompt)
         
         return prompt
@@ -369,37 +411,61 @@ PAC900S12-B2采购量 → PAC900S12-B2库存
     def _build_solution_prompt(self,
                                analysis_results: Dict,
                                actual_data: pd.DataFrame,
-                               counterfactual_data: pd.DataFrame) -> str:
+                               counterfactual_data: pd.DataFrame,
+                               ontology_info: str = None,
+                               causal_graph: str = None,
+                               root_cause_text: str = None) -> str:
         """构建解决方案prompt（6.3步骤）"""
         
         cf_results = analysis_results.get('counterfactual_analysis', {})
         
+        if ontology_info is None:
+            ontology_info = """以下是产品与部件的关系：
+- 昆仑2280 使用 PAC900S12-B2-1（服务器白金900W电源）
+- 2288HV7 使用 PAC900S12-B2-1（服务器白金900W电源）（当前未使用）"""
+        
+        default_causal_graph = """昆仑2280销量 → PAC900S12-B2-1消耗量
+2288HV7销量 → PAC900S12-B2-1消耗量
+2288HV7使用PAC900S12-B2-1 → PAC900S12-B2-1消耗量
+PAC900S12-B2-1消耗量 → PAC900S12-B2-1库存
+PAC900S12-B2-1采购量 → PAC900S12-B2-1库存
+昆仑2280销量 → PAC900S12-B2-1采购量"""
+        
+        causal_graph_text = causal_graph if causal_graph else default_causal_graph
+        
+        root_cause_section = ""
+        if root_cause_text:
+            root_cause_section = f"""
+## 已确定的根本原因
+
+{root_cause_text}
+"""
+        
         prompt = f"""你是一个专业的供应链管理顾问。请根据以下分析结果，给出具体的解决方案。
 
 ## 问题描述
-某制造企业发现部件A库存持续升高，占用大量资金，需要找出根本原因并制定解决方案。
+某制造企业发现PAC900S12-B2-1库存持续升高，占用大量资金，需要找出根本原因并制定解决方案。
 
 ## 本体信息
-以下是产品与部件的关系：
-- 产品A 使用 部件A
-- 产品B 使用 部件A1
+{ontology_info}
 
-## 业务规则
-- 部件A和部件A1是相同型号，可以通用
-- 产品A销量在近期出现下降
-- 产品B销量保持稳定
+## 因果图结构（有向无环图）
 
+```
+{causal_graph_text}
+```
+{root_cause_section}
 ## 根因分析结果
 
 通过因果分析，已找出导致库存高的根本原因：
 
 ### 1. 库存对比
 - 实际库存均值: {cf_results.get('actual_inventory_mean', 0):.2f}
-- 反事实库存均值（如果产品B使用部件A）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
+- 反事实库存均值（如果2288HV7使用PAC900S12-B2-1）: {cf_results.get('counterfactual_inventory_mean', 0):.2f}
 - 库存降低: {cf_results.get('inventory_reduction', 0):.2f} ({cf_results.get('reduction_percentage', 0):.2f}%)
 
 ### 2. 因果效应
-- 如果产品B使用部件A，库存可降低 {cf_results.get('reduction_percentage', 0):.2f}%
+- 如果2288HV7使用PAC900S12-B2-1，库存可降低 {cf_results.get('reduction_percentage', 0):.2f}%
 
 ### 3. 根因判定
 - 是否为根因: {'是' if cf_results.get('is_root_cause', False) else '否'}

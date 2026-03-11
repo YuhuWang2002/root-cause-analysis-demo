@@ -1,5 +1,5 @@
 """
-PAC900S12-B2库存高因果根因分析 - 本体图API
+PAC900S12-B2-1库存高因果根因分析 - 本体图API
 
 提供本体图的JSON数据，用于展示产品与部件的关系
 """
@@ -77,14 +77,23 @@ class OntologyAPI:
             本体图可视化数据
         """
         ontology_data = OntologyAPI.get_ontology_data()
+        schema_path = os.path.join(os.path.dirname(__file__), 'server_inventory_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_data = json.load(f)
+        
+        entity_attrs = {}
+        for entity_type in schema_data.get('entity_types', []):
+            entity_attrs[entity_type['id']] = entity_type.get('attributes', [])
         
         nodes = []
         for entity in ontology_data["entities"]:
+            attrs = entity_attrs.get(entity["id"], [])
             nodes.append({
                 "id": entity["id"],
                 "label": entity["name"],
                 "type": entity["type"],
                 "description": entity["description"],
+                "attributes": attrs,
                 "color": "#2E86AB" if entity["type"] == "Product" else "#A23B72"
             })
         
@@ -120,6 +129,100 @@ class OntologyAPI:
             text_lines.append(f"{source} {relation['relation_type']} {target}")
         
         return "\n".join(text_lines)
+    
+    @staticmethod
+    def get_metrics_from_ontology() -> List[Dict]:
+        """
+        从本体中提取所有指标属性
+        
+        Returns:
+            指标列表，每个指标包含fieldName, description, entity等信息
+        """
+        schema_path = os.path.join(os.path.dirname(__file__), 'server_inventory_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_data = json.load(f)
+        
+        metrics = []
+        for entity_type in schema_data.get('entity_types', []):
+            entity_name = entity_type.get('name')
+            entity_id = entity_type.get('id')
+            entity_type_val = entity_type.get('type')
+            
+            for attr in entity_type.get('attributes', []):
+                if attr.get('type') == 'metric':
+                    metric = {
+                        "fieldName": attr.get('fieldName'),
+                        "name": attr.get('name'),
+                        "description": attr.get('description'),
+                        "unit": attr.get('unit'),
+                        "dataType": attr.get('dataType'),
+                        "entityName": entity_name,
+                        "entityId": entity_id,
+                        "entityType": entity_type_val
+                    }
+                    metrics.append(metric)
+        
+        return metrics
+    
+    @staticmethod
+    def get_metrics_text() -> str:
+        """
+        获取指标字段的文本描述
+        
+        Returns:
+            指标字段文本描述
+        """
+        metrics = OntologyAPI.get_metrics_from_ontology()
+        
+        text_lines = []
+        for metric in metrics:
+            text_lines.append(f"- {metric['fieldName']}: {metric['description']}")
+        
+        return "\n".join(text_lines)
+    
+    @staticmethod
+    def get_ontology_info_for_llm() -> str:
+        """
+        获取用于LLM推理的本体信息
+        
+        Returns:
+            本体信息文本，包含实体、关系和指标
+        """
+        schema_path = os.path.join(os.path.dirname(__file__), 'server_inventory_schema.json')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_data = json.load(f)
+        
+        info_lines = []
+        
+        info_lines.append("## 实体类型")
+        for entity_type in schema_data.get('entity_types', []):
+            entity_name = entity_type.get('name')
+            entity_id = entity_type.get('id')
+            entity_type_val = entity_type.get('type')
+            entity_desc = entity_type.get('description')
+            info_lines.append(f"- {entity_name}({entity_id}): {entity_desc} [类型: {entity_type_val}]")
+            
+            metrics = []
+            for attr in entity_type.get('attributes', []):
+                if attr.get('type') == 'metric':
+                    metrics.append(f"  - 指标: {attr.get('fieldName')} - {attr.get('description')}")
+            if metrics:
+                info_lines.extend(metrics)
+        
+        info_lines.append("\n## 关系类型")
+        for relation_type in schema_data.get('relation_types', []):
+            rel_name = relation_type.get('name')
+            rel_desc = relation_type.get('description')
+            sources = relation_type.get('source_types', [])
+            targets = relation_type.get('target_types', [])
+            info_lines.append(f"- {rel_name}: {sources} -> {targets} ({rel_desc})")
+        
+        info_lines.append("\n## 数据字段（从本体中提取）")
+        metrics = OntologyAPI.get_metrics_from_ontology()
+        for metric in metrics:
+            info_lines.append(f"- {metric['fieldName']}: {metric['description']}")
+        
+        return "\n".join(info_lines)
 
 
 if __name__ == "__main__":
