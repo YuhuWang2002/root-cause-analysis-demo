@@ -180,7 +180,8 @@ class LLMExplainer:
                          counterfactual_data: pd.DataFrame,
                          ontology_info: str = None,
                          causal_graph: str = None,
-                         root_cause_text: str = None) -> str:
+                         root_cause_text: str = None,
+                         knowledge_base: str = None) -> str:
         """
         生成解决方案（6.3步骤）
         
@@ -191,6 +192,7 @@ class LLMExplainer:
             ontology_info: 本体信息JSON
             causal_graph: 因果图DOT字符串
             root_cause_text: 根因分析文本
+            knowledge_base: 企业知识库
             
         Returns:
             解决方案文本
@@ -201,7 +203,8 @@ class LLMExplainer:
             counterfactual_data,
             ontology_info,
             causal_graph,
-            root_cause_text
+            root_cause_text,
+            knowledge_base
         )
         
         if not self.client:
@@ -414,7 +417,8 @@ PAC900S12-B2-1采购量 → PAC900S12-B2-1库存
                                counterfactual_data: pd.DataFrame,
                                ontology_info: str = None,
                                causal_graph: str = None,
-                               root_cause_text: str = None) -> str:
+                               root_cause_text: str = None,
+                               knowledge_base: str = None) -> str:
         """构建解决方案prompt（6.3步骤）"""
         
         cf_results = analysis_results.get('counterfactual_analysis', {})
@@ -441,12 +445,21 @@ PAC900S12-B2-1采购量 → PAC900S12-B2-1库存
 {root_cause_text}
 """
         
+        knowledge_base_section = ""
+        if knowledge_base:
+            knowledge_base_section = f"""
+## 企业知识库
+
+{knowledge_base}
+
+"""
+        
         prompt = f"""你是一个专业的供应链管理顾问。请根据以下分析结果，给出具体的解决方案。
 
 ## 问题描述
 某制造企业发现PAC900S12-B2-1库存持续升高，占用大量资金，需要找出根本原因并制定解决方案。
 
-## 本体信息
+{knowledge_base_section}## 本体信息
 {ontology_info}
 
 ## 因果图结构（有向无环图）

@@ -164,6 +164,7 @@ class InventoryAnalysisWebApp:
             ontology_info = self._get_selected_ontology_info_for_llm()
             causal_graph = st.session_state.get('causal_graph', None)
             root_cause_text = self.root_cause_explanation
+            knowledge_base = st.session_state.get('solution_knowledge_base', None)
             
             with st.spinner("大模型正在生成解决方案..."):
                 self.solution = self.llm_explainer.generate_solution(
@@ -172,7 +173,8 @@ class InventoryAnalysisWebApp:
                     self.counterfactual_data,
                     ontology_info,
                     causal_graph,
-                    root_cause_text
+                    root_cause_text,
+                    knowledge_base
                 )
                 st.session_state.solution = self.solution
         
@@ -534,7 +536,7 @@ class InventoryAnalysisWebApp:
                                     "字段名": attr.get('fieldName', attr.get('value', '')),
                                     "描述": attr.get('description', '')
                                 })
-                            st.dataframe(pd.DataFrame(attrs_data), use_container_width=True)
+                            st.dataframe(pd.DataFrame(attrs_data), width='stretch')
             
             # 关系数量，点击展开详情（独占一行）
             with st.expander(f"🔗 **关系数量**: {len(ontology_data['edges'])} 个", expanded=True):
@@ -543,18 +545,14 @@ class InventoryAnalysisWebApp:
                     {"源节点": edge['source'], "目标节点": edge['target'], "关系类型": edge['label']}
                     for edge in ontology_data['edges']
                 ])
-                st.dataframe(relations_df, use_container_width=True)
+                st.dataframe(relations_df, width='stretch')
             
-            # 规则数量，点击展开详情（独占一行）
-            with st.expander(f"📋 **规则数量**: {len(ontology_data['rules'])} 个"):
-                st.markdown("**规则详情**:")
-                for rule in ontology_data['rules']:
-                    st.info(f"📋 {rule['name']}: {rule['description']}")
+           
             
             st.markdown("---")
             
             # 节点选择和添加功能
-            st.markdown("#### 🎯 节点选择与添加")
+            st.markdown("#### 🎯 探索本体关系")
             
             # 处理节点点击事件
             pass
@@ -682,10 +680,7 @@ class InventoryAnalysisWebApp:
         # 初始化规则列表
         if 'custom_rules' not in st.session_state:
             st.session_state.custom_rules = [
-                {"id": "rule_1", "name": "部件通用规则", "content": "相同类型的部件可以通用"},
-                {"id": "rule_2", "name": "数据完整性", "content": "无缺失值"},
-                {"id": "rule_3", "name": "数据准确性", "content": "数值范围合理"},
-                {"id": "rule_4", "name": "数据一致性", "content": "时间连续"},
+                {"id": "rule_1", "name": "部件通用规则", "content": "在同一供应商下的部件，型号一样可以通用"},
             ]
         
         st.markdown("##### 规则列表")
@@ -786,7 +781,7 @@ class InventoryAnalysisWebApp:
         
         st.markdown("""
         <div class="info-box">
-        <p><strong>定义因果因素，展示因果图，进行根因分析。</strong></p>
+        <p><strong>根据因果知识库，定义因果因素，展示因果图，进行根因分析。</strong></p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1043,7 +1038,7 @@ class InventoryAnalysisWebApp:
                     st.info("💡 快速模式下跳过了多变量分析。如需完整分析，请取消勾选'快速模式'后重新运行。")
                 else:
                     effects_df = pd.DataFrame(causal_effects)
-                    st.dataframe(effects_df, use_container_width=True)
+                    st.dataframe(effects_df, width='stretch')
             else:
                 st.info("💡 快速模式下跳过了多变量分析。如需完整分析，请取消勾选'快速模式'后重新运行。")
             
@@ -1072,9 +1067,42 @@ class InventoryAnalysisWebApp:
         
         st.markdown("""
         <div class="info-box">
-        <p><strong>调用LLM生成解决方案，根据反事实分析给出的解决方案。</strong></p>
+        <p><strong>调用LLM生成解决方案，根据反事实分析给出的解决方案。您可以编辑企业知识库，让LLM根据企业知识库给出更贴合实际的解决方案。</strong></p>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 初始化企业知识库
+        if 'solution_knowledge_base' not in st.session_state:
+            st.session_state.solution_knowledge_base = """## 企业知识库
+
+### 库存管理策略
+- 安全库存设置：关键部件保持30天安全库存
+- 采购周期：常规部件采购周期为14天
+- 库存周转率目标：库存周转率不低于4次/年
+
+### 供应商管理
+- 供应商A：电源主要供应商，交货周期7天，信用等级A
+- 供应商B：备用供应商，交货周期14天，信用等级B
+- 优先使用供应商A
+
+### 库存优化措施
+- 定期盘点：每月进行一次全面盘点
+- 预测补货：基于历史销售数据进行预测补货
+- 呆滞库存处理：超过90天未使用的库存需要评估处理
+
+### 决策权限
+- 紧急采购：需要总监审批
+- 常规采购：经理审批即可
+- 库存调整：需要业务部门确认"""
+
+        # 知识库编辑
+        with st.expander("📚 企业知识库（可编辑）", expanded=True):
+            st.session_state.solution_knowledge_base = st.text_area(
+                "编辑企业知识库",
+                value=st.session_state.solution_knowledge_base,
+                height=300,
+                key="knowledge_base_editor"
+            )
         
         if self.analysis_results is None:
             st.warning("请先运行因果分析")
