@@ -382,8 +382,8 @@ class InventoryAnalysisWebApp:
         self._render_step1()
         self._render_step2()
         self._render_step3()
-        self._render_step4()
         self._render_step5()
+        self._render_step4()
         self._render_step6()
         self._render_step7()
         self._render_step8()
@@ -420,8 +420,8 @@ class InventoryAnalysisWebApp:
         <div class="step-content">
         <p><strong>用户需要从数据库中获取库存数据和相关指标数据。本次演示使用的是模拟数据。</strong></p>
         <ul>
-            <li>数据来源：企业ERP系统、库存管理系统</li>
-            <li>数据类型：产品销量、部件消耗、库存水平</li>
+            <li>数据来源：企业采购系统，库存管理系统，销售系统</li>
+            <li>数据类型：产品销量、部件消耗、库存水平，采购量</li>
         </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -781,7 +781,7 @@ class InventoryAnalysisWebApp:
         
         st.markdown("""
         <div class="info-box">
-        <p><strong>根据因果知识库，定义因果因素，展示因果图，进行根因分析。</strong></p>
+        <p><strong>根据因果知识库，可能存在多个导致库存高的因素。通过因果分析算法，分析各个因素与库存之间的因果关系，找出真正的根本原因。</strong></p>
         </div>
         """, unsafe_allow_html=True)
         
