@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0D7377;
+  --color-primary-light: #14A3A8;
+  --color-primary-dark: #095456;
+  --color-accent: #FF6B35;
+  --color-accent-light: #FF8F66;
+  --color-accent-dark: #E55520;
+  --color-bg-primary: #FAFBFC;
+  --color-bg-secondary: #F0F2F5;
+  --color-bg-card: #FFFFFF;
+  --color-text-primary: #1A1D21;
+  --color-text-secondary: #5E6C84;
+  --color-text-muted: #97A0AF;
+  --color-border: #DFE1E6;
+  --color-success: #36B37E;
+  --color-warning: #FFAB00;
+  --color-error: #FF5630;
+  --color-info: #4C9AFF;
+  --color-node-data: #6554C0;
+  --color-node-process: #00B8D9;
+  --color-node-analysis: #FF991F;
+  --color-node-result: #36B37E;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  font-weight: 600;
+}
+
+.font-display {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+}
+
+.font-body {
+  font-family: 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(circle, #DFE1E6 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes flow-line {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flow {
+  animation: flow-line 1s linear infinite;
+}
