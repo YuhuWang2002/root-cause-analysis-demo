@@ -76,27 +76,12 @@ export default function OntologyEditor() {
   const [newPropertyDescription, setNewPropertyDescription] = useState('');
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
-  const lastOntologyIdRef = useRef<number | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   useEffect(() => {
     if (!currentOntology) return;
-
-    if (lastOntologyIdRef.current === currentOntology.id && nodes.length > 0) {
-      const selectedNodeIndex = nodes.findIndex((n: any) => n.selected);
-      if (selectedNodeIndex !== -1) {
-        const updatedNodes = nodes.map((n: any) => ({
-          ...n,
-          selected: String(n.id) === String(selectedClassId),
-        }));
-        setNodes(updatedNodes as any);
-      }
-      return;
-    }
-
-    lastOntologyIdRef.current = currentOntology.id;
 
     const classIds = new Set(currentOntology.classes.map(c => String(c.id)));
     const canvasNodeIds = new Set(currentOntology.canvas_data?.map((n: any) => n.id) || []);

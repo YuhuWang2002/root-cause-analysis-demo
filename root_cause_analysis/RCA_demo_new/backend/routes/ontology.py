@@ -12,17 +12,61 @@ def get_ontologies(project_id):
 @bp.route('/<project_id>/ontologies', methods=['POST'])
 def create_ontology(project_id):
     data = request.get_json()
-    
+
+    copy_from_id = data.get('copy_from')
+    if copy_from_id:
+        template_ontology = Ontology.query.get(copy_from_id)
+        if template_ontology:
+            new_ontology = Ontology(
+                project_id=project_id,
+                name=data.get('name', template_ontology.name),
+                description=data.get('description', template_ontology.description),
+                canvas_data=template_ontology.canvas_data
+            )
+            db.session.add(new_ontology)
+            db.session.flush()
+
+            for cls in template_ontology.classes:
+                new_cls = OntologyClass(
+                    ontology_id=new_ontology.id,
+                    name=cls.name,
+                    description=cls.description
+                )
+                db.session.add(new_cls)
+                db.session.flush()
+
+                for prop in cls.properties:
+                    from models import ClassProperty
+                    new_prop = ClassProperty(
+                        class_id=new_cls.id,
+                        name=prop.name,
+                        type=prop.type,
+                        description=prop.description
+                    )
+                    db.session.add(new_prop)
+
+            for rel in template_ontology.relations:
+                new_rel = OntologyRelation(
+                    ontology_id=new_ontology.id,
+                    source_class_id=rel.source_class_id,
+                    target_class_id=rel.target_class_id,
+                    relation_type=rel.relation_type
+                )
+                db.session.add(new_rel)
+
+            db.session.commit()
+            return jsonify(new_ontology.to_dict()), 201
+
     ontology = Ontology(
         project_id=project_id,
         name=data.get('name', '新本体库'),
         description=data.get('description', ''),
         canvas_data='[]'
     )
-    
+
     db.session.add(ontology)
     db.session.commit()
-    
+
     return jsonify(ontology.to_dict()), 201
 
 @bp.route('/<project_id>/ontologies/<int:ontology_id>', methods=['GET'])

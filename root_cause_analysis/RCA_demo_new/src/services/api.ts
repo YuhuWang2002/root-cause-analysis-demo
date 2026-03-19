@@ -228,3 +228,81 @@ export async function deleteOntologyRelation(projectId: string, ontologyId: numb
     method: 'DELETE',
   });
 }
+
+// ============ Data Analysis Dashboard APIs ============
+
+export interface CSVAnalysisResult {
+  file_path: string;
+  total_rows: number;
+  fields: Array<{ name: string; type: string; sample: any; null_count: number }>;
+}
+
+export interface DataQuery {
+  fields?: string[];
+  filters?: Array<{ field: string; operator: string; value: any }>;
+  groupBy?: { field: string; granularity: string };
+  aggregations?: Array<{ field: string; function: string; alias: string }>;
+}
+
+export interface DataSource {
+  type: string;
+  file_path: string;
+}
+
+export interface DataQueryResult {
+  fields: Array<{ name: string; type: string }>;
+  data: any[];
+}
+
+export interface Dashboard {
+  id: number;
+  project_id: string;
+  name: string;
+  description: string;
+  layout: any;
+  components: any[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function analyzeCSV(filePath: string): Promise<CSVAnalysisResult> {
+  return fetchAPI<CSVAnalysisResult>('/data/csv/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ file_path: filePath }),
+  });
+}
+
+export async function queryData(dataSource: DataSource, query: DataQuery): Promise<DataQueryResult> {
+  return fetchAPI<DataQueryResult>('/data/query', {
+    method: 'POST',
+    body: JSON.stringify({ dataSource, query }),
+  });
+}
+
+export async function getDashboards(projectId: string): Promise<Dashboard[]> {
+  return fetchAPI<Dashboard[]>(`/projects/${projectId}/dashboards`);
+}
+
+export async function getDashboard(projectId: string, dashboardId: number): Promise<Dashboard> {
+  return fetchAPI<Dashboard>(`/projects/${projectId}/dashboards/${dashboardId}`);
+}
+
+export async function createDashboard(projectId: string, data: { name: string; description?: string; layout?: any; components?: any[] }): Promise<Dashboard> {
+  return fetchAPI<Dashboard>(`/projects/${projectId}/dashboards`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateDashboard(projectId: string, dashboardId: number, data: Partial<{ name: string; description: string; layout: any; components: any[] }>): Promise<Dashboard> {
+  return fetchAPI<Dashboard>(`/projects/${projectId}/dashboards/${dashboardId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteDashboard(projectId: string, dashboardId: number): Promise<{ message: string }> {
+  return fetchAPI<{ message: string }>(`/projects/${projectId}/dashboards/${dashboardId}`, {
+    method: 'DELETE',
+  });
+}

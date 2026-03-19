@@ -126,7 +126,7 @@ class OntologyClass(db.Model):
 
 class OntologyRelation(db.Model):
     __tablename__ = 'ontology_relations'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     ontology_id = db.Column(db.Integer, db.ForeignKey('ontologies.id'), nullable=False)
     source_class_id = db.Column(db.Integer, db.ForeignKey('ontology_classes.id'), nullable=False)
@@ -134,10 +134,10 @@ class OntologyRelation(db.Model):
     relation_type = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     source_class = db.relationship('OntologyClass', foreign_keys=[source_class_id])
     target_class = db.relationship('OntologyClass', foreign_keys=[target_class_id])
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -149,4 +149,29 @@ class OntologyRelation(db.Model):
             'source_class_name': self.source_class.name if self.source_class else None,
             'target_class_name': self.target_class.name if self.target_class else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Dashboard(db.Model):
+    __tablename__ = 'dashboards'
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.String(36), db.ForeignKey('projects.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    data_source = db.Column(db.Text, default='{}')
+    components = db.Column(db.Text, default='[]')
+    layout = db.Column(db.Text, default='{}')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'name': self.name,
+            'data_source': json.loads(self.data_source) if self.data_source else {},
+            'components': json.loads(self.components) if self.components else [],
+            'layout': json.loads(self.layout) if self.layout else {},
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

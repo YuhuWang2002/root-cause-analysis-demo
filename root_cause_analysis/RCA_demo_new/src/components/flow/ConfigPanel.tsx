@@ -6,6 +6,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useOntologyStore } from '@/stores/ontologyStore';
 import { Button } from '@/components/common/Button';
 import { Input, Select, Textarea } from '@/components/common/Input';
+import * as api from '@/services/api';
 
 const typeColors: Record<string, { bg: string; light: string; label: string }> = {
   system: { bg: '#8B5CF6', light: 'rgba(139, 92, 246, 0.15)', label: '源系统' },
@@ -613,29 +614,71 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
 
 function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSave: (config: Record<string, unknown>) => void }) {
   const analysisType = node.detail || 'ontology_explore';
+  const { currentProjectId } = useFlowStore();
+  const navigate = useNavigate();
   
   const [selectedEntities, setSelectedEntities] = useState<string[]>(node.config?.selectedEntities || []);
   const [analysisParams, setAnalysisParams] = useState(node.config?.params || {});
+  const [dashboards, setDashboards] = useState<api.Dashboard[]>([]);
+  const [isNavigating, setIsNavigating] = useState(false);
+  
+  const savedDashboardId = node.config?.dashboardId;
+  
+  useEffect(() => {
+    if (currentProjectId) {
+      api.getDashboards(currentProjectId).then(data => {
+        setDashboards(data);
+      }).catch(err => console.error('Failed to load dashboards:', err));
+    }
+  }, [currentProjectId]);
+  
+  const handleOpenDashboard = async () => {
+    if (!currentProjectId || isNavigating) return;
+    setIsNavigating(true);
+    
+    try {
+      let targetDashboardId = savedDashboardId;
+      
+      if (!targetDashboardId) {
+        const newDashboard = await api.createDashboard(currentProjectId, {
+          name: `${node.name || '数据分析'}看板`,
+          layout: { type: 'grid', cols: 12 },
+          components: [],
+        });
+        targetDashboardId = newDashboard.id;
+      }
+      
+      // 更新节点配置
+      const newConfig = { ...node.config, dashboardId: targetDashboardId };
+      
+      // 先更新onSave
+      onSave(newConfig);
+      
+      // 获取当前canvas数据，更新节点配置后保存
+      const canvasData = await api.getCanvas(currentProjectId);
+      const updatedNodes = canvasData.nodes.map((n: any) => 
+        n.id === node.id ? { ...n, config: newConfig } : n
+      );
+      await api.saveCanvas(currentProjectId, {
+        nodes: updatedNodes,
+        connections: canvasData.connections
+      });
+      
+      navigate(`/dashboard/${currentProjectId}/${targetDashboardId}`);
+    } catch (err) {
+      console.error('Failed to open dashboard:', err);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
   
   const ontologyNodes = nodes.filter(n => n.type === 'ontology');
-  const currentOntology = ontologyNodes.find(n => {
-    const conns = nodes.flatMap((_, i) => []);
-    return true;
-  });
-  
-  const ontologyNode = nodes.find(n => n.id === node.id);
   
   let ontologyConfig: any = null;
-  if (node.detail === 'ontology_explore') {
-    const sourceOntology = nodes.find(n => {
-      const conns = [];
-      return true;
-    });
-    for (const n of nodes) {
-      if (n.type === 'ontology') {
-        ontologyConfig = n.config;
-        break;
-      }
+  for (const n of nodes) {
+    if (n.type === 'ontology') {
+      ontologyConfig = n.config;
+      break;
     }
   }
   
@@ -651,154 +694,149 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
   };
   
   const handleSave = () => {
-    onSave({ selectedEntities, params: analysisParams });
+    onSave({ selectedEntities, params: analysisParams, dashboardId: node.config?.dashboardId });
   };
 
-  if (analysisType === 'ontology_explore') {
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">选择展示的实体</label>
-          {entities.length === 0 ? (
-            <p className="text-sm text-gray-500">请先在本体库中配置实体</p>
-          ) : (
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {entities.map((entity: any) => (
-                <label
-                  key={entity.name}
-                  className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
-                    selectedEntities.includes(entity.name)
-                      ? 'bg-pink-900/50 border border-pink-700'
-                      : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedEntities.includes(entity.name)}
-                    onChange={() => handleToggleEntity(entity.name)}
-                    className="sr-only"
-                  />
-                  <span className="text-sm text-gray-300">{entity.name}</span>
-                  {entity.description && (
-                    <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {selectedEntities.length > 0 && relationships.length > 0 && (
+  // 所有 analysis 节点都显示跳转按钮
+  return (
+    <div className="space-y-4">
+      <div>
+        <button
+          onClick={handleOpenDashboard}
+          disabled={isNavigating}
+          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium disabled:opacity-50"
+        >
+          {isNavigating ? '打开中...' : '打开数据分析看板'}
+        </button>
+      </div>
+      
+      {analysisType === 'data_analysis' && (
+        <>
           <div>
-            <label className="block text-sm text-gray-400 mb-2">实体关系图预览</label>
-            <div className="bg-gray-800 rounded-lg p-3 text-xs text-gray-500">
-              <p>已选择 {selectedEntities.length} 个实体</p>
-              <p>可用关系: {relationships.length} 条</p>
-              <div className="mt-2 space-y-1">
-                {relationships.slice(0, 5).map((rel: any, i: number) => (
-                  <p key={i}>{rel.from} → {rel.to} ({rel.type})</p>
+            <label className="block text-sm text-gray-400 mb-2">分析类型</label>
+            <select
+              value={analysisParams.type || 'statistics'}
+              onChange={(e) => setAnalysisParams({ ...analysisParams, type: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+            >
+              <option value="statistics">统计分析</option>
+              <option value="trend">趋势分析</option>
+              <option value="correlation">相关性分析</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">输出格式</label>
+            <select
+              value={analysisParams.format || 'chart'}
+              onChange={(e) => setAnalysisParams({ ...analysisParams, format: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+            >
+              <option value="chart">图表</option>
+              <option value="table">表格</option>
+              <option value="report">报告</option>
+            </select>
+          </div>
+        </>
+      )}
+      
+      {analysisType === 'root_cause' && (
+        <>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">分析深度</label>
+            <select
+              value={analysisParams.depth || '2'}
+              onChange={(e) => setAnalysisParams({ ...analysisParams, depth: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+            >
+              <option value="1">1 层</option>
+              <option value="2">2 层</option>
+              <option value="3">3 层</option>
+              <option value="5">5 层</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">根因阈值</label>
+            <input
+              type="number"
+              value={analysisParams.threshold || '0.5'}
+              onChange={(e) => setAnalysisParams({ ...analysisParams, threshold: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+              step="0.1"
+              min="0"
+              max="1"
+            />
+          </div>
+          
+          <div>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={analysisParams.autoDetect || false}
+                onChange={(e) => setAnalysisParams({ ...analysisParams, autoDetect: e.target.checked })}
+                className="rounded bg-gray-700 border-gray-600"
+              />
+              <span className="text-sm text-gray-300">自动根因检测</span>
+            </label>
+          </div>
+        </>
+      )}
+      
+      {analysisType === 'ontology_explore' && (
+        <>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">选择展示的实体</label>
+            {entities.length === 0 ? (
+              <p className="text-sm text-gray-500">请先在本体库中配置实体</p>
+            ) : (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {entities.map((entity: any) => (
+                  <label
+                    key={entity.name}
+                    className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
+                      selectedEntities.includes(entity.name)
+                        ? 'bg-pink-900/50 border border-pink-700'
+                        : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedEntities.includes(entity.name)}
+                      onChange={() => handleToggleEntity(entity.name)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm text-gray-300">{entity.name}</span>
+                    {entity.description && (
+                      <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
+                    )}
+                  </label>
                 ))}
-                {relationships.length > 5 && <p>...等 {relationships.length} 条关系</p>}
+              </div>
+            )}
+          </div>
+          
+          {selectedEntities.length > 0 && relationships.length > 0 && (
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">实体关系图预览</label>
+              <div className="bg-gray-800 rounded-lg p-3 text-xs text-gray-500">
+                <p>已选择 {selectedEntities.length} 个实体</p>
+                <p>可用关系: {relationships.length} 条</p>
+                <div className="mt-2 space-y-1">
+                  {relationships.slice(0, 5).map((rel: any, i: number) => (
+                    <p key={i}>{rel.from} → {rel.to} ({rel.type})</p>
+                  ))}
+                  {relationships.length > 5 && <p>...等 {relationships.length} 条关系</p>}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        
-        <Button onClick={handleSave} className="w-full">
-          保存配置
-        </Button>
-      </div>
-    );
-  }
-  
-  if (analysisType === 'data_analysis') {
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">分析类型</label>
-          <select
-            value={analysisParams.type || 'statistics'}
-            onChange={(e) => setAnalysisParams({ ...analysisParams, type: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
-          >
-            <option value="statistics">统计分析</option>
-            <option value="trend">趋势分析</option>
-            <option value="correlation">相关性分析</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">输出格式</label>
-          <select
-            value={analysisParams.format || 'chart'}
-            onChange={(e) => setAnalysisParams({ ...analysisParams, format: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
-          >
-            <option value="chart">图表</option>
-            <option value="table">表格</option>
-            <option value="report">报告</option>
-          </select>
-        </div>
-        
-        <Button onClick={handleSave} className="w-full">
-          保存配置
-        </Button>
-      </div>
-    );
-  }
-  
-  if (analysisType === 'root_cause') {
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">分析深度</label>
-          <select
-            value={analysisParams.depth || '2'}
-            onChange={(e) => setAnalysisParams({ ...analysisParams, depth: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
-          >
-            <option value="1">1 层</option>
-            <option value="2">2 层</option>
-            <option value="3">3 层</option>
-            <option value="5">5 层</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">根因阈值</label>
-          <input
-            type="number"
-            value={analysisParams.threshold || '0.5'}
-            onChange={(e) => setAnalysisParams({ ...analysisParams, threshold: e.target.value })}
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
-            step="0.1"
-            min="0"
-            max="1"
-          />
-        </div>
-        
-        <div>
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={analysisParams.autoDetect || false}
-              onChange={(e) => setAnalysisParams({ ...analysisParams, autoDetect: e.target.checked })}
-              className="rounded bg-gray-700 border-gray-600"
-            />
-            <span className="text-sm text-gray-300">自动根因检测</span>
-          </label>
-        </div>
-        
-        <Button onClick={handleSave} className="w-full">
-          保存配置
-        </Button>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="text-center py-8">
-      <p className="text-gray-500">未知分析类型</p>
+          )}
+        </>
+      )}
+      
+      <Button onClick={handleSave} className="w-full">
+        保存配置
+      </Button>
     </div>
   );
 }
