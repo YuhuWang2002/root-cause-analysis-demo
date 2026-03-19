@@ -1,88 +1,120 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project } from '@/types';
+import * as api from '@/services/api';
 
 interface ProjectState {
   projects: Project[];
   searchQuery: string;
   statusFilter: 'all' | 'draft' | 'running' | 'completed' | 'failed';
   sortBy: 'newest' | 'oldest';
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => string;
-  createEmptyProject: () => string;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
+  isLoading: boolean;
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  createEmptyProject: () => Promise<string>;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: ProjectState['statusFilter']) => void;
   setSortBy: (sort: ProjectState['sortBy']) => void;
   getFilteredProjects: () => Project[];
+  fetchProjects: () => Promise<void>;
 }
+
+const mapApiProjectToProject = (apiProject: api.Project): Project => ({
+  id: apiProject.id,
+  name: apiProject.name,
+  description: apiProject.description,
+  scenario: 'custom',
+  status: apiProject.status as Project['status'],
+  progress: apiProject.progress,
+  createdAt: apiProject.created_at,
+  updatedAt: apiProject.updated_at,
+});
 
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
-      projects: [
-        {
-          id: '1',
-          name: '系统异常根因分析',
-          description: '分析线上系统频繁异常的根因，识别关键故障因素',
-          scenario: 'system_anomaly',
-          status: 'running',
-          progress: 65,
-          createdAt: '2024-01-15T10:00:00Z',
-          updatedAt: '2024-01-16T14:30:00Z',
-        },
-        {
-          id: '2',
-          name: '性能瓶颈分析',
-          description: '识别数据库查询性能瓶颈，优化系统响应时间',
-          scenario: 'performance',
-          status: 'completed',
-          progress: 100,
-          createdAt: '2024-01-10T09:00:00Z',
-          updatedAt: '2024-01-12T16:00:00Z',
-        },
-        {
-          id: '3',
-          name: '用户流失原因分析',
-          description: '分析用户流失的关键因素，制定留存策略',
-          scenario: 'quality',
-          status: 'draft',
-          progress: 0,
-          createdAt: '2024-01-18T11:00:00Z',
-          updatedAt: '2024-01-18T11:00:00Z',
-        },
-      ],
+      projects: [],
       searchQuery: '',
       statusFilter: 'all',
       sortBy: 'newest',
+      isLoading: false,
 
-      addProject: (project) => {
-        const newProject: Project = {
-          ...project,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        set((state) => ({ projects: [...state.projects, newProject] }));
-        return newProject.id;
+      fetchProjects: async () => {
+        set({ isLoading: true });
+        try {
+          const apiProjects = await api.getProjects();
+          const projects = apiProjects.map(mapApiProjectToProject);
+          set({ projects, isLoading: false });
+        } catch (error) {
+          console.error('Failed to fetch projects:', error);
+          set({ isLoading: false });
+        }
       },
 
-      createEmptyProject: () => {
-        const newProject: Project = {
-          id: `proj-${Date.now()}`,
-          name: '新分析项目',
-          description: '',
-          scenario: 'custom',
-          status: 'draft',
-          progress: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        set((state) => ({ projects: [...state.projects, newProject] }));
-        return newProject.id;
+      addProject: async (project) => {
+        try {
+          const apiProject = await api.createProject({
+            name: project.name,
+            description: project.description,
+            status: project.status || 'draft',
+          });
+          const newProject = mapApiProjectToProject(apiProject);
+          set((state) => ({ projects: [...state.projects, newProject] }));
+          return newProject.id;
+        } catch (error) {
+          console.error('Failed to create project:', error);
+          const newId = `local-${Date.now()}`;
+          const newProject: Project = {
+            ...project,
+            id: newId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          set((state) => ({ projects: [...state.projects, newProject] }));
+          return newId;
+        }
       },
 
-      updateProject: (id, updates) => {
+      createEmptyProject: async () => {
+        try {
+          const apiProject = await api.createProject({
+            name: '新分析项目',
+            description: '',
+            status: 'draft',
+          });
+          const newProject = mapApiProjectToProject(apiProject);
+          set((state) => ({ projects: [...state.projects, newProject] }));
+          return newProject.id;
+        } catch (error) {
+          console.error('Failed to create project:', error);
+          const newId = `local-${Date.now()}`;
+          const newProject: Project = {
+            name: '新分析项目',
+            description: '',
+            scenario: 'custom',
+            status: 'draft',
+            progress: 0,
+            id: newId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          set((state) => ({ projects: [...state.projects, newProject] }));
+          return newId;
+        }
+      },
+
+      updateProject: async (id, updates) => {
+        try {
+          await api.updateProject(id, {
+            name: updates.name,
+            description: updates.description,
+            status: updates.status,
+            progress: updates.progress,
+          });
+        } catch (error) {
+          console.error('Failed to update project:', error);
+        }
         set((state) => ({
           projects: state.projects.map((p) =>
             p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
@@ -90,7 +122,12 @@ export const useProjectStore = create<ProjectState>()(
         }));
       },
 
-      deleteProject: (id) => {
+      deleteProject: async (id) => {
+        try {
+          await api.deleteProject(id);
+        } catch (error) {
+          console.error('Failed to delete project:', error);
+        }
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== id),
         }));
@@ -126,7 +163,8 @@ export const useProjectStore = create<ProjectState>()(
       },
     }),
     {
-      name: 'rca-projects',
+      name: 'project-storage',
+      partialize: (state) => ({ projects: state.projects }),
     }
   )
 );

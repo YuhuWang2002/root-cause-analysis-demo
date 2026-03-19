@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import * as api from '@/services/api';
 
-export type NodeType = 'source' | 'acquisition' | 'process' | 'quality' | 'dataset' | 'ontology' | 'analysis';
+export type NodeType = 'system' | 'acquisition' | 'datapipeline' | 'quality' | 'dataset' | 'ontology' | 'ontologyExplore' | 'analysis' | 'rootCause';
 export type NodeStatus = 'pending' | 'running' | 'completed' | 'configured' | 'unconfigured';
 
 export interface FlowNodeData {
@@ -56,14 +57,15 @@ interface FlowState {
   isConfigPanelOpen: boolean;
   isPlaying: boolean;
   isAddModalOpen: boolean;
-  addModalType: 'source' | 'dataset' | 'ontology' | 'analysis' | null;
+  addModalType: 'system' | 'dataset' | 'ontology' | 'analysis' | null;
   
-  loadProject: (projectId: string) => void;
+  loadProject: (projectId: string, scenario?: string) => void;
   setSelectedNode: (id: string | null) => void;
   toggleConfigPanel: (open?: boolean) => void;
   togglePlay: () => void;
-  openAddModal: (type: 'source' | 'dataset' | 'ontology' | 'analysis') => void;
+  openAddModal: (type: 'system' | 'dataset' | 'ontology' | 'analysis') => void;
   closeAddModal: () => void;
+  addNode: (type: NodeType, x: number, y: number, name?: string) => void;
   addDataSource: (name: string, description: string, connection: string) => void;
   addOntology: (name: string, datasetId?: string) => void;
   addAnalysis: (name: string, type: 'ontology_explore' | 'data_analysis' | 'root_cause', ontologyId?: string) => void;
@@ -73,6 +75,11 @@ interface FlowState {
   removeDataset: (id: string) => void;
   updateNodeStatus: (id: string, status: NodeStatus) => void;
   updateNodeConfig: (id: string, config: Record<string, unknown>) => void;
+  updateNodePosition: (id: string, x: number, y: number) => void;
+  updateNodeName: (id: string, name: string) => void;
+  updateNodeNameByOntologyId: (ontologyId: number, name: string) => void;
+  updateNodeOntologyId: (oldOntologyId: number, newOntologyId: number, newName: string) => void;
+  addConnection: (from: string, to: string) => void;
   updateProjectAutomation: (projectId: string, config: Record<string, unknown>) => void;
   updateProjectPermissions: (projectId: string, permissions: Record<string, unknown>) => void;
 }
@@ -83,29 +90,7 @@ const START_X = 0;
 const START_Y = 60;
 
 const getInitialNodes = () => [
-  { id: 'src-1', name: '采购数据', type: 'source' as NodeType, status: 'configured' as NodeStatus, description: '企业采购管理数据库', detail: 'MySQL', x: START_X, y: START_Y },
-  { id: 'src-2', name: '生产数据', type: 'source' as NodeType, status: 'configured' as NodeStatus, description: '生产制造数据库', detail: 'PostgreSQL', x: START_X, y: START_Y + ROW_HEIGHT * 1.5 },
-  { id: 'src-3', name: '销售数据', type: 'source' as NodeType, status: 'configured' as NodeStatus, description: 'CRM 销售管理', detail: 'MongoDB', x: START_X, y: START_Y + ROW_HEIGHT * 3 },
-  
-  { id: 'acq-1', name: '数据表 1', type: 'acquisition' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH, y: START_Y },
-  { id: 'acq-2', name: '数据表 2', type: 'acquisition' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH, y: START_Y + ROW_HEIGHT * 1.5 },
-  { id: 'acq-3', name: '数据表 3', type: 'acquisition' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH, y: START_Y + ROW_HEIGHT * 3 },
-  
-  { id: 'proc-1', name: '数据转换', type: 'process' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 2, y: START_Y },
-  { id: 'proc-2', name: '数据转换', type: 'process' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 2, y: START_Y + ROW_HEIGHT * 1.5 },
-  { id: 'proc-3', name: '数据转换', type: 'process' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 2, y: START_Y + ROW_HEIGHT * 3 },
-  
-  { id: 'qual-1', name: '质量约束', type: 'quality' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 3, y: START_Y },
-  { id: 'qual-2', name: '质量约束', type: 'quality' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 3, y: START_Y + ROW_HEIGHT * 1.5 },
-  { id: 'qual-3', name: '质量约束', type: 'quality' as NodeType, status: 'configured' as NodeStatus, x: START_X + COLUMN_WIDTH * 3, y: START_Y + ROW_HEIGHT * 3 },
-  
-  { id: 'ds-1', name: '数据集 A', type: 'dataset' as NodeType, status: 'pending' as NodeStatus, description: '汇总数据集', x: START_X + COLUMN_WIDTH * 4, y: START_Y + ROW_HEIGHT * 1.5 },
-  
-  { id: 'onto-1', name: '本体库 A', type: 'ontology' as NodeType, status: 'pending' as NodeStatus, x: START_X + COLUMN_WIDTH * 5, y: START_Y + ROW_HEIGHT * 1.5 },
-  
-  { id: 'ana-1', name: '本体探索', type: 'analysis' as NodeType, status: 'pending' as NodeStatus, x: START_X + COLUMN_WIDTH * 6, y: START_Y },
-  { id: 'ana-2', name: '数据分析', type: 'analysis' as NodeType, status: 'pending' as NodeStatus, x: START_X + COLUMN_WIDTH * 6, y: START_Y + ROW_HEIGHT * 1.5 },
-  { id: 'ana-3', name: '根因分析', type: 'analysis' as NodeType, status: 'pending' as NodeStatus, x: START_X + COLUMN_WIDTH * 6, y: START_Y + ROW_HEIGHT * 3 },
+
 ];
 
 const getInitialConnections = () => [
@@ -148,20 +133,68 @@ export const useFlowStore = create<FlowState>()(
       isAddModalOpen: false,
       addModalType: null,
 
-      loadProject: (projectId: string) => {
+      loadProject: async (projectId: string, scenario?: string) => {
         const state = get();
         const projectData = state.projectsData[projectId];
-        
-        if (projectData) {
-          set({ currentProjectId: projectId });
-        } else {
+
+        const isAnalysisScenario = scenario === 'inventory';
+
+        console.log('===== loadProject called =====');
+        console.log('projectId:', projectId);
+        console.log('scenario:', scenario);
+        console.log('existing projectData:', projectData);
+
+        try {
+          const canvasData = await api.getCanvas(projectId);
+          console.log('canvasData from API:', canvasData);
+          console.log('canvasData.nodes:', canvasData?.nodes);
+          console.log('canvasData.connections:', canvasData?.connections);
+
+          let nodesToUse;
+          if (canvasData.nodes && canvasData.nodes.length > 0) {
+            nodesToUse = canvasData.nodes;
+            console.log('Using nodes from API:', nodesToUse);
+          } else if (isAnalysisScenario) {
+            nodesToUse = getInitialNodes();
+            console.log('Using initial nodes for analysis scenario');
+          } else {
+            nodesToUse = [];
+            console.log('No nodes to use, empty array');
+          }
+
           set({
             currentProjectId: projectId,
             projectsData: {
               ...state.projectsData,
-              [projectId]: { nodes: [], connections: [] },
+              [projectId]: {
+                nodes: nodesToUse,
+                connections: canvasData.connections || []
+              },
             },
           });
+          console.log('State updated with nodes:', nodesToUse);
+        } catch (error) {
+          console.error('Failed to load canvas from API:', error);
+          
+          if (projectData && projectData.nodes.length > 0) {
+            set({ currentProjectId: projectId });
+          } else if (isAnalysisScenario) {
+            set({
+              currentProjectId: projectId,
+              projectsData: {
+                ...state.projectsData,
+                [projectId]: { nodes: getInitialNodes(), connections: [] },
+              },
+            });
+          } else {
+            set({
+              currentProjectId: projectId,
+              projectsData: {
+                ...state.projectsData,
+                [projectId]: { nodes: [], connections: [] },
+              },
+            });
+          }
         }
       },
 
@@ -180,6 +213,83 @@ export const useFlowStore = create<FlowState>()(
       openAddModal: (type) => set({ isAddModalOpen: true, addModalType: type }),
       closeAddModal: () => set({ isAddModalOpen: false, addModalType: null }),
       
+      addNode: async (type, x, y, name) => {
+        const state = get();
+        const projectId = state.currentProjectId;
+        if (!projectId) return;
+
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+        const typeNodes = projectData.nodes.filter(n => n.type === type);
+        const typeIndex = typeNodes.length;
+
+        const typeLabels: Record<NodeType, string> = {
+          system: '源系统',
+          acquisition: '数据表',
+          datapipeline: 'DataPipeline',
+          quality: '质量约束',
+          dataset: '数据集',
+          ontology: '本体库',
+          ontologyExplore: '本体探索',
+          analysis: '数据分析',
+          rootCause: '根因分析',
+        };
+
+        let newNodeConfig: Record<string, unknown> = {};
+
+        if (type === 'ontology') {
+          try {
+            const ontology = await api.createOntology(projectId, {
+              name: name || `${typeLabels[type]} ${typeIndex + 1}`,
+              description: ''
+            });
+            console.log('Created new ontology:', ontology);
+            newNodeConfig = { ontologyId: ontology.id };
+          } catch (error) {
+            console.error('Failed to create ontology:', error);
+          }
+        }
+
+        const newNode: FlowNodeData = {
+          id: `${type}-${Date.now()}`,
+          name: name || `${typeLabels[type]} ${typeIndex + 1}`,
+          type,
+          status: 'pending',
+          x,
+          y,
+          config: Object.keys(newNodeConfig).length > 0 ? newNodeConfig : undefined,
+        };
+
+        const updatedNodes = [...projectData.nodes, newNode];
+        const updatedConnections = projectData.connections;
+
+        console.log('===== addNode: saving to backend =====');
+        console.log('projectId:', projectId);
+        console.log('updatedNodes:', updatedNodes);
+
+        set({
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              nodes: updatedNodes,
+              connections: updatedConnections,
+            },
+          },
+        });
+
+        set({ selectedNodeId: newNode.id, isConfigPanelOpen: true });
+
+        try {
+          await api.saveCanvas(projectId, {
+            nodes: updatedNodes,
+            connections: updatedConnections
+          });
+          console.log('===== addNode: saved successfully =====');
+        } catch (error) {
+          console.error('===== addNode: failed to save =====', error);
+        }
+      },
+      
       addDataSource: (name, description, connection) => {
         const state = get();
         const projectId = state.currentProjectId;
@@ -189,14 +299,14 @@ export const useFlowStore = create<FlowState>()(
         const nodes = projectData.nodes;
         const connections = projectData.connections;
         
-        const sourceNodes = nodes.filter(n => n.type === 'source');
+        const sourceNodes = nodes.filter(n => n.type === 'system');
         const sourceIndex = sourceNodes.length;
         const y = START_Y + ROW_HEIGHT * (sourceIndex * 1.5);
         
         const newSource: FlowNodeData = {
           id: `src-${Date.now()}`,
           name,
-          type: 'source',
+          type: 'system',
           status: 'unconfigured',
           description,
           detail: connection,
@@ -215,8 +325,8 @@ export const useFlowStore = create<FlowState>()(
         
         const newProc: FlowNodeData = {
           id: `proc-${Date.now()}`,
-          name: '数据转换',
-          type: 'process',
+          name: 'DataPipeline',
+          type: 'datapipeline',
           status: 'unconfigured',
           x: START_X + COLUMN_WIDTH * 2,
           y,
@@ -280,7 +390,7 @@ export const useFlowStore = create<FlowState>()(
         const nodesToRemove = new Set<string>([id]);
         
         nodes.forEach(node => {
-          if (node.type === 'acquisition' || node.type === 'process' || node.type === 'quality') {
+          if (node.type === 'acquisition' || node.type === 'datapipeline' || node.type === 'quality') {
             const sourceId = `src-${id.split('-')[1]}`;
             if (sourceId === id) {
               nodesToRemove.add(node.id);
@@ -496,14 +606,145 @@ export const useFlowStore = create<FlowState>()(
         
         const projectData = state.projectsData[projectId] || defaultProjectData;
         
+        const configWithoutDisplayName = { ...config };
+        const displayName = configWithoutDisplayName._displayName as string | undefined;
+        delete configWithoutDisplayName._displayName;
+        
+        const updatedNodes = projectData.nodes.map(n => {
+          if (n.id !== id) return n;
+          
+          const updatedNode: FlowNodeData = {
+            ...n,
+            config: { ...n.config, ...configWithoutDisplayName },
+            status: 'configured' as NodeStatus,
+          };
+          
+          if (displayName) {
+            updatedNode.name = displayName;
+            updatedNode.detail = displayName;
+          }
+          
+          return updatedNode;
+        });
+        
+        return {
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              nodes: updatedNodes,
+            },
+          },
+        };
+      }),
+      
+      updateNodePosition: (id, x, y) => set((state) => {
+        const projectId = state.currentProjectId;
+        if (!projectId) return state;
+        
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+        
         return {
           projectsData: {
             ...state.projectsData,
             [projectId]: {
               ...projectData,
               nodes: projectData.nodes.map(n => 
-                n.id === id ? { ...n, config: { ...n.config, ...config }, status: 'configured' as NodeStatus } : n
+                n.id === id ? { ...n, x, y } : n
               ),
+            },
+          },
+        };
+      }),
+      
+      updateNodeName: (id, name) => set((state) => {
+        const projectId = state.currentProjectId;
+        if (!projectId) return state;
+
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+
+        return {
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              nodes: projectData.nodes.map(n =>
+                n.id === id ? { ...n, name } : n
+              ),
+            },
+          },
+        };
+      }),
+
+      updateNodeNameByOntologyId: (ontologyId, name) => set((state) => {
+        const projectId = state.currentProjectId;
+        if (!projectId) return state;
+
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+
+        const updatedNodes = projectData.nodes.map(n => {
+          if (n.config?.ontologyId === ontologyId) {
+            return { ...n, name, detail: name };
+          }
+          return n;
+        });
+
+        return {
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              nodes: updatedNodes,
+            },
+          },
+        };
+      }),
+
+      updateNodeOntologyId: (oldOntologyId, newOntologyId, newName) => set((state) => {
+        const projectId = state.currentProjectId;
+        if (!projectId) return state;
+
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+
+        const updatedNodes = projectData.nodes.map(n => {
+          if (n.config?.ontologyId === oldOntologyId) {
+            return { ...n, name: newName, detail: newName, config: { ...n.config, ontologyId: newOntologyId } };
+          }
+          return n;
+        });
+
+        return {
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              nodes: updatedNodes,
+            },
+          },
+        };
+      }),
+
+      addConnection: (from, to) => set((state) => {
+        const projectId = state.currentProjectId;
+        if (!projectId) return {};
+        
+        const projectData = state.projectsData[projectId] || defaultProjectData;
+        
+        const exists = projectData.connections.some(c => c.from === from && c.to === to);
+        if (exists) return {};
+        
+        const newConnection: FlowConnection = {
+          id: `conn-${Date.now()}`,
+          from,
+          to,
+        };
+        
+        return {
+          projectsData: {
+            ...state.projectsData,
+            [projectId]: {
+              ...projectData,
+              connections: [...projectData.connections, newConnection],
             },
           },
         };
@@ -546,10 +787,23 @@ export const useFlowStore = create<FlowState>()(
 export const useCurrentProjectFlow = () => {
   const projectId = useFlowStore(state => state.currentProjectId);
   const projectsData = useFlowStore(state => state.projectsData);
-  
+
+  console.log('===== useCurrentProjectFlow =====');
+  console.log('projectId:', projectId);
+  console.log('projectsData:', projectsData);
+  console.log('projectsData[projectId]:', projectsData[projectId]);
+
   if (!projectId) {
-    return { nodes: [], connections: [] };
+    console.log('No projectId, returning initial nodes');
+    return { nodes: getInitialNodes(), connections: [] };
   }
-  
-  return projectsData[projectId] || { nodes: [], connections: [] };
+
+  const projectData = projectsData[projectId];
+  if (!projectData || projectData.nodes.length === 0) {
+    console.log('No projectData or empty nodes, returning initial nodes');
+    return { nodes: getInitialNodes(), connections: [] };
+  }
+
+  console.log('Returning projectData:', projectData);
+  return projectData;
 };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/common/Card';
@@ -117,14 +117,18 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
 
 export function ProjectList() {
   const navigate = useNavigate();
-  const { searchQuery, statusFilter, sortBy, setSearchQuery, setStatusFilter, setSortBy, getFilteredProjects, projects, addProject, deleteProject } = useProjectStore();
+  const { searchQuery, statusFilter, sortBy, setSearchQuery, setStatusFilter, setSortBy, getFilteredProjects, projects, addProject, deleteProject, fetchProjects } = useProjectStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+  
   const filteredProjects = getFilteredProjects();
 
-  const handleCreateProject = (name: string, description: string, scenario: string) => {
-    const newProjectId = addProject({
+  const handleCreateProject = async (name: string, description: string, scenario: string) => {
+    const newProjectId = await addProject({
       name,
       description,
       scenario,

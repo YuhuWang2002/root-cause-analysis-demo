@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFlowStore, type NodeStatus, type NodeType } from '@/stores/flowStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useOntologyStore } from '@/stores/ontologyStore';
 import { Button } from '@/components/common/Button';
 import { Input, Select, Textarea } from '@/components/common/Input';
 
 const typeColors: Record<string, { bg: string; light: string; label: string }> = {
-  source: { bg: '#8B5CF6', light: 'rgba(139, 92, 246, 0.15)', label: '数据源' },
+  system: { bg: '#8B5CF6', light: 'rgba(139, 92, 246, 0.15)', label: '源系统' },
   acquisition: { bg: '#3B82F6', light: 'rgba(59, 130, 246, 0.15)', label: '数据获取' },
-  process: { bg: '#06B6D4', light: 'rgba(6, 182, 212, 0.15)', label: '数据处理' },
+  datapipeline: { bg: '#06B6D4', light: 'rgba(6, 182, 212, 0.15)', label: 'DataPipeline' },
   quality: { bg: '#F59E0B', light: 'rgba(245, 158, 11, 0.15)', label: '质量约束' },
   dataset: { bg: '#10B981', light: 'rgba(16, 185, 129, 0.15)', label: '数据集' },
   ontology: { bg: '#EC4899', light: 'rgba(236, 72, 153, 0.15)', label: '本体构建' },
+  ontologyExplore: { bg: '#F472B6', light: 'rgba(244, 114, 182, 0.15)', label: '本体探索' },
   analysis: { bg: '#EF4444', light: 'rgba(239, 68, 68, 0.15)', label: '数据分析' },
+  rootCause: { bg: '#7C3AED', light: 'rgba(124, 58, 237, 0.15)', label: '根因分析' },
 };
 
 const statusLabels: Record<NodeStatus, string> = {
@@ -22,85 +27,69 @@ const statusLabels: Record<NodeStatus, string> = {
   unconfigured: '未配置',
 };
 
-const sourceTypeOptions = [
-  { value: 'mysql', label: 'MySQL' },
-  { value: 'postgresql', label: 'PostgreSQL' },
-  { value: 'mongodb', label: 'MongoDB' },
-  { value: 'api', label: 'API 接口' },
+const systemTypeOptions = [
+  { value: 'SAP', label: 'SAP ERP' },
+  { value: 'Oracle', label: 'Oracle EBS' },
+  { value: 'Salesforce', label: 'Salesforce' },
+  { value: 'MES', label: 'MES 制造执行系统' },
+  { value: 'WMS', label: 'WMS 仓储管理系统' },
+  { value: 'CRM', label: 'CRM 客户关系管理' },
+  { value: 'HRM', label: 'HRM 人力资源管理' },
+  { value: 'OA', label: 'OA 办公自动化' },
+  { value: 'API', label: 'API 接口' },
 ];
 
-function SourceConfig({ node, onSave }: { node: any; onSave: (config: Record<string, unknown>) => void }) {
+function SystemConfig({ node, onSave }: { node: any; onSave: (config: Record<string, unknown>) => void }) {
   const [config, setConfig] = useState({
-    sourceType: node.config?.sourceType || 'mysql',
-    host: node.config?.host || '',
-    port: node.config?.port || '3306',
-    database: node.config?.database || '',
-    username: node.config?.username || '',
-    password: node.config?.password || '',
-    apiUrl: node.config?.apiUrl || '',
+    systemType: node.config?.systemType || 'SAP',
+    address: node.config?.address || '',
+    description: node.config?.description || '',
   });
 
+  const handleSystemTypeChange = (value: string) => {
+    const systemLabel = systemTypeOptions.find(o => o.value === value)?.label || value;
+    setConfig({ ...config, systemType: value });
+    onSave({
+      ...config,
+      systemType: value,
+      _displayName: systemLabel,
+    });
+  };
+
   const handleSubmit = () => {
-    onSave(config);
+    const systemLabel = systemTypeOptions.find(o => o.value === config.systemType)?.label || config.systemType;
+    onSave({
+      ...config,
+      _displayName: systemLabel,
+    });
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-400 mb-2">数据源类型</label>
+        <label className="block text-sm text-gray-400 mb-2">选择企业系统</label>
         <Select
-          value={config.sourceType}
-          onChange={(e) => setConfig({ ...config, sourceType: e.target.value })}
-          options={sourceTypeOptions}
+          value={config.systemType}
+          onChange={(e) => handleSystemTypeChange(e.target.value)}
+          options={systemTypeOptions}
         />
       </div>
 
-      {config.sourceType === 'api' ? (
-        <Input
-          label="API 地址"
-          value={config.apiUrl}
-          onChange={(e) => setConfig({ ...config, apiUrl: e.target.value })}
-          placeholder="https://api.example.com/data"
-        />
-      ) : (
-        <>
-          <Input
-            label="主机"
-            value={config.host}
-            onChange={(e) => setConfig({ ...config, host: e.target.value })}
-            placeholder="localhost"
-          />
-          <Input
-            label="端口"
-            value={config.port}
-            onChange={(e) => setConfig({ ...config, port: e.target.value })}
-            placeholder="3306"
-          />
-          <Input
-            label="数据库名"
-            value={config.database}
-            onChange={(e) => setConfig({ ...config, database: e.target.value })}
-            placeholder="my_database"
-          />
-          <Input
-            label="用户名"
-            value={config.username}
-            onChange={(e) => setConfig({ ...config, username: e.target.value })}
-            placeholder="root"
-          />
-          <Input
-            label="密码"
-            type="password"
-            value={config.password}
-            onChange={(e) => setConfig({ ...config, password: e.target.value })}
-            placeholder="********"
-          />
-        </>
-      )}
+      <Input
+        label="系统地址"
+        value={config.address}
+        onChange={(e) => setConfig({ ...config, address: e.target.value })}
+        placeholder="https://system.company.com"
+      />
 
-      <Button onClick={handleSubmit} className="w-full">
-        保存配置
-      </Button>
+      <Input
+        label="系统描述"
+        value={config.description}
+        onChange={(e) => setConfig({ ...config, description: e.target.value })}
+        placeholder="简要描述该系统"
+      />
+
+      <Button onClick={handleSubmit} className="w-full">保存配置</Button>
     </div>
   );
 }
@@ -307,7 +296,7 @@ function DatasetConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSav
   const [sourceIds, setSourceIds] = useState<string[]>(node.config?.sourceIds || []);
   const [joinType, setJoinType] = useState(node.config?.joinType || 'union');
 
-  const sourceNodes = nodes.filter(n => n.type === 'source');
+  const sourceNodes = nodes.filter(n => n.type === 'system');
 
   const handleToggleSource = (id: string) => {
     if (sourceIds.includes(id)) {
@@ -378,6 +367,21 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
   const [relationships, setRelationships] = useState<{ from: string; to: string; type: string; description: string }[]>(
     node.config?.relationships || []
   );
+  
+  const { currentProjectId } = useFlowStore();
+  const { projects } = useProjectStore();
+  const { ontologies, fetchOntologies, selectOntology } = useOntologyStore();
+  const projectId = currentProjectId || projects[0]?.id;
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (projectId) {
+      fetchOntologies(projectId);
+    }
+  }, [projectId, fetchOntologies]);
+
+  const selectedOntologyId = node.config?.ontologyId;
+  const selectedOntology = ontologies.find(o => o.id === selectedOntologyId);
 
   const sourceNodes = nodes.filter(n => n.type === 'source');
   const acquisitionNodes = nodes.filter(n => n.type === 'acquisition');
@@ -396,6 +400,16 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
     { value: 'similar_to', label: '相似关系' },
   ];
 
+  const handleSelectOntology = (ontologyId: number) => {
+    onSave({ ...node.config, ontologyId });
+  };
+
+  const handleOpenOntologyPage = () => {
+    if (projectId) {
+      navigate(`/ontology/${projectId}`);
+    }
+  };
+
   const handleAddEntity = () => {
     setEntities([...entities, { name: '', sourceTable: '', sourceField: '', description: '' }]);
   };
@@ -405,19 +419,42 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
   };
 
   const handleSave = () => {
-    onSave({ template, entities, relationships });
+    onSave({ template, entities, relationships, ontologyId: selectedOntologyId });
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-400 mb-2">本体模板</label>
+        <label className="block text-sm text-gray-400 mb-2">选择本体库</label>
         <Select
-          value={template}
-          onChange={(e) => setTemplate(e.target.value)}
-          options={templates}
+          value={selectedOntologyId || ''}
+          onChange={(e) => handleSelectOntology(parseInt(e.target.value))}
+          options={[
+            { value: '', label: '-- 请选择本体库 --' },
+            ...ontologies.map(o => ({ value: String(o.id), label: o.name }))
+          ]}
         />
+        {selectedOntologyId && (
+          <button
+            onClick={handleOpenOntologyPage}
+            className="mt-2 w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+          >
+            配置本体库
+          </button>
+        )}
       </div>
+      
+      {ontologies.length === 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500">暂无本体库，请在页面中创建</p>
+          <button
+            onClick={handleOpenOntologyPage}
+            className="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+          >
+            前往本体库配置页面
+          </button>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -775,7 +812,7 @@ function DefaultConfig() {
 }
 
 export default function ConfigPanel() {
-  const { selectedNodeId, currentProjectId, projectsData, updateNodeStatus, updateNodeConfig, removeDataSource, removeNode, toggleConfigPanel } = useFlowStore();
+  const { selectedNodeId, currentProjectId, projectsData, updateNodeStatus, updateNodeConfig, updateNodeName, removeDataSource, removeNode, toggleConfigPanel } = useFlowStore();
   
   const currentProject = currentProjectId ? projectsData[currentProjectId] : null;
   const nodes = currentProject?.nodes || [];
@@ -783,7 +820,7 @@ export default function ConfigPanel() {
 
   if (!node) return null;
 
-  const colors = typeColors[node.type] || typeColors.source;
+  const colors = typeColors[node.type] || typeColors.system;
 
   const handleSaveConfig = (config: Record<string, unknown>) => {
     updateNodeConfig(node.id, config);
@@ -795,15 +832,15 @@ export default function ConfigPanel() {
     }
   };
 
-  const showDelete = ['source', 'dataset', 'ontology', 'analysis'].includes(node.type);
+  const showDelete = ['system', 'acquisition', 'datapipeline', 'quality', 'dataset', 'ontology', 'analysis', 'rootCause'].includes(node.type);
 
   const renderConfigContent = () => {
     switch (node.type) {
-      case 'source':
-        return <SourceConfig node={node} onSave={handleSaveConfig} />;
+      case 'system':
+        return <SystemConfig node={node} onSave={handleSaveConfig} />;
       case 'acquisition':
         return <AcquisitionConfig node={node} onSave={handleSaveConfig} />;
-      case 'process':
+      case 'datapipeline':
         return <ProcessConfig node={node} onSave={handleSaveConfig} />;
       case 'quality':
         return <QualityConfig node={node} onSave={handleSaveConfig} />;
@@ -822,11 +859,11 @@ export default function ConfigPanel() {
     <AnimatePresence>
       {node && (
         <motion.div
-          initial={{ x: -320, opacity: 0 }}
+          initial={{ x: 320, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -320, opacity: 0 }}
+          exit={{ x: 320, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed left-0 top-16 bottom-0 w-80 bg-gray-900 border-r border-gray-800 z-40 overflow-y-auto"
+          className="fixed right-0 top-16 bottom-0 w-80 bg-gray-900 border-l border-gray-800 z-40 overflow-y-auto"
         >
           <div className="p-4">
             <div className="flex items-center justify-between mb-6">
@@ -858,8 +895,17 @@ export default function ConfigPanel() {
                   </div>
                 </div>
                 
+                <div className="mt-3">
+                  <label className="block text-xs text-gray-500 mb-1">节点名称</label>
+                  <Input
+                    value={node.name}
+                    onChange={(e) => updateNodeName(node.id, e.target.value)}
+                    placeholder="输入节点名称"
+                  />
+                </div>
+                
                 {node.detail && (
-                  <p className="text-xs text-gray-500 font-mono">{node.detail}</p>
+                  <p className="text-xs text-gray-500 font-mono mt-2">{node.detail}</p>
                 )}
               </div>
               

@@ -1,36 +1,120 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  Connection,
+  Edge,
+  Node,
+  NodeTypes,
+  Handle,
+  Position,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { useCurrentProjectFlow, useFlowStore, type NodeType, type NodeStatus } from '@/stores/flowStore';
 
-const typeColors: Record<NodeType, { bg: string; border: string; text: string; light: string }> = {
-  source: { bg: '#8B5CF6', border: '#A78BFA', text: '#C4B5FD', light: 'rgba(139, 92, 246, 0.15)' },
-  acquisition: { bg: '#3B82F6', border: '#60A5FA', text: '#93C5FD', light: 'rgba(59, 130, 246, 0.15)' },
-  process: { bg: '#06B6D4', border: '#22D3EE', text: '#67E8F9', light: 'rgba(6, 182, 212, 0.15)' },
-  quality: { bg: '#F59E0B', border: '#FBBF24', text: '#FCD34D', light: 'rgba(245, 158, 11, 0.15)' },
-  dataset: { bg: '#10B981', border: '#34D399', text: '#6EE7B7', light: 'rgba(16, 185, 129, 0.15)' },
-  ontology: { bg: '#EC4899', border: '#F472B6', text: '#F9A8D4', light: 'rgba(236, 72, 153, 0.15)' },
-  analysis: { bg: '#EF4444', border: '#F87171', text: '#FCA5A5', light: 'rgba(239, 68, 68, 0.15)' },
+const typeColors: Record<NodeType, { bg: string; border: string; text: string }> = {
+  system: { bg: '#8B5CF6', border: '#A78BFA', text: '#C4B5FD' },
+  acquisition: { bg: '#3B82F6', border: '#60A5FA', text: '#93C5FD' },
+  datapipeline: { bg: '#06B6D4', border: '#22D3EE', text: '#67E8F9' },
+  quality: { bg: '#F59E0B', border: '#FBBF24', text: '#FCD34D' },
+  dataset: { bg: '#10B981', border: '#34D399', text: '#6EE7B7' },
+  ontology: { bg: '#EC4899', border: '#F472B6', text: '#F9A8D4' },
+  ontologyExplore: { bg: '#F472B6', border: '#F9A8D4', text: '#FECDD3' },
+  analysis: { bg: '#EF4444', border: '#F87171', text: '#FCA5A5' },
+  rootCause: { bg: '#7C3AED', border: '#A78BFA', text: '#C4B5FD' },
 };
 
-const COLUMN_WIDTH = 220;
-const ROW_HEIGHT = 120;
-const START_Y = 60;
-const COLUMN_LABELS = ['数据源', '数据获取', '数据处理', '质量约束', '数据集', '本体构建', '数据分析'];
+function CustomNode({ data, selected }: { data: { label: string; type: NodeType; status: NodeStatus; detail?: string; config?: Record<string, unknown> }; selected?: boolean }) {
+  const colors = typeColors[data.type] || typeColors.system;
+  const isConfigured = data.status === 'configured' || data.status === 'completed';
+  
+  const getSystemLabel = () => {
+    if (data.type === 'system' && data.config?._displayName) {
+      return data.config._displayName as string;
+    }
+    if (data.type === 'system' && data.detail) {
+      return data.detail as string;
+    }
+    return data.label;
+  };
+  
+  return (
+    <div
+      className="w-24 h-24 rounded-xl border-2 flex flex-col items-center justify-center shadow-lg cursor-pointer"
+      style={{
+        backgroundColor: colors.bg,
+        borderColor: selected ? '#FFFFFF' : colors.border,
+        borderWidth: selected ? '3px' : '2px',
+        boxShadow: selected ? `0 0 15px ${colors.bg}` : 'none',
+      }}
+    >
+      <Handle type="target" position={Position.Left} className="!bg-gray-400 !w-3 !h-3" />
+      {data.type === 'system' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+        </svg>
+      )}
+      {data.type === 'acquisition' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+      {data.type === 'datapipeline' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+        </svg>
+      )}
+      {data.type === 'dataset' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+        </svg>
+      )}
+      {data.type === 'ontology' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+        </svg>
+      )}
+      {data.type === 'ontologyExplore' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      )}
+      {data.type === 'analysis' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      )}
+      {data.type === 'quality' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )}
+      {data.type === 'rootCause' && (
+        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      )}
+      <span className="text-white text-[10px] font-medium truncate max-w-[70px] text-center">
+        {data.type === 'system' ? getSystemLabel() : data.label}
+      </span>
+      <div 
+        className={`mt-1 px-2 py-0.5 rounded text-[8px] font-medium ${isConfigured ? 'bg-green-500/80 text-white' : 'bg-yellow-500/80 text-white'}`}
+      >
+        {isConfigured ? '已配置' : '未配置'}
+      </div>
+      <Handle type="source" position={Position.Right} className="!bg-gray-400 !w-3 !h-3" />
+    </div>
+  );
+}
 
-const statusColors: Record<NodeStatus, string> = {
-  pending: 'bg-gray-500',
-  running: 'bg-blue-500',
-  completed: 'bg-green-500',
-  configured: 'bg-green-500',
-  unconfigured: 'bg-yellow-500',
-};
-
-const statusLabels: Record<NodeStatus, string> = {
-  pending: '等待中',
-  running: '运行中',
-  completed: '已完成',
-  configured: '已配置',
-  unconfigured: '未配置',
+const nodeTypes: NodeTypes = {
+  custom: CustomNode,
 };
 
 interface FlowCanvasProps {
@@ -40,249 +124,144 @@ interface FlowCanvasProps {
 }
 
 export default function FlowCanvas({ onAddSource, onAddOntology, onAddAnalysis }: FlowCanvasProps) {
-  const { nodes, connections } = useCurrentProjectFlow();
-  const setSelectedNode = useFlowStore(state => state.setSelectedNode);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition } = useReactFlow();
+  const navigate = useNavigate();
+  
+  const { nodes: storeNodes, connections: storeConnections } = useCurrentProjectFlow();
+  const { currentProjectId, setSelectedNode, addNode, updateNodePosition, addConnection: storeAddConnection } = useFlowStore();
 
-  const columns = useMemo(() => {
-    return COLUMN_LABELS.map((label, colIndex) => {
-      const colNodes = nodes.filter(node => {
-        const nodeColIndex = Math.round((node.x - 0) / COLUMN_WIDTH);
-        return nodeColIndex === colIndex;
+  const initialNodes: Node[] = useMemo(() => {
+    return storeNodes.map((node, index) => ({
+      id: node.id,
+      type: 'custom',
+      position: { x: node.x, y: node.y },
+      data: { 
+        label: node.name, 
+        type: node.type, 
+        status: node.status,
+        detail: node.detail,
+      },
+      zIndex: 10 + index,
+    }));
+  }, [storeNodes]);
+
+  const initialEdges: Edge[] = useMemo(() => {
+    return storeConnections.map(conn => ({
+      id: conn.id,
+      source: conn.from,
+      target: conn.to,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#6B7280', strokeWidth: 2 },
+      markerEnd: {
+        type: 'arrowclosed' as const,
+        color: '#6B7280',
+      },
+    }));
+  }, [storeConnections]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  useEffect(() => {
+    console.log('===== FlowCanvas initialNodes changed =====');
+    console.log('initialNodes:', initialNodes);
+    console.log('initialNodes.length:', initialNodes?.length);
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
+
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (params.source && params.target) {
+        storeAddConnection(params.source, params.target);
+        setEdges((eds) => addEdge({ ...params, type: 'smoothstep', animated: true }, eds));
+      }
+    },
+    [setEdges, storeAddConnection]
+  );
+
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const nodeData = storeNodes.find(n => n.id === node.id);
+      const config = nodeData?.config as Record<string, unknown> | undefined;
+      const originalType = node.data?.type as string | undefined;
+
+      // 如果是本体库节点，直接跳转到本体配置页面
+      if (originalType === 'ontology') {
+        if (config?.ontologyId) {
+          navigate(`/ontology/${currentProjectId}/${config.ontologyId}`);
+        } else {
+          navigate(`/ontology/${currentProjectId}`);
+        }
+        return;
+      }
+
+      setSelectedNode(node.id);
+    },
+    [setSelectedNode, navigate, storeNodes, currentProjectId]
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      updateNodePosition(node.id, node.position.x, node.position.y);
+    },
+    [updateNodePosition]
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    async (event: React.DragEvent) => {
+      event.preventDefault();
+
+      let nodeType = event.dataTransfer.getData('application/reactflow') as NodeType;
+      if (!nodeType) {
+        nodeType = event.dataTransfer.getData('text/plain') as NodeType;
+      }
+
+      if (!nodeType || !wrapperRef.current) return;
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
-      return { label, nodes: colNodes, index: colIndex };
-    });
-  }, [nodes]);
 
-  const sourceNodes = nodes.filter(n => n.type === 'source');
-  const ontologyNodes = nodes.filter(n => n.type === 'ontology');
-  const analysisNodes = nodes.filter(n => n.type === 'analysis');
-  const buttonY = sourceNodes.length > 0 
-    ? sourceNodes[sourceNodes.length - 1].y + ROW_HEIGHT * 1.5 
-    : 60;
-  const ontologyY = ontologyNodes.length > 0 
-    ? ontologyNodes[ontologyNodes.length - 1].y + ROW_HEIGHT * 1.5 
-    : START_Y;
-  const analysisY = analysisNodes.length > 0 
-    ? analysisNodes[analysisNodes.length - 1].y + ROW_HEIGHT * 1.5 
-    : START_Y;
-  const allYPositions = nodes.length > 0 ? [
-    ...nodes.map(n => n.y + 80),
-    buttonY + 80,
-    analysisY + 80
-  ] : [200];
-  const maxY = Math.max(...allYPositions);
-  const svgHeight = Math.max(maxY + 100, 600);
-
-  const isEmpty = nodes.length === 0;
-
-  if (isEmpty) {
-    return (
-      <div className="w-full h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 relative overflow-auto">
-        <div className="absolute inset-0 flex items-center justify-center z-30">
-          <div className="text-center">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-800 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">开始您的分析</h3>
-            <p className="text-gray-400 mb-6 max-w-sm">
-              点击下方按钮添加数据源，开始构建您的根因分析流程
-            </p>
-            <button
-              onClick={onAddSource}
-              className="px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors inline-flex items-center"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              添加数据源
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+      await addNode(nodeType, position.x, position.y);
+    },
+    [screenToFlowPosition, addNode]
+  );
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 relative overflow-auto">
-      <svg 
-        className="absolute top-0 left-0 pointer-events-none z-10" 
-        style={{ 
-          width: COLUMN_WIDTH * 10, 
-          height: svgHeight 
+    <div className="w-full h-full" ref={wrapperRef}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeClick={onNodeClick}
+        onNodeDragStop={onNodeDragStop}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        nodeTypes={nodeTypes}
+        fitView
+        className="bg-gray-900"
+        defaultEdgeOptions={{
+          type: 'smoothstep',
+          animated: true,
         }}
+        proOptions={{ hideAttribution: true }}
+        minZoom={0.1}
+        maxZoom={2}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-          >
-            <polygon
-              points="0 0, 10 3.5, 0 7"
-              fill="#60A5FA"
-            />
-          </marker>
-        </defs>
-        
-        {connections.map((conn) => {
-          const fromNode = nodes.find(n => n.id === conn.from);
-          const toNode = nodes.find(n => n.id === conn.to);
-          
-          if (!fromNode || !toNode) return null;
-          
-          const fromColIndex = Math.round((fromNode.x - 0) / COLUMN_WIDTH);
-          const toColIndex = Math.round((toNode.x - 0) / COLUMN_WIDTH);
-          
-          const startX = fromColIndex * COLUMN_WIDTH + 20 + 180;
-          const startY = fromNode.y + 48 + 40;
-          const endX = toColIndex * COLUMN_WIDTH + 20;
-          const endY = toNode.y + 48 + 40;
-          
-          const path = `M ${startX} ${startY} L ${endX} ${endY}`;
-          
-          return (
-            <path
-              key={conn.id}
-              d={path}
-              fill="none"
-              stroke="#60A5FA"
-              strokeWidth="2"
-              markerEnd="url(#arrowhead)"
-            />
-          );
-        })}
-      </svg>
-      
-      <div className="flex min-w-max relative" style={{ height: svgHeight }}>
-        {columns.map((col, colIndex) => (
-          <div
-            key={colIndex}
-            className="flex flex-col border-r border-gray-500"
-            style={{ width: COLUMN_WIDTH }}
-          >
-            <div className="h-12 flex items-center justify-center border-b border-gray-500">
-              <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">
-                {col.label}
-              </span>
-            </div>
-            
-            <div className="flex-1 relative">
-              {col.nodes.map((node) => (
-                <motion.div
-                  key={node.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="absolute w-[180px] h-[80px] rounded-lg border-2 border-gray-600 transition-all duration-200 cursor-pointer z-20"
-                  style={{
-                    left: 20,
-                    top: node.y,
-                    backgroundColor: typeColors[node.type].light,
-                    borderColor: typeColors[node.type].border + '60',
-                  }}
-                  onClick={() => setSelectedNode(node.id)}
-                >
-                  <div className="p-3 h-full flex flex-col justify-between">
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs font-semibold text-gray-200 truncate flex-1">
-                        {node.name}
-                      </span>
-                      <div className={`w-2 h-2 rounded-full ${statusColors[node.status]}`} />
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-gray-400 truncate flex-1">
-                        {node.description || node.detail || ''}
-                      </span>
-                      <span className="text-[9px] text-green-400 ml-1">
-                        {statusLabels[node.status]}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {colIndex === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: nodes.length * 0.05 }}
-                  className="absolute w-[180px] h-[80px] z-20"
-                  style={{
-                    left: 20,
-                    top: buttonY,
-                  }}
-                >
-                  <button
-                    onClick={onAddSource}
-                    className="w-full h-full rounded-lg border-2 border-dashed border-gray-600 hover:border-gray-400 transition-colors flex items-center justify-center group"
-                  >
-                    <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
-                      <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="text-xs">添加数据源</span>
-                    </div>
-                  </button>
-                </motion.div>
-              )}
-
-              {colIndex === 5 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="absolute w-[180px] h-[80px] z-20"
-                  style={{
-                    left: 20,
-                    top: ontologyY,
-                  }}
-                >
-                  <button
-                    onClick={onAddOntology}
-                    className="w-full h-full rounded-lg border-2 border-dashed border-pink-600 hover:border-pink-400 transition-colors flex items-center justify-center group"
-                  >
-                    <div className="text-pink-500 group-hover:text-pink-300 transition-colors">
-                      <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="text-xs">添加本体</span>
-                    </div>
-                  </button>
-                </motion.div>
-              )}
-
-              {colIndex === 6 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="absolute w-[180px] h-[80px] z-20"
-                  style={{
-                    left: 20,
-                    top: analysisY,
-                  }}
-                >
-                  <button
-                    onClick={onAddAnalysis}
-                    className="w-full h-full rounded-lg border-2 border-dashed border-red-600 hover:border-red-400 transition-colors flex items-center justify-center group"
-                  >
-                    <div className="text-red-500 group-hover:text-red-300 transition-colors">
-                      <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="text-xs">添加分析</span>
-                    </div>
-                  </button>
-                </motion.div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+        <Background color="#374151" gap={20} />
+        <Controls className="!bg-gray-800 !border-gray-700" />
+      </ReactFlow>
     </div>
   );
 }

@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ReactFlowProvider } from '@xyflow/react';
 import FlowCanvas from '@/components/flow/FlowCanvas';
 import ConfigPanel from '@/components/flow/ConfigPanel';
+import { OntologyPanel } from '@/components/flow/OntologyPanel';
 import AddNodeModal from '@/components/flow/AddNodeModal';
 import AutomationModal from '@/components/flow/AutomationModal';
 import PermissionsModal from '@/components/flow/PermissionsModal';
+import ToolPalette from '@/components/flow/ToolPalette';
 import { useFlowStore, useCurrentProjectFlow } from '@/stores/flowStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/common/Button';
+import * as api from '@/services/api';
 
 export function AnalysisFlow() {
   const navigate = useNavigate();
@@ -25,18 +29,35 @@ export function AnalysisFlow() {
   
   useEffect(() => {
     if (projectId) {
-      loadProject(projectId);
+      console.log('===== AnalysisFlow useEffect triggered =====');
+      console.log('projectId:', projectId);
+      console.log('currentProject:', currentProject);
+      const scenario = currentProject?.scenario;
+      console.log('scenario:', scenario);
+      loadProject(projectId, scenario);
     }
-  }, [projectId, loadProject]);
+  }, [projectId, currentProject, loadProject]);
+
+  useEffect(() => {
+    console.log('===== AnalysisFlow nodes/connections changed =====');
+    console.log('nodes:', nodes);
+    console.log('connections:', connections);
+    console.log('nodes.length:', nodes.length);
+  }, [nodes, connections]);
   
   const hasChanges = nodes.length > 0;
   
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!projectId) return;
     setSaveStatus('saving');
-    setTimeout(() => {
+    try {
+      await api.saveCanvas(projectId, { nodes, connections });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 1500);
-    }, 500);
+    } catch (error) {
+      console.error('保存失败:', error);
+      setSaveStatus('idle');
+    }
   };
   
   const handleGoBack = () => {
@@ -58,7 +79,7 @@ export function AnalysisFlow() {
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0 min-h-[72px] z-10 relative">
         <div className="flex items-center space-x-4">
           <button
             onClick={handleGoBack}
@@ -139,13 +160,19 @@ export function AnalysisFlow() {
         </div>
       </header>
       
-      <div className="flex-1 relative overflow-hidden">
-        <FlowCanvas 
-          onAddSource={() => openAddModal('source')} 
-          onAddOntology={() => openAddModal('ontology')} 
-          onAddAnalysis={() => openAddModal('analysis')} 
-        />
+      <div className="flex-1 relative overflow-hidden flex">
+        <ToolPalette />
+        <div className="flex-1 relative">
+          <ReactFlowProvider>
+            <FlowCanvas 
+              onAddSource={() => openAddModal('system')} 
+              onAddOntology={() => openAddModal('ontology')} 
+              onAddAnalysis={() => openAddModal('analysis')} 
+            />
+          </ReactFlowProvider>
+        </div>
         <ConfigPanel />
+        <OntologyPanel />
         <AddNodeModal />
         <AutomationModal isOpen={showAutomation} onClose={() => setShowAutomation(false)} />
         <PermissionsModal isOpen={showPermissions} onClose={() => setShowPermissions(false)} />
