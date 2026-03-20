@@ -184,22 +184,12 @@ export default function FlowCanvas({ onAddSource, onAddOntology, onAddAnalysis }
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const nodeData = storeNodes.find(n => n.id === node.id);
-      const config = nodeData?.config as Record<string, unknown> | undefined;
       const originalType = node.data?.type as string | undefined;
 
-      // 如果是本体库节点，直接跳转到本体配置页面
-      if (originalType === 'ontology') {
-        if (config?.ontologyId) {
-          navigate(`/ontology/${currentProjectId}/${config.ontologyId}`);
-        } else {
-          navigate(`/ontology/${currentProjectId}`);
-        }
-        return;
-      }
-
+      // 所有节点都先打开配置面板
       setSelectedNode(node.id);
     },
-    [setSelectedNode, navigate, storeNodes, currentProjectId]
+    [setSelectedNode, storeNodes]
   );
 
   const onNodeDragStop = useCallback(

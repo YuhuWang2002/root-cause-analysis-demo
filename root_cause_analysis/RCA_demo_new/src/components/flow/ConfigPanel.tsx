@@ -697,18 +697,63 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
     onSave({ selectedEntities, params: analysisParams, dashboardId: node.config?.dashboardId });
   };
 
+  const handleOpenRootCause = async () => {
+    if (!currentProjectId || isNavigating) return;
+    setIsNavigating(true);
+    
+    try {
+      // 保存当前配置
+      const newConfig = { ...node.config, dashboardId: node.config?.dashboardId };
+      onSave(newConfig);
+      
+      // 获取当前canvas数据，更新节点配置后保存
+      const canvasData = await api.getCanvas(currentProjectId);
+      const updatedNodes = canvasData.nodes.map((n: any) => 
+        n.id === node.id ? { ...n, config: newConfig } : n
+      );
+      await api.saveCanvas(currentProjectId, {
+        nodes: updatedNodes,
+        connections: canvasData.connections
+      });
+      
+      navigate(`/root-cause/${currentProjectId}`);
+    } catch (err) {
+      console.error('Failed to open root cause analysis:', err);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  // 根据分析类型显示不同的按钮
+  const showDashboardButton = analysisType === 'data_analysis' || analysisType === 'ontology_explore';
+  const showRootCauseButton = analysisType === 'root_cause';
+  
   // 所有 analysis 节点都显示跳转按钮
   return (
     <div className="space-y-4">
-      <div>
-        <button
-          onClick={handleOpenDashboard}
-          disabled={isNavigating}
-          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium disabled:opacity-50"
-        >
-          {isNavigating ? '打开中...' : '打开数据分析看板'}
-        </button>
-      </div>
+      {showDashboardButton && (
+        <div>
+          <button
+            onClick={handleOpenDashboard}
+            disabled={isNavigating}
+            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium disabled:opacity-50"
+          >
+            {isNavigating ? '打开中...' : '打开数据分析看板'}
+          </button>
+        </div>
+      )}
+      
+      {showRootCauseButton && (
+        <div>
+          <button
+            onClick={handleOpenRootCause}
+            disabled={isNavigating}
+            className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50"
+          >
+            {isNavigating ? '打开中...' : '打开根因分析'}
+          </button>
+        </div>
+      )}
       
       {analysisType === 'data_analysis' && (
         <>
@@ -841,6 +886,128 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
   );
 }
 
+function RootCauseConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSave: (config: Record<string, unknown>) => void }) {
+  const { currentProjectId } = useFlowStore();
+  const navigate = useNavigate();
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [config, setConfig] = useState(node.config || {});
+  
+  const handleOpenRootCause = async () => {
+    if (!currentProjectId || isNavigating) return;
+    setIsNavigating(true);
+    
+    try {
+      const newConfig = { ...config, dashboardId: config?.dashboardId };
+      onSave(newConfig);
+      
+      const canvasData = await api.getCanvas(currentProjectId);
+      const updatedNodes = canvasData.nodes.map((n: any) => 
+        n.id === node.id ? { ...n, config: newConfig } : n
+      );
+      await api.saveCanvas(currentProjectId, {
+        nodes: updatedNodes,
+        connections: canvasData.connections
+      });
+      
+      navigate(`/root-cause/${currentProjectId}`);
+    } catch (err) {
+      console.error('Failed to open root cause analysis:', err);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const handleSave = () => {
+    onSave(config);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <button
+          onClick={handleOpenRootCause}
+          disabled={isNavigating}
+          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50"
+        >
+          {isNavigating ? '打开中...' : '打开根因分析'}
+        </button>
+      </div>
+      
+      <div>
+        <Button onClick={handleSave} className="w-full">
+          保存配置
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OntologyExploreConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSave: (config: Record<string, unknown>) => void }) {
+  const { currentProjectId } = useFlowStore();
+  const navigate = useNavigate();
+  const [config, setConfig] = useState(node.config || {});
+  const [selectedEntities, setSelectedEntities] = useState<string[]>(config?.selectedEntities || []);
+  
+  const ontologyNodes = nodes.filter(n => n.type === 'ontology');
+  const ontologyNode = ontologyNodes[0];
+  const entities = ontologyNode?.config?.entities || [];
+  
+  const handleToggleEntity = (entityName: string) => {
+    if (selectedEntities.includes(entityName)) {
+      setSelectedEntities(selectedEntities.filter(e => e !== entityName));
+    } else {
+      setSelectedEntities([...selectedEntities, entityName]);
+    }
+  };
+  
+  const handleSave = () => {
+    const newConfig = {
+      ...config,
+      selectedEntities
+    };
+    onSave(newConfig);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">选择展示的实体</label>
+        {entities.length === 0 ? (
+          <p className="text-sm text-gray-500">请先在本体库中配置实体</p>
+        ) : (
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {entities.map((entity: any) => (
+              <label
+                key={entity.name}
+                className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
+                  selectedEntities.includes(entity.name)
+                    ? 'bg-pink-900/50 border border-pink-700'
+                    : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedEntities.includes(entity.name)}
+                  onChange={() => handleToggleEntity(entity.name)}
+                  className="sr-only"
+                />
+                <span className="text-sm text-gray-300">{entity.name}</span>
+                {entity.description && (
+                  <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <Button onClick={handleSave} className="w-full">
+        保存配置
+      </Button>
+    </div>
+  );
+}
+
 function DefaultConfig() {
   return (
     <div className="text-center py-8">
@@ -870,7 +1037,7 @@ export default function ConfigPanel() {
     }
   };
 
-  const showDelete = ['system', 'acquisition', 'datapipeline', 'quality', 'dataset', 'ontology', 'analysis', 'rootCause'].includes(node.type);
+  const showDelete = ['system', 'acquisition', 'datapipeline', 'quality', 'dataset', 'ontology', 'ontologyExplore', 'analysis', 'rootCause'].includes(node.type);
 
   const renderConfigContent = () => {
     switch (node.type) {
@@ -886,8 +1053,12 @@ export default function ConfigPanel() {
         return <DatasetConfig node={node} nodes={nodes} onSave={handleSaveConfig} />;
       case 'ontology':
         return <OntologyConfig node={node} nodes={nodes} onSave={handleSaveConfig} />;
+      case 'ontologyExplore':
+        return <OntologyExploreConfig node={node} nodes={nodes} onSave={handleSaveConfig} />;
       case 'analysis':
         return <AnalysisConfig node={node} nodes={nodes} onSave={handleSaveConfig} />;
+      case 'rootCause':
+        return <RootCauseConfig node={node} nodes={nodes} onSave={handleSaveConfig} />;
       default:
         return <DefaultConfig />;
     }
@@ -924,11 +1095,11 @@ export default function ConfigPanel() {
                     style={{ backgroundColor: colors.light }}
                   >
                     <span className="text-lg font-bold" style={{ color: colors.bg }}>
-                      {node.name.charAt(0)}
+                      {(node.name || '?').charAt(0)}
                     </span>
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">{node.name}</h4>
+                    <h4 className="text-white font-medium">{node.name || '未命名'}</h4>
                     <p className="text-xs text-gray-400">{colors.label}</p>
                   </div>
                 </div>

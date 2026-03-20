@@ -306,3 +306,110 @@ export async function deleteDashboard(projectId: string, dashboardId: number): P
     method: 'DELETE',
   });
 }
+
+export interface RootCauseResults {
+  counterfactual_analysis: {
+    inventory_reduction: number;
+    reduction_percentage: number;
+    actual_inventory_mean: number;
+    counterfactual_inventory_mean: number;
+    decline_period_actual_inventory: number;
+    decline_period_counterfactual_inventory: number;
+    decline_period_reduction: number;
+  } | null;
+  causal_graph?: string;
+  message?: string;
+}
+
+export async function getCausalGraph(projectId: string): Promise<{ causal_graph: string }> {
+  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/graph`);
+}
+
+export async function saveCausalGraph(projectId: string, causalGraph: string): Promise<{ causal_graph: string }> {
+  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/graph`, {
+    method: 'PUT',
+    body: JSON.stringify({ causal_graph: causalGraph }),
+  });
+}
+
+export async function runRootCauseAnalysis(projectId: string, causalGraph: string, fastMode: boolean = true): Promise<RootCauseResults> {
+  return fetchAPI<RootCauseResults>(`/root-cause/${projectId}/analysis`, {
+    method: 'POST',
+    body: JSON.stringify({ causal_graph: causalGraph, fast_mode: fastMode }),
+  });
+}
+
+export async function getRootCauseResults(projectId: string): Promise<RootCauseResults> {
+  return fetchAPI<RootCauseResults>(`/root-cause/${projectId}/results`);
+}
+
+export async function buildCausalGraph(dataSummary: string): Promise<{ causal_graph: string }> {
+  return fetchAPI<{ causal_graph: string }>('/root-cause/build-graph', {
+    method: 'POST',
+    body: JSON.stringify({ data_summary: dataSummary }),
+  });
+}
+
+export interface LLMConfig {
+  api_key: string;
+  model?: string;
+  base_url?: string;
+}
+
+export interface LLMTestResult {
+  success: boolean;
+  message: string;
+}
+
+export interface LLMExplanationResult {
+  explanation: string;
+  message: string;
+}
+
+export interface LLMSolutionResult {
+  solution: string;
+  message: string;
+}
+
+export async function configureLLM(config: LLMConfig): Promise<{ message: string; model: string; base_url: string }> {
+  return fetchAPI<{ message: string; model: string; base_url: string }>('/root-cause/llm/config', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+export async function testLLMConnection(config: LLMConfig): Promise<LLMTestResult> {
+  return fetchAPI<LLMTestResult>('/root-cause/llm/test', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+export async function generateRootCauseExplanation(
+  projectId: string,
+  analysisResults: any,
+  causalGraph?: string
+): Promise<LLMExplanationResult> {
+  return fetchAPI<LLMExplanationResult>(`/root-cause/${projectId}/explain`, {
+    method: 'POST',
+    body: JSON.stringify({ analysis_results: analysisResults, causal_graph: causalGraph }),
+  });
+}
+
+export async function generateSolution(
+  projectId: string,
+  analysisResults: any,
+  causalGraph?: string,
+  rootCauseText?: string,
+  knowledgeBase?: string
+): Promise<LLMSolutionResult> {
+  return fetchAPI<LLMSolutionResult>(`/root-cause/${projectId}/solution`, {
+    method: 'POST',
+    body: JSON.stringify({
+      analysis_results: analysisResults,
+      causal_graph: causalGraph,
+      root_cause_text: rootCauseText,
+      knowledge_base: knowledgeBase,
+    }),
+  });
+}
