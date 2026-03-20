@@ -1,9 +1,58 @@
+# System files
+.DS_Store
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependency directories
 node_modules/
+venv/
+env/
+
+# Build outputs
 dist/
 build/
-.DS_Store
-*.log
+
+# Environment variables
 .env
 .env.local
-.vite/
-.cache/
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database files
+*.db
+instance/
+
+# Data files
+*.csv
+*.json
+*.xlsx
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# OS generated files
+Thumbs.db
+
+# Prompt files
+prompts/
+
+# Step documents
+添加后端功能step*.md
+
+# Other projects
+../*
+../../*
+
+# Trae files
+.trae/
+.trae_rules.md
