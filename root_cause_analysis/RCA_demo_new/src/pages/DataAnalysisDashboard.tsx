@@ -84,20 +84,22 @@ export default function DataAnalysisDashboard() {
   // 加载数据集
   useEffect(() => {
     // 从项目数据或数据源中获取数据集
-    const project = projectsData[projectId];
-    if (project) {
-      // 这里可以根据实际情况从项目数据中提取数据集
-      // 暂时使用数据源作为数据集
-      const projectDatasets = dataSources.map(source => ({
-        value: source.host, // 假设 host 是文件路径
-        label: source.name
-      }));
-      setDatasets(projectDatasets);
-      
-      // 如果有数据集，默认选择第一个
-      if (projectDatasets.length > 0) {
-        setSelectedDataset(projectDatasets[0].value);
-        setCsvPath(projectDatasets[0].value);
+    if (projectsData && projectId) {
+      const project = projectsData[projectId];
+      if (project) {
+        // 这里可以根据实际情况从项目数据中提取数据集
+        // 暂时使用数据源作为数据集
+        const projectDatasets = dataSources.map(source => ({
+          value: source.host, // 假设 host 是文件路径
+          label: source.name
+        }));
+        setDatasets(projectDatasets);
+        
+        // 如果有数据集，默认选择第一个
+        if (projectDatasets.length > 0) {
+          setSelectedDataset(projectDatasets[0].value);
+          setCsvPath(projectDatasets[0].value);
+        }
       }
     }
   }, [projectId, projectsData, dataSources]);
