@@ -5,6 +5,8 @@ import GridLayout, { Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import * as api from '@/services/api';
+import { useProjectStore } from '@/stores/projectStore';
+import { useWizardStore } from '@/stores/wizardStore';
 
 interface FieldInfo {
   name: string;
@@ -55,6 +57,9 @@ export default function DataAnalysisDashboard() {
   const { projectId, dashboardId } = useParams<{ projectId: string; dashboardId?: string }>();
   const navigate = useNavigate();
 
+  const { dataSources } = useWizardStore();
+  const { projectsData } = useProjectStore();
+  
   const [csvPath, setCsvPath] = useState(DEFAULT_CSV_PATH);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<api.CSVAnalysisResult | null>(null);
@@ -71,6 +76,31 @@ export default function DataAnalysisDashboard() {
 
   const [showAddComponentModal, setShowAddComponentModal] = useState(false);
   const [componentData, setComponentData] = useState<Record<string, any[]>>({});
+  
+  // 数据集选项
+  const [datasets, setDatasets] = useState<{ value: string; label: string }[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState('');
+  
+  // 加载数据集
+  useEffect(() => {
+    // 从项目数据或数据源中获取数据集
+    const project = projectsData[projectId];
+    if (project) {
+      // 这里可以根据实际情况从项目数据中提取数据集
+      // 暂时使用数据源作为数据集
+      const projectDatasets = dataSources.map(source => ({
+        value: source.host, // 假设 host 是文件路径
+        label: source.name
+      }));
+      setDatasets(projectDatasets);
+      
+      // 如果有数据集，默认选择第一个
+      if (projectDatasets.length > 0) {
+        setSelectedDataset(projectDatasets[0].value);
+        setCsvPath(projectDatasets[0].value);
+      }
+    }
+  }, [projectId, projectsData, dataSources]);
 
   useEffect(() => {
     if (projectId) {
@@ -386,13 +416,22 @@ export default function DataAnalysisDashboard() {
           <div className="p-4 border-b">
             <h2 className="font-semibold text-gray-900 mb-4">数据源配置</h2>
             <div className="space-y-3">
-              <input
-                type="text"
-                value={csvPath}
-                onChange={(e) => setCsvPath(e.target.value)}
-                placeholder="请输入 CSV 文件路径"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              />
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">选择项目的数据集</label>
+                <select
+                  value={selectedDataset}
+                  onChange={(e) => {
+                    setSelectedDataset(e.target.value);
+                    setCsvPath(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">请选择数据集</option>
+                  {datasets.map((dataset) => (
+                    <option key={dataset.value} value={dataset.value}>{dataset.label}</option>
+                  ))}
+                </select>
+              </div>
               <button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
                 {isAnalyzing ? '分析中...' : '分析'}
               </button>
