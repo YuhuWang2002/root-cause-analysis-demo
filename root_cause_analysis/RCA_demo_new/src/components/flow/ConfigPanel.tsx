@@ -159,72 +159,21 @@ function AcquisitionConfig({ node, onSave }: { node: any; onSave: (config: Recor
 }
 
 function ProcessConfig({ node, onSave }: { node: any; onSave: (config: Record<string, unknown>) => void }) {
-  const [transforms, setTransforms] = useState<{ from: string; to: string; type: string }[]>(
-    node.config?.transforms || []
-  );
-  const [filters, setFilters] = useState<string[]>(node.config?.filters || []);
   const navigate = useNavigate();
-
-  const handleAddTransform = () => {
-    setTransforms([...transforms, { from: '', to: '', type: 'rename' }]);
-  };
+  const { currentProjectId } = useFlowStore();
 
   const handleSave = () => {
-    onSave({ transforms, filters });
+    onSave({});
   };
 
   const handleOpenPipelineBuilder = () => {
-    // 从节点ID中提取项目ID
-    console.log('Node ID:', node.id);
-    // 直接使用当前项目ID，而不是从节点ID中提取
-    // 假设 node.id 的格式是：projectId-...
-    // 简单处理：取第一个 '-' 之前的部分作为项目ID
-    const projectId = node.id.split('-')[0];
-    console.log('Extracted projectId:', projectId);
-    navigate(`/pipeline/${projectId}/${node.id}`);
+    if (currentProjectId) {
+      navigate(`/pipeline/${currentProjectId}/${node.id}`);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm text-gray-400">字段转换规则</label>
-          <Button size="sm" variant="ghost" onClick={handleAddTransform}>+ 添加</Button>
-        </div>
-        {transforms.map((t, i) => (
-          <div key={i} className="flex gap-2 mb-2">
-            <Input
-              value={t.from}
-              onChange={(e) => {
-                const newT = [...transforms];
-                newT[i].from = e.target.value;
-                setTransforms(newT);
-              }}
-              placeholder="原字段"
-            />
-            <Input
-              value={t.to}
-              onChange={(e) => {
-                const newT = [...transforms];
-                newT[i].to = e.target.value;
-                setTransforms(newT);
-              }}
-              placeholder="新字段"
-            />
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">过滤条件</label>
-        <Textarea
-          value={filters.join('\n')}
-          onChange={(e) => setFilters(e.target.value.split('\n').filter(f => f))}
-          placeholder="每行一个条件，如: status = 'active'"
-          rows={4}
-        />
-      </div>
-
       <Button onClick={handleOpenPipelineBuilder} className="w-full mb-4">
         打开Pipeline 构建
       </Button>

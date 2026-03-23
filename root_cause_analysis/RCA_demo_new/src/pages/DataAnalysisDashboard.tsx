@@ -100,21 +100,12 @@ export default function DataAnalysisDashboard() {
         // 从数据集节点中提取保存位置
         const projectDatasets = datasetNodes.map(node => {
           // 从节点配置中获取保存位置
-          const saveLocation = node.config?.saveLocation || DEFAULT_CSV_PATH;
+          const saveLocation = node.config?.saveLocation || '';
           return {
             value: saveLocation,
             label: node.name
           };
-        });
-        
-        // 添加默认数据集选项
-        if (projectDatasets.length === 0) {
-          projectDatasets.push(
-            { value: DEFAULT_CSV_PATH, label: '产品库存数据' },
-            { value: '/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/sales_data.csv', label: '销售数据' },
-            { value: '/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/customer_data.csv', label: '客户数据' }
-          );
-        }
+        }).filter(dataset => dataset.value); // 过滤掉空值
         
         setDatasets(projectDatasets);
         
@@ -122,8 +113,22 @@ export default function DataAnalysisDashboard() {
         if (projectDatasets.length > 0) {
           setSelectedDataset(projectDatasets[0].value);
           setCsvPath(projectDatasets[0].value);
+        } else {
+          // 如果没有数据集，清空选择
+          setSelectedDataset('');
+          setCsvPath('');
         }
+      } else {
+        // 如果没有项目流程数据，清空选择
+        setDatasets([]);
+        setSelectedDataset('');
+        setCsvPath('');
       }
+    } else {
+      // 如果没有项目ID或项目流程数据，清空选择
+      setDatasets([]);
+      setSelectedDataset('');
+      setCsvPath('');
     }
   }, [projectId, flowProjectsData]);
 
@@ -230,7 +235,7 @@ export default function DataAnalysisDashboard() {
 
   const handleAnalyze = async () => {
     if (!csvPath.trim()) {
-      setError('请输入 CSV 文件路径');
+      setError('请选择一个数据集');
       return;
     }
 
