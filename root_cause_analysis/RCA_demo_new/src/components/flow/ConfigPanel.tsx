@@ -38,6 +38,9 @@ const systemTypeOptions = [
   { value: 'HRM', label: 'HRM 人力资源管理' },
   { value: 'OA', label: 'OA 办公自动化' },
   { value: 'API', label: 'API 接口' },
+  { value: 'Xfusion', label: 'xfusion采购系统' },
+  { value: 'Warehouse', label: '仓库管理系统' },
+  { value: 'Sales', label: '销售系统' },
 ];
 
 function SystemConfig({ node, onSave }: { node: any; onSave: (config: Record<string, unknown>) => void }) {
