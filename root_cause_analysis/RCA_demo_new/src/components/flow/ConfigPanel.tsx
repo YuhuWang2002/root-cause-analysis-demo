@@ -301,6 +301,7 @@ function QualityConfig({ node, onSave }: { node: any; onSave: (config: Record<st
 function DatasetConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSave: (config: Record<string, unknown>) => void }) {
   const [sourceIds, setSourceIds] = useState<string[]>(node.config?.sourceIds || []);
   const [joinType, setJoinType] = useState(node.config?.joinType || 'union');
+  const [saveLocation, setSaveLocation] = useState(node.config?.saveLocation || '');
 
   const sourceNodes = nodes.filter(n => n.type === 'system');
 
@@ -313,52 +314,21 @@ function DatasetConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSav
   };
 
   const handleSave = () => {
-    onSave({ sourceIds, joinType });
+    onSave({ sourceIds, joinType, saveLocation });
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-400 mb-2">选择数据源</label>
-        {sourceNodes.length === 0 ? (
-          <p className="text-sm text-gray-500">暂无数据源</p>
-        ) : (
-          <div className="space-y-2">
-            {sourceNodes.map((source) => (
-              <label
-                key={source.id}
-                className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${
-                  sourceIds.includes(source.id)
-                    ? 'bg-green-900/50 border border-green-700'
-                    : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={sourceIds.includes(source.id)}
-                  onChange={() => handleToggleSource(source.id)}
-                  className="sr-only"
-                />
-                <span className="text-sm text-gray-300">{source.name}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">合并方式</label>
-        <Select
-          value={joinType}
-          onChange={(e) => setJoinType(e.target.value)}
-          options={[
-            { value: 'union', label: '合并 (UNION)' },
-            { value: 'join', label: '关联 (JOIN)' },
-          ]}
+        <label className="block text-sm text-gray-400 mb-2">保存位置</label>
+        <Input
+          value={saveLocation}
+          onChange={(e) => setSaveLocation(e.target.value)}
+          placeholder="输入保存位置路径"
         />
       </div>
 
-      <Button onClick={handleSave} className="w-full" disabled={sourceIds.length === 0}>
+      <Button onClick={handleSave} className="w-full">
         保存配置
       </Button>
     </div>
