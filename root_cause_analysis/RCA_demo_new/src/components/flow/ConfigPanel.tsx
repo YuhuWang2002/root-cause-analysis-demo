@@ -175,7 +175,12 @@ function ProcessConfig({ node, onSave }: { node: any; onSave: (config: Record<st
 
   const handleOpenPipelineBuilder = () => {
     // 从节点ID中提取项目ID
-    const projectId = node.id.split('-')[1];
+    console.log('Node ID:', node.id);
+    // 直接使用当前项目ID，而不是从节点ID中提取
+    // 假设 node.id 的格式是：projectId-...
+    // 简单处理：取第一个 '-' 之前的部分作为项目ID
+    const projectId = node.id.split('-')[0];
+    console.log('Extracted projectId:', projectId);
     navigate(`/pipeline/${projectId}/${node.id}`);
   };
 
