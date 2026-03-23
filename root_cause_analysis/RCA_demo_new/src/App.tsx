@@ -28,7 +28,7 @@ function App() {
           <Route path="/ontology/:projectId/:ontologyId/explorer" element={<OntologyExplorer />} />
           <Route path="/dashboard/:projectId" element={<DataAnalysisDashboard />} />
           <Route path="/dashboard/:projectId/:dashboardId" element={<DataAnalysisDashboard />} />
-          <Route path="/root-cause/:projectId" element={<RootCauseAnalysis />} />
+          <Route path="/root-cause/:projectId/:nodeId" element={<RootCauseAnalysis />} />
           <Route path="/pipeline/:projectId/:pipelineId" element={<DataPipelineBuilder />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

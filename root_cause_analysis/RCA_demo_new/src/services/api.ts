@@ -365,12 +365,12 @@ export interface RootCauseResults {
   message?: string;
 }
 
-export async function getCausalGraph(projectId: string): Promise<{ causal_graph: string }> {
-  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/graph`);
+export async function getCausalGraph(projectId: string, nodeId: string): Promise<{ causal_graph: string }> {
+  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/causal_graph/${nodeId}`);
 }
 
-export async function saveCausalGraph(projectId: string, causalGraph: string): Promise<{ causal_graph: string }> {
-  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/graph`, {
+export async function saveCausalGraph(projectId: string, nodeId: string, causalGraph: string): Promise<{ causal_graph: string }> {
+  return fetchAPI<{ causal_graph: string }>(`/root-cause/${projectId}/causal_graph/${nodeId}`, {
     method: 'PUT',
     body: JSON.stringify({ causal_graph: causalGraph }),
   });

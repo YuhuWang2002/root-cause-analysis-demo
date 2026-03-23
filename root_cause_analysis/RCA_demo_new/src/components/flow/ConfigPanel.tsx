@@ -868,7 +868,7 @@ function RootCauseConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onS
         connections: canvasData.connections
       });
       
-      navigate(`/root-cause/${currentProjectId}`);
+      navigate(`/root-cause/${currentProjectId}/${node.id}`);
     } catch (err) {
       console.error('Failed to open root cause analysis:', err);
     } finally {

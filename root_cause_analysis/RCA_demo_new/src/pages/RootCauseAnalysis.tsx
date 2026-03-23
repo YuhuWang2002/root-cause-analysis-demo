@@ -71,7 +71,7 @@ function parseDotGraph(dot: string): { nodes: CausalNode[]; edges: CausalEdge[] 
 }
 
 export default function RootCauseAnalysis() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, nodeId } = useParams<{ projectId: string; nodeId: string }>();
   const navigate = useNavigate();
 
   const [causalGraph, setCausalGraph] = useState(DEFAULT_CAUSAL_GRAPH);
@@ -140,10 +140,10 @@ export default function RootCauseAnalysis() {
   }, [causalGraph, setNodes, setEdges]);
 
   const loadData = async () => {
-    if (!projectId) return;
+    if (!projectId || !nodeId) return;
     setIsLoading(true);
     try {
-      const graphData = await api.getCausalGraph(projectId);
+      const graphData = await api.getCausalGraph(projectId, nodeId);
       setCausalGraph(graphData.causal_graph || DEFAULT_CAUSAL_GRAPH);
       
       try {
@@ -160,9 +160,9 @@ export default function RootCauseAnalysis() {
   };
 
   const handleSaveGraph = async () => {
-    if (!projectId) return;
+    if (!projectId || !nodeId) return;
     try {
-      await api.saveCausalGraph(projectId, causalGraph);
+      await api.saveCausalGraph(projectId, nodeId, causalGraph);
     } catch (err) {
       console.error('Failed to save graph:', err);
     }

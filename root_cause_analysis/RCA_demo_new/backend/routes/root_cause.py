@@ -13,13 +13,14 @@ DEFAULT_CAUSAL_GRAPH = """digraph {
     kunlun_2280_sales -> pac900s12_b2_1_procurement;
 }"""
 
-@bp.route('/<project_id>/graph', methods=['GET'])
-def get_causal_graph(project_id):
+@bp.route('/<project_id>/causal_graph/<node_id>', methods=['GET'])
+def get_causal_graph(project_id, node_id):
     canvas_data = CanvasData.query.filter_by(project_id=project_id).first()
 
     if not canvas_data:
         return jsonify({
             'project_id': project_id,
+            'node_id': node_id,
             'causal_graph': DEFAULT_CAUSAL_GRAPH
         })
 
@@ -27,7 +28,7 @@ def get_causal_graph(project_id):
         nodes = json.loads(canvas_data.nodes) if isinstance(canvas_data.nodes, str) else canvas_data.nodes
         causal_graph = DEFAULT_CAUSAL_GRAPH
         for node in nodes:
-            if node.get('type') == 'root_cause' and node.get('config', {}).get('causal_graph'):
+            if node.get('id') == node_id and node.get('config', {}).get('causal_graph'):
                 causal_graph = node['config']['causal_graph']
                 break
     except:
@@ -35,11 +36,12 @@ def get_causal_graph(project_id):
 
     return jsonify({
         'project_id': project_id,
+        'node_id': node_id,
         'causal_graph': causal_graph
     })
 
-@bp.route('/<project_id>/graph', methods=['PUT'])
-def save_causal_graph(project_id):
+@bp.route('/<project_id>/causal_graph/<node_id>', methods=['PUT'])
+def save_causal_graph(project_id, node_id):
     data = request.get_json()
     causal_graph = data.get('causal_graph', DEFAULT_CAUSAL_GRAPH)
 
@@ -53,38 +55,25 @@ def save_causal_graph(project_id):
 
         found = False
         for node in nodes:
-            if node.get('type') == 'root_cause':
+            if node.get('id') == node_id:
                 if 'config' not in node:
                     node['config'] = {}
                 node['config']['causal_graph'] = causal_graph
                 found = True
                 break
 
-        if not found:
-            nodes.append({
-                'id': 'root_cause_config',
-                'type': 'root_cause',
-                'config': {'causal_graph': causal_graph}
-            })
+        # 不再自动添加节点，只更新指定 ID 的节点
 
         canvas_data.nodes = json.dumps(nodes)
     else:
-        nodes = [{
-            'id': 'root_cause_config',
-            'type': 'root_cause',
-            'config': {'causal_graph': causal_graph}
-        }]
-        canvas_data = CanvasData(
-            project_id=project_id,
-            nodes=json.dumps(nodes),
-            connections='[]'
-        )
-        db.session.add(canvas_data)
+        # 如果没有画布数据，不创建新的画布数据
+        return jsonify({'error': 'Canvas data not found'}), 404
 
     db.session.commit()
 
     return jsonify({
         'project_id': project_id,
+        'node_id': node_id,
         'causal_graph': causal_graph
     })
 
