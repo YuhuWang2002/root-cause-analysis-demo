@@ -6,7 +6,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import * as api from '@/services/api';
 import { useProjectStore } from '@/stores/projectStore';
-import { useWizardStore } from '@/stores/wizardStore';
+import { useFlowStore } from '@/stores/flowStore';
 
 interface FieldInfo {
   name: string;
@@ -57,8 +57,8 @@ export default function DataAnalysisDashboard() {
   const { projectId, dashboardId } = useParams<{ projectId: string; dashboardId?: string }>();
   const navigate = useNavigate();
 
-  const { dataSources } = useWizardStore();
   const { projectsData } = useProjectStore();
+  const { projectsData: flowProjectsData, loadProject } = useFlowStore();
   
   const [csvPath, setCsvPath] = useState(DEFAULT_CSV_PATH);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -81,18 +81,41 @@ export default function DataAnalysisDashboard() {
   const [datasets, setDatasets] = useState<{ value: string; label: string }[]>([]);
   const [selectedDataset, setSelectedDataset] = useState('');
   
+  // 加载项目流程数据
+  useEffect(() => {
+    if (projectId) {
+      loadProject(projectId);
+    }
+  }, [projectId, loadProject]);
+  
   // 加载数据集
   useEffect(() => {
-    // 从项目数据或数据源中获取数据集
-    if (projectsData && projectId) {
-      const project = projectsData[projectId];
-      if (project) {
-        // 这里可以根据实际情况从项目数据中提取数据集
-        // 暂时使用数据源作为数据集
-        const projectDatasets = dataSources.map(source => ({
-          value: source.host, // 假设 host 是文件路径
-          label: source.name
-        }));
+    // 从项目流程数据中获取数据集节点
+    if (flowProjectsData && projectId) {
+      const projectFlow = flowProjectsData[projectId];
+      if (projectFlow && projectFlow.nodes) {
+        // 筛选出数据集节点
+        const datasetNodes = projectFlow.nodes.filter(node => node.type === 'dataset');
+        
+        // 从数据集节点中提取保存位置
+        const projectDatasets = datasetNodes.map(node => {
+          // 从节点配置中获取保存位置
+          const saveLocation = node.config?.saveLocation || DEFAULT_CSV_PATH;
+          return {
+            value: saveLocation,
+            label: node.name
+          };
+        });
+        
+        // 添加默认数据集选项
+        if (projectDatasets.length === 0) {
+          projectDatasets.push(
+            { value: DEFAULT_CSV_PATH, label: '产品库存数据' },
+            { value: '/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/sales_data.csv', label: '销售数据' },
+            { value: '/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/customer_data.csv', label: '客户数据' }
+          );
+        }
+        
         setDatasets(projectDatasets);
         
         // 如果有数据集，默认选择第一个
@@ -102,7 +125,7 @@ export default function DataAnalysisDashboard() {
         }
       }
     }
-  }, [projectId, projectsData, dataSources]);
+  }, [projectId, flowProjectsData]);
 
   useEffect(() => {
     if (projectId) {
