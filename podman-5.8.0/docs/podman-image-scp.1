@@ -1,0 +1,114 @@
+.nh
+.TH podman-image-scp 1
+.SH NAME
+podman-image-scp \- Securely copy an image from one host to another
+
+.SH SYNOPSIS
+\fBpodman image scp\fP [\fIoptions\fP] \fIname\fP[:\fItag\fP]
+
+.SH DESCRIPTION
+\fBpodman image scp\fP copies container images between hosts on a network. This command can copy images to the remote host or from the remote host as well as between two remote hosts.
+Note: \fB::\fR is used to specify the image name depending on Podman is saving or loading. Images can also be transferred from rootful to rootless storage on the same machine without using sshd. This feature is not supported on the remote client, including Mac and Windows (excluding WSL2) machines.
+
+.PP
+\fBpodman image scp [GLOBAL OPTIONS]\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] NAME[:TAG] [HOSTNAME::]\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] [HOSTNAME::]IMAGENAME\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] [HOSTNAME::]IMAGENAME [HOSTNAME::]\fP
+
+.SH OPTIONS
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress the output
+
+.SH EXAMPLES
+Copy specified image to local storage:
+
+.EX
+$ podman image scp alpine
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+Copy specified image from local storage to remote connection:
+
+.EX
+$ podman image scp alpine Fedora::/home/charliedoern/Documents/alpine
+Getting image source signatures
+Copying blob 72e830a4dff5 done
+Copying config 85f9dc67c7 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+Copy specified image from remote connection to remote connection:
+
+.EX
+$ podman image scp Fedora::alpine RHEL::
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+Copy specified image via ssh to local storage:
+
+.EX
+$ podman image scp charliedoern@192.168.68.126:22/run/user/1000/podman/podman.sock::alpine
+WARN[0000] Unknown connection name given. Please use system connection add to specify the default remote socket location
+Getting image source signatures
+Copying blob 9450ef9feb15 [--------------------------------------] 0.0b / 0.0b
+Copying config 1f97f0559c done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+Copy specified image from root account to user accounts local storage:
+
+.EX
+$ sudo podman image scp root@localhost::alpine username@localhost::
+Copying blob e2eb06d8af82 done
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Getting image source signatures
+Copying blob 5eb901baf107 skipped: already exists
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+Copy specified image from root account to local storage:
+
+.EX
+$ sudo podman image scp root@localhost::alpine
+Copying blob e2eb06d8af82 done
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Getting image source signatures
+Copying blob 5eb901baf107
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-load(1)\fP, \fBpodman-save(1)\fP, \fBpodman-remote(1)\fP, \fBpodman-system-connection-add(1)\fP, \fBcontainers.conf(5)\fP, \fBcontainers-transports(5)\fP
+
+.SH HISTORY
+July 2021, Originally written by Charlie Doern cdoern@redhat.com
+\[la]mailto:cdoern@redhat.com\[ra]

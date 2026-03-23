@@ -3,13 +3,14 @@ import { Navbar } from '@/components/layout/Navbar';
 import ProjectList from './pages/ProjectList';
 import CreateProject from './pages/CreateProject';
 import AnalysisFlow from './pages/AnalysisFlow';
-import DataAnalysisDashboard from './pages/DataAnalysisDashboard';
+import OntologyEditor from './pages/OntologyEditor';
 import OntologyObjectEditor from './pages/OntologyObjectEditor';
 import OntologyLinkEditor from './pages/OntologyLinkEditor';
 import OntologyActionEditor from './pages/OntologyActionEditor';
 import OntologyExplorer from './pages/OntologyExplorer';
-import DataPipelineBuilder from './pages/DataPipelineBuilder';
+import DataAnalysisDashboard from './pages/DataAnalysisDashboard';
 import RootCauseAnalysis from './pages/RootCauseAnalysis';
+import DataPipelineBuilder from './pages/DataPipelineBuilder';
 
 function App() {
   return (

@@ -1,0 +1,33 @@
+'\" t
+.nh
+.TH podman-quadlet 1
+.SH NAME
+podman-quadlet \- Allows users to manage Quadlets
+
+.SH SYNOPSIS
+\fBpodman quadlet\fP \fIsubcommand\fP
+
+.SH DESCRIPTION
+\fBpodman quadlet\fR is a set of subcommands that manage Quadlets.
+
+.PP
+Podman Quadlets allow users to manage containers, pods, volumes, networks, and images declaratively via systemd unit files, streamlining container management on Linux systems without the complexity of full orchestration tools like Kubernetes. The syntax of quadlet files is described in \fBpodman-systemd.unit\fP(5).
+
+.SH SUBCOMMANDS
+.TS
+allbox;
+l l l 
+l l l .
+\fBCommand\fP	\fBMan Page\fP	\fBDescription\fP
+install	podman-quadlet-install(1)	T{
+Install a quadlet file or quadlet application
+T}
+list	podman-quadlet-list(1)	List installed quadlets
+print	podman-quadlet-print(1)	T{
+Display the contents of a quadlet
+T}
+rm	podman-quadlet-rm(1)	Removes an installed quadlet
+.TE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-systemd.unit(5)\fP

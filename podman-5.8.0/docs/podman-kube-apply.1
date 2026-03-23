@@ -1,0 +1,73 @@
+.nh
+.TH podman-kube-apply 1
+.SH NAME
+podman-kube-apply \- Apply Kubernetes YAML based on containers, pods, or volumes to a Kubernetes cluster
+
+.SH SYNOPSIS
+\fBpodman kube apply\fP [\fIoptions\fP] [\fIcontainer...\fP | \fIpod...\fP | \fIvolume...\fP]
+
+.SH DESCRIPTION
+\fBpodman kube apply\fP deploys a podman container, pod, or volume to a Kubernetes cluster. Use the \fB--file\fR option to deploy a Kubernetes YAML (v1 specification) to a Kubernetes cluster as well.
+
+.PP
+Note that the Kubernetes YAML file can be used to run the deployment in Podman via podman-play-kube(1).
+
+.SH OPTIONS
+.SS \fB--ca-cert-file\fP=\fIca cert file path | "insecure"\fP
+The path to the CA cert file for the Kubernetes cluster. Usually the kubeconfig has the CA cert file data and \fBgenerate kube\fR automatically picks that up if it is available in the kubeconfig. If no CA cert file data is available, set this to \fBinsecure\fR to bypass the certificate verification.
+
+.SS \fB--file\fP, \fB-f\fP=\fIkube yaml filepath\fP
+Path to the kubernetes yaml file to deploy onto the kubernetes cluster. This file can be generated using the \fBpodman kube generate\fR command. The input may be in the form of a yaml file, or stdin. For stdin, use \fB--file=-\fR\&.
+
+.SS \fB--kubeconfig\fP, \fB-k\fP=\fIkubeconfig filepath\fP
+Path to the kubeconfig file to be used when deploying the generated kube yaml to the Kubernetes cluster. The environment variable \fBKUBECONFIG\fR can be used to set the path for the kubeconfig file as well.
+Note: A kubeconfig can have multiple cluster configurations, but \fBkube generate\fR always picks the first cluster configuration in the given kubeconfig.
+
+.SS \fB--ns\fP=\fInamespace\fP
+The namespace or project to deploy the workloads of the generated kube yaml to in the Kubernetes cluster.
+
+.SS \fB--service\fP, \fB-s\fP
+Used to create a service for the corresponding container or pod being deployed to the cluster. In particular, if the container or pod has portmap bindings, the service specification includes a NodePort declaration to expose the service. A random port is assigned by Podman in the service specification that is deployed to the cluster.
+
+.SH EXAMPLES
+Apply a podman volume and container to the "default" namespace in a Kubernetes cluster.
+
+.EX
+$ podman kube apply --kubeconfig /tmp/kubeconfig myvol vol-test-1
+Deploying to cluster...
+Successfully deployed workloads to cluster!
+$ kubectl get pods
+NAME             READY   STATUS    RESTARTS   AGE
+vol-test-1-pod   1/1     Running   0          9m
+.EE
+
+.PP
+Apply a Kubernetes YAML file to the "default" namespace in a Kubernetes cluster.
+
+.EX
+$ podman kube apply --kubeconfig /tmp/kubeconfig -f vol.yaml
+Deploying to cluster...
+Successfully deployed workloads to cluster!
+$ kubectl get pods
+NAME             READY   STATUS    RESTARTS   AGE
+vol-test-2-pod   1/1     Running   0          9m
+.EE
+
+.PP
+Apply a Kubernetes YAML file to the "test1" namespace in a Kubernetes cluster.
+
+.EX
+$ podman kube apply --kubeconfig /tmp/kubeconfig --ns test1 vol-test-3
+Deploying to cluster...
+Successfully deployed workloads to cluster!
+$ kubectl get pods --namespace test1
+NAME             READY   STATUS    RESTARTS   AGE
+vol-test-3-pod   1/1     Running   0          9m
+
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-container(1)\fP, \fBpodman-pod(1)\fP, \fBpodman-kube-play(1)\fP, \fBpodman-kube-generate(1)\fP
+
+.SH HISTORY
+September 2022, Originally compiled by Urvashi Mohnani (umohnani at redhat dot com)

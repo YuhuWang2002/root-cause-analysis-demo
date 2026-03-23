@@ -1,0 +1,27 @@
+.nh
+.TH podman-quadlet-print 1
+.SH NAME
+podman-quadlet-print \- Display the contents of a quadlet
+
+.SH SYNOPSIS
+\fBpodman quadlet print\fP \fIquadlet\fP
+
+.PP
+\fBpodman quadlet cat\fP \fIquadlet\fP
+
+.SH DESCRIPTION
+Print the contents of a Quadlet, displaying the file including all comments.
+
+.SH EXAMPLES
+Using \fBpodman quadlet print\fR to display the contents of a quadlet named \fBmyquadlet.container\fR:
+
+.EX
+$ podman quadlet print myquadlet.container
+[Container]
+Image=alpine
+Exec=sh -c "echo LIFECYCLE TEST STARTED; trap 'exit' SIGTERM; while :; do echo running; sleep 1; done"
+LogDriver=passthrough
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-quadlet(1)\fP, \fBpodman-systemd.unit(5)\fP

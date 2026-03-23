@@ -1,0 +1,40 @@
+.nh
+.TH podman-quadlet-rm 1
+.SH NAME
+podman-quadlet-rm \- Removes an installed quadlet
+
+.SH SYNOPSIS
+\fBpodman quadlet rm\fP [\fIoptions\fP] \fIquadlet\fP [\fIquadlet\fP]...
+
+.SH DESCRIPTION
+Remove one or more installed Quadlets from the current user. Following command also takes application name
+as input and removes all the Quadlets which belongs to that specific application.
+
+.PP
+Note: If a quadlet is part of an application, removing that specific quadlet will remove the entire application.
+When a quadlet is installed from a directory, all files installed from that directory—including both quadlet and non-quadlet files—are considered part
+of a single application.
+
+.SH OPTIONS
+.SS \fB--all\fP, \fB-a\fP
+Remove all Quadlets for the current user.
+
+.SS \fB--force\fP, \fB-f\fP
+Remove running quadlets.
+
+.SS \fB--ignore\fP, \fB-i\fP
+Do not error for Quadlets that do not exist.
+
+.SS \fB--reload-systemd\fP
+Reload systemd after removing Quadlets (default true).
+In order to disable it users need to manually set the value
+of this flag to \fBfalse\fR\&.
+
+.SH EXAMPLES
+.EX
+$ podman quadlet rm myquadlet.container
+myquadlet.container
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-quadlet(1)\fP, \fBpodman-systemd.unit(5)\fP

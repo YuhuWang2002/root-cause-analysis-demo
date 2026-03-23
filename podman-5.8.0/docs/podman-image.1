@@ -1,0 +1,84 @@
+'\" t
+.nh
+.TH podman-image 1
+.SH NAME
+podman-image \- Manage images
+
+.SH SYNOPSIS
+\fBpodman image\fP \fIsubcommand\fP
+
+.SH DESCRIPTION
+The image command allows the management of images
+
+.SH COMMANDS
+.TS
+allbox;
+l l l 
+l l l .
+\fBCommand\fP	\fBMan Page\fP	\fBDescription\fP
+build	podman-build(1)	T{
+Build a container using a Dockerfile.
+T}
+diff	podman-image-diff(1)	T{
+Inspect changes on an image's filesystem.
+T}
+exists	podman-image-exists(1)	T{
+Check if an image exists in local storage.
+T}
+history	podman-history(1)	Show the history of an image.
+import	podman-import(1)	T{
+Import a tarball and save it as a filesystem image.
+T}
+inspect	podman-image-inspect(1)	T{
+Display an image's configuration.
+T}
+list	podman-images(1)	T{
+List the container images on the system.(alias ls)
+T}
+load	podman-load(1)	T{
+Load an image from the docker archive.
+T}
+mount	podman-image-mount(1)	T{
+Mount an image's root filesystem.
+T}
+prune	podman-image-prune(1)	T{
+Remove all unused images from the local store.
+T}
+pull	podman-pull(1)	Pull an image from a registry.
+push	podman-push(1)	T{
+Push an image from local storage to elsewhere.
+T}
+rm	podman-rmi(1)	T{
+Remove one or more locally stored images.
+T}
+save	podman-save(1)	T{
+Save an image to docker-archive or oci.
+T}
+scp	podman-image-scp(1)	T{
+Securely copy an image from one host to another.
+T}
+search	podman-search(1)	T{
+Search a registry for an image.
+T}
+sign	podman-image-sign(1)	T{
+Create a signature for an image.
+T}
+tag	podman-tag(1)	T{
+Add an additional name to a local image.
+T}
+tree	podman-image-tree(1)	T{
+Print layer hierarchy of an image in a tree format.
+T}
+trust	podman-image-trust(1)	T{
+Manage container registry image trust policy.
+T}
+unmount	podman-image-unmount(1)	T{
+Unmount an image's root filesystem.
+T}
+untag	podman-untag(1)	T{
+Remove one or more names from a locally-stored image.
+T}
+.TE
+
+.SH SEE ALSO
+\fBpodman(1)\fP

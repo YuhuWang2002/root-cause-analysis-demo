@@ -1,0 +1,90 @@
+'\" t
+.nh
+.TH podman-artifact-ls 1
+.SH NAME
+podman-artifact-ls \- List OCI artifacts in local store
+
+.SH SYNOPSIS
+\fBpodman artifact ls\fP [\fIoptions\fP]
+
+.SH DESCRIPTION
+List all local artifacts in your local store.
+
+.SH OPTIONS
+.SS \fB--format\fP
+Print results with a Go template.
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fBPlaceholder\fP\fP	\fB\fBDescription\fP\fP
+\&.Created	T{
+Elapsed time since the artifact was created
+T}
+\&.CreatedAt	T{
+Full timestamp of when the artifact was created
+T}
+\&.Digest	T{
+The computed digest of the artifact's manifest
+T}
+\&.Repository	T{
+Repository name of the artifact
+T}
+\&.Size	T{
+Size artifact in human readable units
+T}
+\&.Tag	Tag of the artifact name
+\&.VirtualSize	Size of artifact in bytes
+.TE
+
+.SS \fB--no-trunc\fP
+Do not truncate the output (default \fIfalse\fP).
+
+.SS \fB--noheading\fP, \fB-n\fP
+Omit the table headings from the listing.
+
+.SH EXAMPLES
+List artifacts in the local store
+
+.EX
+$ podman artifact ls
+REPOSITORY                TAG         DIGEST         CREATED          SIZE
+quay.io/artifact/foobar1  latest      ab609fad386d   6 hours ago      2.097GB
+quay.io/artifact/foobar2  special     cd734b558ceb   53 seconds ago   12.58MB
+.EE
+
+.PP
+List artifacts in the local store without truncating the digest
+
+.EX
+$ podman artifact ls --no-trunc
+REPOSITORY                TAG         DIGEST                                                              CREATED          SIZE
+quay.io/artifact/foobar1  latest      ab609fad386df1433f461b0643d9cf575560baf633809dcc9c190da6cc3a3c29    6 hours ago      2.097GB
+quay.io/artifact/foobar2  special     cd734b558ceb8ccc0281ca76530e1dea1eb479407d3163f75fb601bffb6f73d0    53 seconds ago   12.58MB
+.EE
+
+.PP
+List artifacts in the local store without the title header
+
+.EX
+$ podman artifact ls --noheading
+quay.io/artifact/foobar1  latest      ab609fad386d   6 hours ago      2.097GB
+quay.io/artifact/foobar2  special     cd734b558ceb   53 seconds ago   12.58MB
+.EE
+
+.PP
+List artifact digests and size using a --format
+
+.EX
+$ podman artifact ls --format "{{.Digest}} {{.Size}}"
+ab609fad386d 2.097GB
+cd734b558ceb 12.58MB
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-artifact(1)\fP
+
+.SH HISTORY
+Jan 2025, Originally compiled by Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

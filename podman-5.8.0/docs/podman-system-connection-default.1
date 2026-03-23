@@ -1,0 +1,23 @@
+.nh
+.TH podman-system-connection-default 1
+.SH NAME
+podman-system-connection-default \- Set named destination as default for the Podman service
+
+.SH SYNOPSIS
+\fBpodman system connection default\fP \fIname\fP
+
+.SH DESCRIPTION
+Set named ssh destination as default destination for the Podman service.
+
+.SH EXAMPLE
+Set the specified connection as default:
+
+.EX
+$ podman system connection default production
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-system(1)\fP, \fBpodman-system-connection(1)\fP
+
+.SH HISTORY
+July 2020, Originally compiled by Jhon Honce (jhonce at redhat dot com)

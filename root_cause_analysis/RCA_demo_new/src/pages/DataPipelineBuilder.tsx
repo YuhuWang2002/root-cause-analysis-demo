@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import React, { useState, useCallback } from 'react';
-import ReactFlow, { addEdge, Background, Controls, useNodesState, useEdgesState, Node, Edge } from 'reactflow';
-import 'reactflow/dist/style.css';
+import { ReactFlow, addEdge, Background, Controls, useNodesState, useEdgesState, Node, Edge } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
 const DataPipelineBuilder = () => {
   const { projectId, pipelineId } = useParams<{ projectId: string; pipelineId: string }>();
@@ -246,7 +246,6 @@ const DataPipelineBuilder = () => {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
-              nodeTypes={nodeTypes}
               fitView
             >
               <Background variant="dots" gap={16} size={1} />

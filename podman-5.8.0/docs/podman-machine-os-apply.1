@@ -1,0 +1,72 @@
+.nh
+.TH podman-machine-os-apply 1
+.SH NAME
+podman-machine-os-apply \- Apply an OCI image to a Podman Machine's OS
+
+.SH SYNOPSIS
+\fBpodman machine os apply\fP [\fIoptions\fP] \fIimage\fP [vm]
+
+.SH DESCRIPTION
+Apply machine OS changes from an OCI image.
+
+.PP
+VM's that use OS's that use rpm-ostreee have the capability to rebase itself from the content of an OCI image.
+\fBpodman machine image apply\fR takes an OCI image with container native ostree functionality and rebases itself on that image.
+
+.PP
+By default, Podman machines on Mac, Linux, and Windows Hyper-V use a customized rpm-ostree based distribution (Fedora CoreOS). Machines based on Microsoft WSL use a
+customized Fedora distribution and cannot be updated with this command.
+
+.PP
+Note: WSL-based machines are upgradable by using the \fBpodman machine ssh <machine_name>\fR command followed by \fBsudo dnf update\fR\&.  This can, however, result in unexpected results in
+Podman client and server version differences.
+
+.PP
+Podman machine images are stored as OCI images at \fBquay.io/podman/machine-os\fR\&. When applying an image using this
+command, the fully qualified OCI reference name must be used including tag where the tag is the
+version of Podman that is inside the VM. By default, Podman will attempt to pull only the statement
+version as itself.
+
+.PP
+For more information, see the rpm-ostree documentation.
+
+.PP
+The default machine name is \fBpodman-machine-default\fR\&. If a machine name is not specified as an argument,
+then the OS changes will be applied to \fBpodman-machine-default\fR\&.
+
+.SH OPTIONS
+.SS \fB--help\fP
+Print usage statement.
+
+.SS \fB--restart\fP
+Restart VM after applying changes.
+
+.SH EXAMPLES
+Update the default Podman machine to the latest development version of the
+bootable OCI image.
+
+.PP
+Note: This may result in having a newer Podman version inside the machine
+than the client.  Unexpected results may occur.
+
+.PP
+Update the default Podman machine to the most recent Podman 5.4 bootable
+OCI image.
+
+.EX
+$ podman machine os apply quay.io/podman/machine-os:5.4
+.EE
+
+.PP
+Update the specified Podman machine to latest Podman 5.3 bootable OCI image.
+
+.EX
+$ podman machine os apply quay.io/podman/machine-os:5.3 mymachine
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-machine(1)\fP, \fBpodman-machine-os(1)\fP
+
+.SH HISTORY
+February 2023, Originally compiled by Ashley Cui acui@redhat.com
+\[la]mailto:acui@redhat.com\[ra]

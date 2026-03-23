@@ -1,0 +1,23 @@
+.nh
+.TH podman-system-connection-rename 1
+.SH NAME
+podman-system-connection-rename \- Rename the destination for Podman service
+
+.SH SYNOPSIS
+\fBpodman system connection rename\fP \fIold\fP \fInew\fP
+
+.SH DESCRIPTION
+Rename ssh destination from \fIold\fP to \fInew\fP\&.
+
+.SH EXAMPLE
+Rename the specified connection:
+
+.EX
+$ podman system connection rename laptop devel
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-system(1)\fP, \fBpodman-system-connection(1)\fP
+
+.SH HISTORY
+July 2020, Originally compiled by Jhon Honce (jhonce at redhat dot com)

@@ -1,0 +1,68 @@
+.nh
+.TH podman-attach 1
+.SH NAME
+podman-attach \- Attach to a running container
+
+.SH SYNOPSIS
+\fBpodman attach\fP [\fIoptions\fP] \fIcontainer\fP
+
+.PP
+\fBpodman container attach\fP [\fIoptions\fP] \fIcontainer\fP
+
+.SH DESCRIPTION
+\fBpodman attach\fP attaches to a running \fIcontainer\fP using the \fIcontainer's name\fP or \fIID\fP, to either view its ongoing output or to control it interactively.
+.br
+The \fIcontainer\fP can be detached from (and leave it running) using a configurable key sequence. The default sequence is \fBctrl-p,ctrl-q\fR\&. Configure the keys sequence using the \fB--detach-keys\fP OPTION, or specifying it in the \fBcontainers.conf\fR file: see \fBcontainers.conf(5)\fP for more information.
+
+.SH OPTIONS
+.SS \fB--detach-keys\fP=\fIsequence\fP
+Specify the key sequence for detaching a container. Format is a single character \fB[a-Z]\fR or one or more \fBctrl-<value>\fR characters where \fB<value>\fR is one of: \fBa-z\fR, \fB@\fR, \fB^\fR, \fB[\fR, \fB,\fR or \fB_\fR\&. Specifying "" disables this feature. The default is \fIctrl-p,ctrl-q\fP\&.
+
+.PP
+This option can also be set in \fBcontainers.conf\fP(5) file.
+
+.SS \fB--latest\fP, \fB-l\fP
+Instead of providing the container name or ID, use the last created container.
+Note: the last started container can be from other users of Podman on the host machine.
+(This option is not available with the remote Podman client, including Mac and Windows
+(excluding WSL2) machines)
+
+.SS \fB--no-stdin\fP
+Do not attach STDIN. The default is \fBfalse\fP\&.
+
+.SS \fB--sig-proxy\fP
+Proxy received signals to the container process. SIGCHLD, SIGURG, SIGSTOP, and SIGKILL are not proxied.
+
+.PP
+The default is \fBtrue\fP\&.
+
+.SH EXAMPLES
+Attach to a container called "foobar".
+
+.EX
+$ podman attach foobar
+.EE
+
+.PP
+Attach to the latest created container. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.EX
+$ podman attach --latest
+.EE
+
+.PP
+Attach to a container that start with the ID "1234".
+
+.EX
+$ podman attach 1234
+.EE
+
+.PP
+Attach to a container without attaching STDIN.
+
+.EX
+$ podman attach --no-stdin foobar
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-exec(1)\fP, \fBpodman-run(1)\fP, \fBcontainers.conf(5)\fP

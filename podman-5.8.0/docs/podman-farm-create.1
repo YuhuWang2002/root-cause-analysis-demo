@@ -1,0 +1,35 @@
+.nh
+.TH podman-farm-create 1
+.SH NAME
+podman-farm-create \- Create a new farm
+
+.SH SYNOPSIS
+\fBpodman farm create\fP \fIname\fP [\fIconnections\fP]
+
+.SH DESCRIPTION
+Create a new farm with connections that Podman knows about which were added via the
+\fIpodman system connection add\fP command.
+
+.PP
+An empty farm can be created without adding any connections to it. Add or remove
+connections from a farm via the \fIpodman farm update\fP command.
+
+.SH EXAMPLES
+Create the specified farm with no connections:
+
+.EX
+$ podman farm create farm2
+.EE
+
+.PP
+Create a farm with connections:
+
+.EX
+$ podman farm create farm1 f37 f38
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-farm(1)\fP, \fBpodman-system-connection(1)\fP, \fBpodman-system-connection-add(1)\fP
+
+.SH HISTORY
+July 2023, Originally compiled by Urvashi Mohnani (umohnani at redhat dot com)

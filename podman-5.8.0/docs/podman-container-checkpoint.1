@@ -1,0 +1,242 @@
+.nh
+.TH podman-container-checkpoint 1
+.SH NAME
+podman-container-checkpoint \- Checkpoint one or more running containers
+
+.SH SYNOPSIS
+\fBpodman container checkpoint\fP [\fIoptions\fP] \fIcontainer\fP [\fIcontainer\fP ...]
+
+.SH DESCRIPTION
+\fBpodman container checkpoint\fP checkpoints all the processes in one or more \fIcontainers\fP\&. A \fIcontainer\fP can be restored from a checkpoint with \fBpodman-container-restore\fP\&. The \fIcontainer IDs\fP or \fInames\fP are used as input.
+
+.PP
+\fIIMPORTANT: If the container is using \fBsystemd\fP as \fBentrypoint\fP checkpointing the container might not be possible.\fP
+
+.SH OPTIONS
+.SS \fB--all\fP, \fB-a\fP
+Checkpoint all running \fIcontainers\fP\&.
+.br
+The default is \fBfalse\fP\&.
+.br
+\fIIMPORTANT: This OPTION does not need a container name or ID as input argument.\fP
+
+.SS \fB--compress\fP, \fB-c\fP=\fBzstd\fP | \fInone\fP | \fIgzip\fP
+Specify the compression algorithm used for the checkpoint archive created
+with the \fB--export, -e\fP OPTION. Possible algorithms are \fBzstd\fP, \fInone\fP
+and \fIgzip\fP\&.
+.br
+One possible reason to use \fInone\fP is to enable faster creation of checkpoint
+archives. Not compressing the checkpoint archive can result in faster checkpoint
+archive creation.
+.br
+The default is \fBzstd\fP\&.
+
+.SS \fB--create-image\fP=\fIimage\fP
+Create a checkpoint image from a running container. This is a standard OCI image
+created in the local image store. It consists of a single layer that contains
+all of the checkpoint files. The content of this image layer is in the same format as a
+checkpoint created with \fB--export\fP\&. A checkpoint image can be pushed to a
+standard container registry and pulled on a different system to enable container
+migration. In addition, the image can be exported with \fBpodman image save\fP and
+inspected with \fBpodman inspect\fP\&. Inspecting a checkpoint image displays
+additional information, stored as annotations, about the host environment used
+to do the checkpoint:
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.name\fP: Human-readable name of the original
+container.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.rawImageName\fP: Unprocessed name of the
+image used to create the original container (as specified by the user).
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.rootfsImageID\fP: ID of the image used to
+create the original container.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.rootfsImageName\fP: Image name used to
+create the original container.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.podman.version\fP: Version of Podman used to
+create the checkpoint.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.criu.version\fP: Version of CRIU used to
+create the checkpoint.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.runtime.name\fP: Container runtime (e.g.,
+runc, crun) used to create the checkpoint.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.runtime.version\fP: Version of the container
+runtime used to create the checkpoint.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.conmon.version\fP: Version of conmon used
+with the original container.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.host.arch\fP: CPU architecture of the host
+on which the checkpoint was created.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.host.kernel\fP: Version of Linux kernel
+of the host where the checkpoint was created.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.cgroups.version\fP: cgroup version used by
+the host where the checkpoint was created.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.distribution.version\fP: Version of host
+distribution on which the checkpoint was created.
+.IP \(bu 2
+\fBio.podman.annotations.checkpoint.distribution.name\fP: Name of host
+distribution on which the checkpoint was created.
+
+.SS \fB--export\fP, \fB-e\fP=\fIarchive\fP
+Export the checkpoint to an archive. The archive type is specified with
+\fB--compress\fP\&. The exported checkpoint can be used to import the \fIcontainer\fP on
+another system and thus enabling container live migration. This checkpoint
+archive also includes all changes to the \fIcontainer's\fP root file-system, if not
+explicitly disabled using \fB--ignore-rootfs\fP\&.
+
+.SS \fB--file-locks\fP
+Checkpoint a \fIcontainer\fP with file locks. If an application running in the container
+is using file locks, this OPTION is required during checkpoint and restore. Otherwise
+checkpointing \fIcontainers\fP with file locks is expected to fail. If file locks are not
+used, this option is ignored.
+.br
+The default is \fBfalse\fP\&.
+
+.SS \fB--ignore-rootfs\fP
+If a checkpoint is exported to an archive it is possible with the help of \fB--ignore-rootfs\fP to explicitly disable including changes to the root file-system into the checkpoint archive file.
+.br
+The default is \fBfalse\fP\&.
+.br
+\fIIMPORTANT: This OPTION only works in combination with \fB--export, -e\fP\&.\fP
+
+.SS \fB--ignore-volumes\fP
+This OPTION must be used in combination with the \fB--export, -e\fP OPTION.
+When this OPTION is specified, the content of volumes associated with
+the \fIcontainer\fP is not included into the checkpoint archive.
+.br
+The default is \fBfalse\fP\&.
+
+.SS \fB--keep\fP, \fB-k\fP
+Keep all temporary log and statistics files created by CRIU during checkpointing. These files are not deleted if checkpointing fails for further debugging. If checkpointing succeeds these files are theoretically not needed, but if these files are needed Podman can keep the files for further analysis.
+.br
+The default is \fBfalse\fP\&.
+
+.SS \fB--latest\fP, \fB-l\fP
+Instead of providing the \fIcontainer ID\fP or \fIname\fP, use the last created \fIcontainer\fP\&. The default is \fBfalse\fP\&.
+\fIIMPORTANT: This OPTION is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines. This OPTION does not need a container name or ID as input argument.\fP
+
+.SS \fB--leave-running\fP, \fB-R\fP
+Leave the \fIcontainer\fP running after checkpointing instead of stopping it.
+.br
+The default is \fBfalse\fP\&.
+
+.SS \fB--pre-checkpoint\fP, \fB-P\fP
+Dump the \fIcontainer's\fP memory information only, leaving the \fIcontainer\fP running. Later
+operations supersedes prior dumps.
+.br
+The default is \fBfalse\fP\&.
+
+.PP
+The functionality to only checkpoint the memory of the container and in a second
+checkpoint only write out the memory pages which have changed since the first
+checkpoint relies on the Linux kernel's soft-dirty bit, which is not available
+on all systems as it depends on the system architecture and the configuration
+of the Linux kernel. Podman verifies if the current system supports this
+functionality and return an error if the current system does not support it.
+
+.SS \fB--print-stats\fP
+Print out statistics about checkpointing the container(s). The output is
+rendered in a JSON array and contains information about how much time different
+checkpoint operations required. Many of the checkpoint statistics are created
+by CRIU and just passed through to Podman. The following information is provided
+in the JSON array:
+.IP \(bu 2
+\fBpodman_checkpoint_duration\fP: Overall time (in microseconds) needed to create
+all checkpoints.
+.IP \(bu 2
+\fBruntime_checkpoint_duration\fP: Time (in microseconds) the container runtime
+needed to create the checkpoint.
+.IP \(bu 2
+\fBfreezing_time\fP: Time (in microseconds) CRIU needed to pause (freeze) all
+processes in the container (measured by CRIU).
+.IP \(bu 2
+\fBfrozen_time\fP: Time (in microseconds) all processes in the container were
+paused (measured by CRIU).
+.IP \(bu 2
+\fBmemdump_time\fP: Time (in microseconds) needed to extract all required memory
+pages from all container processes (measured by CRIU).
+.IP \(bu 2
+\fBmemwrite_time\fP: Time (in microseconds) needed to write all required memory
+pages to the corresponding checkpoint image files (measured by CRIU).
+.IP \(bu 2
+\fBpages_scanned\fP: Number of memory pages scanned to determine if they need
+to be checkpointed (measured by CRIU).
+.IP \(bu 2
+\fBpages_written\fP: Number of memory pages actually written to the checkpoint
+image files (measured by CRIU).
+
+.PP
+The default is \fBfalse\fP\&.
+
+.SS \fB--tcp-established\fP
+Checkpoint a \fIcontainer\fP with established TCP connections. If the checkpoint
+image contains established TCP connections, this OPTION is required during
+restore. Defaults to not checkpointing \fIcontainers\fP with established TCP
+connections.
+.br
+The default is \fBfalse\fP\&.
+
+.SS \fB--with-previous\fP
+Check out the \fIcontainer\fP with previous criu image files in pre-dump. It only works on \fBrunc 1.0-rc3\fR or \fBhigher\fR\&.
+.br
+The default is \fBfalse\fP\&.
+.br
+\fIIMPORTANT: This OPTION is not available with \fB--pre-checkpoint\fP\fP\&.
+
+.PP
+This option requires that the option \fB--pre-checkpoint\fP has been used before on the
+same container. Without an existing pre-checkpoint, this option fails.
+
+.PP
+Also see \fB--pre-checkpoint\fP for additional information about \fB--pre-checkpoint\fP
+availability on different systems.
+
+.SH EXAMPLES
+Make a checkpoint for the container "mywebserver".
+
+.EX
+# podman container checkpoint mywebserver
+.EE
+
+.PP
+Create a checkpoint image for the container "mywebserver".
+
+.EX
+# podman container checkpoint --create-image mywebserver-checkpoint-1 mywebserver
+.EE
+
+.PP
+Dumps the container's memory information of the latest container into an archive.
+
+.EX
+# podman container checkpoint -P -e pre-checkpoint.tar.zst -l
+.EE
+
+.PP
+Keep the container's memory information from an older dump and add the new container's memory information.
+
+.EX
+# podman container checkpoint --with-previous -e checkpoint.tar.zst -l
+.EE
+
+.PP
+Dump the container's memory information of the latest container into an archive with the specified compress method.
+
+.EX
+# podman container checkpoint -l --compress=none --export=dump.tar
+# podman container checkpoint -l --compress=gzip --export=dump.tar.gz
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-container-restore(1)\fP, \fBcriu(8)\fP
+
+.SH HISTORY
+September 2018, Originally compiled by Adrian Reber areber@redhat.com
+\[la]mailto:areber@redhat.com\[ra]

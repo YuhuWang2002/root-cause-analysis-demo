@@ -1,0 +1,59 @@
+.nh
+.TH podman-container-exists 1
+.SH NAME
+podman-container-exists \- Check if a container exists in local storage
+
+.SH SYNOPSIS
+\fBpodman container exists\fP [\fIoptions\fP] \fIcontainer\fP
+
+.SH DESCRIPTION
+\fBpodman container exists\fP checks if a container exists in local storage. The \fIcontainer ID\fP or \fIname\fP is used as input. Podman returns an exit code
+of \fB0\fR when the container is found.  A \fB1\fR is returned otherwise. An exit code of \fB125\fR indicates there was an issue accessing the local storage.
+
+.SH OPTIONS
+.SS \fB--external\fP
+Check for external \fIcontainers\fP as well as Podman \fIcontainers\fP\&. These external \fIcontainers\fP are generally created via other container technology such as \fBBuildah\fR or \fBCRI-O\fR\&.
+.br
+The default is \fBfalse\fP\&.
+
+.PP
+\fB-h\fP, \fB--help\fP
+
+.PP
+Prints usage statement.
+.br
+The default is \fBfalse\fP\&.
+
+.SH EXAMPLES
+Check if a container called "webclient" exists in local storage. Here, the container does exist.
+
+.EX
+$ podman container exists webclient
+$ echo $?
+0
+.EE
+
+.PP
+Check if a container called "webbackend" exists in local storage. Here, the container does not exist.
+
+.EX
+$ podman container exists webbackend
+$ echo $?
+1
+.EE
+
+.PP
+Check if a container called "ubi8-working-container" created via Buildah exists in local storage. Here, the container does not exist.
+
+.EX
+$ podman container exists --external ubi8-working-container
+$ echo $?
+1
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP
+
+.SH HISTORY
+November 2018, Originally compiled by Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

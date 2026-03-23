@@ -1,0 +1,50 @@
+'\" t
+.nh
+.TH podman-artifact 1
+.SH NAME
+podman-artifact \- Manage OCI artifacts
+
+.SH SYNOPSIS
+\fBpodman artifact\fP \fIsubcommand\fP
+
+.SH DESCRIPTION
+\fBpodman artifact\fR is a set of subcommands that manage OCI artifacts.
+
+.PP
+OCI artifacts are a common way to distribute files that are associated with OCI images and
+containers. Podman is capable of managing (pulling, inspecting, pushing) these artifacts
+from its local "artifact store".
+
+.SH SUBCOMMANDS
+.TS
+allbox;
+l l l 
+l l l .
+\fBCommand\fP	\fBMan Page\fP	\fBDescription\fP
+add	podman-artifact-add(1)	T{
+Add an OCI artifact to local artifact store
+T}
+extract	podman-artifact-extract(1)	T{
+Extract an OCI artifact to a local path
+T}
+inspect	podman-artifact-inspect(1)	Inspect an OCI artifact
+ls	podman-artifact-ls(1)	T{
+List OCI artifacts in local store
+T}
+pull	podman-artifact-pull(1)	T{
+Pulls an artifact from a registry and stores it locally
+T}
+push	podman-artifact-push(1)	T{
+Push an OCI artifact from local storage to an image registry
+T}
+rm	podman-artifact-rm(1)	T{
+Remove one or more OCI artifacts from local storage
+T}
+.TE
+
+.SH SEE ALSO
+\fBpodman(1)\fP
+
+.SH HISTORY
+Sept 2024, Originally compiled by Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

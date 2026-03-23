@@ -1,0 +1,3 @@
+﻿cause,causal_effect,interpretation
+part_unit_cost,69.98745606547573,部件单位成本对资金占用有中等的正向影响 (效应值: 69.9875)
+dead_stock_amount,21.25374231638216,死库存数量对资金占用有弱的正向影响 (效应值: 21.2537)

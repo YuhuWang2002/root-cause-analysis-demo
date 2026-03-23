@@ -1,0 +1,94 @@
+'\" t
+.nh
+.TH podman-volume-prune 1
+.SH NAME
+podman-volume-prune \- Remove all unused volumes
+
+.SH SYNOPSIS
+\fBpodman volume prune\fP [\fIoptions\fP]
+
+.SH DESCRIPTION
+Removes unused volumes. By default all unused volumes are removed, the \fB--filter\fP flag can
+be used to filter specific volumes. Users are prompted to confirm the removal of all the
+unused volumes. To bypass the confirmation, use the \fB--force\fP flag.
+
+.SH OPTIONS
+.SS \fB--filter\fP
+Provide filter values.
+
+.PP
+The \fIfilters\fP argument format is of \fBkey=value\fR\&. If there is more than one \fIfilter\fP, then pass multiple OPTIONS: \fB--filter\fP \fIfoo=bar\fP \fB--filter\fP \fIbif=baz\fP\&.
+
+.PP
+Supported filters:
+
+.TS
+allbox;
+l l 
+l l .
+\fBFilter\fP	\fBDescription\fP
+dangling	T{
+[Bool] Only remove volumes not referenced by any containers
+T}
+driver	T{
+[String] Only remove volumes with the given driver
+T}
+label	T{
+[String] Only remove volumes, with (or without, in the case of label!=[...] is used) the specified labels.
+T}
+name	T{
+[String] Only remove volume with the given name
+T}
+opt	T{
+[String] Only remove volumes created with the given options
+T}
+scope	T{
+[String] Only remove volumes with the given scope
+T}
+until	T{
+[DateTime] Only remove volumes created before given timestamp.
+T}
+after/since	T{
+[Volume] Filter by volumes created after the given VOLUME (name or tag)
+T}
+.TE
+
+.PP
+The \fBlabel\fR \fIfilter\fP accepts two formats. One is the \fBlabel\fR=\fIkey\fP or \fBlabel\fR=\fIkey\fP=\fIvalue\fP, which removes volumes with the specified labels. The other format is the \fBlabel!\fR=\fIkey\fP or \fBlabel!\fR=\fIkey\fP=\fIvalue\fP, which removes volumes without the specified labels.
+
+.PP
+The \fBuntil\fR \fIfilter\fP can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. 10m, 1h30m) computed relative to the machine’s time.
+
+.SS \fB--force\fP, \fB-f\fP
+Do not prompt for confirmation.
+
+.SS \fB--help\fP
+Print usage statement
+
+.SH EXAMPLES
+Prune all unused volumes.
+
+.EX
+$ podman volume prune
+.EE
+
+.PP
+Prune all volumes. Note: this command will also remove all containers that are using a volume.
+
+.EX
+$ podman volume prune --force
+.EE
+
+.PP
+Prune all volumes that contain the specified label.
+
+.EX
+$ podman volume prune --filter label=mylabel=mylabelvalue
+.EE
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-volume(1)\fP
+
+.SH HISTORY
+November 2018, Originally compiled by Urvashi Mohnani umohnani@redhat.com
+\[la]mailto:umohnani@redhat.com\[ra]

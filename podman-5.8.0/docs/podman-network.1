@@ -1,0 +1,75 @@
+'\" t
+.nh
+.TH podman-network 1
+.SH NAME
+podman-network \- Manage Podman networks
+
+.SH SYNOPSIS
+\fBpodman network\fP \fIsubcommand\fP
+
+.SH DESCRIPTION
+The network command manages networks for Podman.
+
+.PP
+Podman supports two network backends Netavark
+and CNI. Netavark is the default network backend and was added in Podman version 4.0.
+CNI is deprecated and will be removed in the next major Podman version 5.0, in preference of Netavark.
+To configure the network backend use the \fBnetwork_backend\fR key under the \fB[Network]\fR in
+\fBcontainers.conf(5)\fP\&.
+New systems use netavark by default, to check what backend is used run
+\fBpodman info --format {{.Host.NetworkBackend}}\fR\&.
+
+.PP
+All network commands work for both backends but CNI and Netavark use different config files
+so networks have to be created again after a backend change.
+
+.SH COMMANDS
+.TS
+allbox;
+l l l 
+l l l .
+\fBCommand\fP	\fBMan Page\fP	\fBDescription\fP
+connect	podman-network-connect(1)	T{
+Connect a container to a network
+T}
+create	podman-network-create(1)	Create a Podman network
+disconnect	podman-network-disconnect(1)	T{
+Disconnect a container from a network
+T}
+exists	podman-network-exists(1)	T{
+Check if the given network exists
+T}
+inspect	podman-network-inspect(1)	T{
+Display the network configuration for one or more networks
+T}
+ls	podman-network-ls(1)	Display a summary of networks
+prune	podman-network-prune(1)	Remove all unused networks
+reload	podman-network-reload(1)	T{
+Reload network configuration for containers
+T}
+rm	podman-network-rm(1)	Remove one or more networks
+update	podman-network-update(1)	T{
+Update an existing Podman network
+T}
+.TE
+
+.SH SUBNET NOTES
+Podman requires specific default IPs and, thus, network subnets.  The default values used by Podman can be modified in the \fBcontainers.conf(5)\fP file.
+
+.SS Podman network
+The default bridge network (called \fBpodman\fR) uses 10.88.0.0/16 as a subnet. When Podman runs as root, the \fBpodman\fR network is used as default.  It is the same as adding the option \fB--network bridge\fR or \fB--network podman\fR\&. This subnet can be changed in \fBcontainers.conf(5)\fP under the [network] section. Set the \fBdefault_subnet\fR to any subnet that is free in the environment. The name of the default network can also be changed from \fBpodman\fR to another name using the default network key. Note that this is only done when no containers are running.
+
+.SS Pasta
+Pasta by default performs no Network Address Translation (NAT) and copies the IPs from your main interface into the container namespace. If pasta cannot find an interface with the default route, it will select an interface if there is only one interface with a valid route. If you do not have a default route and several interfaces have defined routes, pasta will be unable to figure out the correct interface and it will fail to start. To specify the interface, use \fB-i\fR option to pasta. A default set of pasta options can be set in \fBcontainers.conf(5)\fP under the \fB[network]\fR section with the \fBpasta_options\fR key.
+
+.PP
+The default rootless networking tool can be selected in \fBcontainers.conf(5)\fP under the \fB[network]\fR section with \fBdefault_rootless_network_cmd\fR, which can be set to \fBpasta\fR (default) or \fBslirp4netns\fR\&.
+
+.SS Slirp4netns
+Slirp4netns uses 10.0.2.0/24 for its default network. This can also be changed in \fBcontainers.conf(5)\fP but under the \fB[engine]\fR section. Use the \fBnetwork_cmd_options\fR key and add \fB["cidr=X.X.X.X/24"]\fR as a value. Note that slirp4netns needs a network prefix size between 1 and 25. This option accepts an array, so more options can be added in a comma-separated string as described on the \fBpodman-network-create(1)\fP man page. To change the CIDR for just one container, specify it on the cli using the \fB--network\fR option like this: \fB--network slirp4netns:cidr=192.168.1.0/24\fR\&.
+
+.SS Podman network create
+When a new network is created with a \fBpodman network create\fR command, and no subnet is given with the --subnet option, Podman starts picking a free subnet from 10.89.0.0/24 to 10.255.255.0/24. Use the \fBdefault_subnet_pools\fR option under the \fB[network]\fR section in \fBcontainers.conf(5)\fP to change the range and/or size that is assigned by default.
+
+.SH SEE ALSO
+\fBpodman(1)\fP, \fBpodman-network-create(1)\fP, \fBcontainers.conf(5)\fP
