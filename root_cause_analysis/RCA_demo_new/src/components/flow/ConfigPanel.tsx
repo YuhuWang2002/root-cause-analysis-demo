@@ -43,7 +43,7 @@ const systemTypeOptions = [
   { value: 'Sales', label: '销售系统' },
 ];
 
-function SystemConfig({ node, onSave }: { node: any; onSave: (config: Record<string, unknown>) => void }) {
+function SystemConfig({ node, onSave, updateNodeName }: { node: any; onSave: (config: Record<string, unknown>) => void; updateNodeName: (nodeId: string, name: string) => void }) {
   const [config, setConfig] = useState({
     systemType: node.config?.systemType || 'SAP',
     address: node.config?.address || '',
@@ -53,6 +53,8 @@ function SystemConfig({ node, onSave }: { node: any; onSave: (config: Record<str
   const handleSystemTypeChange = (value: string) => {
     const systemLabel = systemTypeOptions.find(o => o.value === value)?.label || value;
     setConfig({ ...config, systemType: value });
+    // 更新节点名称为下拉框的值
+    updateNodeName(node.id, systemLabel);
     onSave({
       ...config,
       systemType: value,
@@ -1093,7 +1095,7 @@ export default function ConfigPanel() {
   const renderConfigContent = () => {
     switch (node.type) {
       case 'system':
-        return <SystemConfig node={node} onSave={handleSaveConfig} />;
+        return <SystemConfig node={node} onSave={handleSaveConfig} updateNodeName={updateNodeName} />;
       case 'acquisition':
         return <AcquisitionConfig node={node} onSave={handleSaveConfig} />;
       case 'datapipeline':
