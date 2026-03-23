@@ -794,14 +794,14 @@ export const useCurrentProjectFlow = () => {
   console.log('projectsData[projectId]:', projectsData[projectId]);
 
   if (!projectId) {
-    console.log('No projectId, returning initial nodes');
-    return { nodes: getInitialNodes(), connections: [] };
+    console.log('No projectId, returning empty nodes');
+    return { nodes: [], connections: [] };
   }
 
   const projectData = projectsData[projectId];
-  if (!projectData || projectData.nodes.length === 0) {
-    console.log('No projectData or empty nodes, returning initial nodes');
-    return { nodes: getInitialNodes(), connections: [] };
+  if (!projectData) {
+    console.log('No projectData, returning empty nodes');
+    return { nodes: [], connections: [] };
   }
 
   console.log('Returning projectData:', projectData);
