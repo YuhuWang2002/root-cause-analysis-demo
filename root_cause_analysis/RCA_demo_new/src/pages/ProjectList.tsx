@@ -115,7 +115,7 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
   );
 }
 
-export function ProjectList() {
+export default function ProjectList() {
   const navigate = useNavigate();
   const { searchQuery, statusFilter, sortBy, setSearchQuery, setStatusFilter, setSortBy, getFilteredProjects, projects, addProject, deleteProject, fetchProjects } = useProjectStore();
   const [isModalOpen, setIsModalOpen] = useState(false);

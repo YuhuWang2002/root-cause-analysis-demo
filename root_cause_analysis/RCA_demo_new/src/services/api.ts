@@ -123,6 +123,21 @@ export interface OntologyRelation {
   target_class_name?: string;
 }
 
+export interface OntologyAction {
+  id: number;
+  ontology_id: number;
+  name: string;
+  api_name: string;
+  description: string;
+  event_type: string;
+  source_object: string;
+  trigger_condition: string;
+  logic_type: string;
+  target_system: string;
+  parameter_mappings: Array<{ sourceField: string; targetField: string }>;
+  variables: Array<{ name: string; type: string; defaultValue: string }>;
+}
+
 export interface Ontology {
   id: number;
   project_id: string;
@@ -131,6 +146,7 @@ export interface Ontology {
   canvas_data: any[];
   classes: OntologyClass[];
   relations: OntologyRelation[];
+  actions: OntologyAction[];
 }
 
 export async function getOntologies(projectId: string): Promise<Ontology[]> {
@@ -161,10 +177,10 @@ export async function deleteOntology(projectId: string, ontologyId: number): Pro
   });
 }
 
-export async function saveOntologyCanvas(projectId: string, ontologyId: number, canvasData: any[]): Promise<Ontology> {
+export async function saveOntologyCanvas(projectId: string, ontologyId: number, canvasData: any): Promise<Ontology> {
   return fetchAPI<Ontology>(`/projects/${projectId}/ontologies/${ontologyId}/canvas`, {
     method: 'PUT',
-    body: JSON.stringify({ canvas_data: canvasData }),
+    body: JSON.stringify({ canvas_data: [canvasData] }),
   });
 }
 
@@ -225,6 +241,34 @@ export async function createOntologyRelation(projectId: string, ontologyId: numb
 
 export async function deleteOntologyRelation(projectId: string, ontologyId: number, relationId: number): Promise<{ message: string }> {
   return fetchAPI<{ message: string }>(`/projects/${projectId}/ontologies/${ontologyId}/relations/${relationId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getOntologyActions(projectId: string, ontologyId: number): Promise<OntologyAction[]> {
+  return fetchAPI<OntologyAction[]>(`/projects/${projectId}/ontologies/${ontologyId}/actions`);
+}
+
+export async function createOntologyAction(projectId: string, ontologyId: number, data: Partial<OntologyAction>): Promise<OntologyAction> {
+  return fetchAPI<OntologyAction>(`/projects/${projectId}/ontologies/${ontologyId}/actions`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getOntologyAction(projectId: string, ontologyId: number, actionId: number): Promise<OntologyAction> {
+  return fetchAPI<OntologyAction>(`/projects/${projectId}/ontologies/${ontologyId}/actions/${actionId}`);
+}
+
+export async function updateOntologyAction(projectId: string, ontologyId: number, actionId: number, data: Partial<OntologyAction>): Promise<OntologyAction> {
+  return fetchAPI<OntologyAction>(`/projects/${projectId}/ontologies/${ontologyId}/actions/${actionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteOntologyAction(projectId: string, ontologyId: number, actionId: number): Promise<{ message: string }> {
+  return fetchAPI<{ message: string }>(`/projects/${projectId}/ontologies/${ontologyId}/actions/${actionId}`, {
     method: 'DELETE',
   });
 }

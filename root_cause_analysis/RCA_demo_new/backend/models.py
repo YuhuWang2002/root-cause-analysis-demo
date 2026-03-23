@@ -175,3 +175,44 @@ class Dashboard(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class OntologyAction(db.Model):
+    __tablename__ = 'ontology_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ontology_id = db.Column(db.Integer, db.ForeignKey('ontologies.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    api_name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    event_type = db.Column(db.String(100), nullable=False)
+    source_object = db.Column(db.String(200), nullable=False)
+    trigger_condition = db.Column(db.Text)
+    logic_type = db.Column(db.String(100), nullable=False)
+    target_system = db.Column(db.String(200))
+    parameter_mappings = db.Column(db.Text, default='[]')
+    variables = db.Column(db.Text, default='[]')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ontology_id': self.ontology_id,
+            'name': self.name,
+            'api_name': self.api_name,
+            'description': self.description,
+            'event_type': self.event_type,
+            'source_object': self.source_object,
+            'trigger_condition': self.trigger_condition,
+            'logic_type': self.logic_type,
+            'target_system': self.target_system,
+            'parameter_mappings': json.loads(self.parameter_mappings) if self.parameter_mappings else [],
+            'variables': json.loads(self.variables) if self.variables else [],
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+# 添加 Ontology 模型的 action 关系
+Ontology.actions = db.relationship('OntologyAction', backref='ontology', cascade='all, delete-orphan')

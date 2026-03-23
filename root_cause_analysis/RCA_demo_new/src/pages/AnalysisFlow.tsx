@@ -14,7 +14,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/common/Button';
 import * as api from '@/services/api';
 
-export function AnalysisFlow() {
+export default function AnalysisFlow() {
   const navigate = useNavigate();
   const { id: projectId } = useParams<{ id: string }>();
   const { loadProject, isConfigPanelOpen, isPlaying, togglePlay, openAddModal } = useFlowStore();

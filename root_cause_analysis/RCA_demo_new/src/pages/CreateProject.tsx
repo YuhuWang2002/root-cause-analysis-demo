@@ -520,7 +520,7 @@ function StepAnalysis() {
 
 const stepComponents = [StepBasicInfo, StepDataSource, StepDataPermission, StepDataTransform, StepQualityConstraint, StepOntology, StepAnalysis];
 
-export function CreateProject() {
+export default function CreateProject() {
   const navigate = useNavigate();
   const { currentStep, totalSteps, nextStep, prevStep, setStep, projectName, scenario, reset } = useWizardStore();
   const { addProject } = useProjectStore();

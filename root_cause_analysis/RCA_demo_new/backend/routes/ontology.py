@@ -288,3 +288,91 @@ def delete_ontology_relation(project_id, ontology_id, relation_id):
     db.session.commit()
     
     return jsonify({'message': 'Relation deleted successfully'})
+
+
+@bp.route('/<project_id>/ontologies/<int:ontology_id>/actions', methods=['GET'])
+def get_ontology_actions(project_id, ontology_id):
+    ontology = Ontology.query.filter_by(id=ontology_id, project_id=project_id).first()
+    if not ontology:
+        return jsonify({'error': 'Ontology not found'}), 404
+    
+    actions = OntologyAction.query.filter_by(ontology_id=ontology_id).all()
+    return jsonify([a.to_dict() for a in actions])
+
+@bp.route('/<project_id>/ontologies/<int:ontology_id>/actions', methods=['POST'])
+def create_ontology_action(project_id, ontology_id):
+    ontology = Ontology.query.filter_by(id=ontology_id, project_id=project_id).first()
+    if not ontology:
+        return jsonify({'error': 'Ontology not found'}), 404
+    
+    data = request.get_json()
+    
+    action = OntologyAction(
+        ontology_id=ontology_id,
+        name=data.get('name', '新操作'),
+        api_name=data.get('api_name', 'new_action'),
+        description=data.get('description', ''),
+        event_type=data.get('event_type', 'Object Updated'),
+        source_object=data.get('source_object', 'Order'),
+        trigger_condition=data.get('trigger_condition', ''),
+        logic_type=data.get('logic_type', 'API 调用'),
+        target_system=data.get('target_system', ''),
+        parameter_mappings=json.dumps(data.get('parameter_mappings', [])),
+        variables=json.dumps(data.get('variables', []))
+    )
+    
+    db.session.add(action)
+    db.session.commit()
+    
+    return jsonify(action.to_dict()), 201
+
+@bp.route('/<project_id>/ontologies/<int:ontology_id>/actions/<int:action_id>', methods=['GET'])
+def get_ontology_action(project_id, ontology_id, action_id):
+    action = OntologyAction.query.filter_by(id=action_id, ontology_id=ontology_id).first()
+    if not action:
+        return jsonify({'error': 'Action not found'}), 404
+    
+    return jsonify(action.to_dict())
+
+@bp.route('/<project_id>/ontologies/<int:ontology_id>/actions/<int:action_id>', methods=['PUT'])
+def update_ontology_action(project_id, ontology_id, action_id):
+    action = OntologyAction.query.filter_by(id=action_id, ontology_id=ontology_id).first()
+    if not action:
+        return jsonify({'error': 'Action not found'}), 404
+    
+    data = request.get_json()
+    if 'name' in data:
+        action.name = data['name']
+    if 'api_name' in data:
+        action.api_name = data['api_name']
+    if 'description' in data:
+        action.description = data['description']
+    if 'event_type' in data:
+        action.event_type = data['event_type']
+    if 'source_object' in data:
+        action.source_object = data['source_object']
+    if 'trigger_condition' in data:
+        action.trigger_condition = data['trigger_condition']
+    if 'logic_type' in data:
+        action.logic_type = data['logic_type']
+    if 'target_system' in data:
+        action.target_system = data['target_system']
+    if 'parameter_mappings' in data:
+        action.parameter_mappings = json.dumps(data['parameter_mappings'])
+    if 'variables' in data:
+        action.variables = json.dumps(data['variables'])
+    
+    db.session.commit()
+    
+    return jsonify(action.to_dict())
+
+@bp.route('/<project_id>/ontologies/<int:ontology_id>/actions/<int:action_id>', methods=['DELETE'])
+def delete_ontology_action(project_id, ontology_id, action_id):
+    action = OntologyAction.query.filter_by(id=action_id, ontology_id=ontology_id).first()
+    if not action:
+        return jsonify({'error': 'Action not found'}), 404
+    
+    db.session.delete(action)
+    db.session.commit()
+    
+    return jsonify({'message': 'Action deleted successfully'})

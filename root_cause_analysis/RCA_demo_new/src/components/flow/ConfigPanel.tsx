@@ -406,8 +406,19 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
   };
 
   const handleOpenOntologyPage = () => {
-    if (projectId) {
+    if (projectId && selectedOntologyId) {
+      navigate(`/ontology/${projectId}/${selectedOntologyId}`);
+    } else if (projectId) {
       navigate(`/ontology/${projectId}`);
+    }
+  };
+
+  const handleOpenNewOntologyPage = () => {
+    if (projectId && selectedOntologyId) {
+      navigate(`/ontology/${projectId}/${selectedOntologyId}/object/1`);
+    } else if (projectId) {
+      // 假设ontologyId为1，实际应用中可能需要根据具体情况设置
+      navigate(`/ontology/${projectId}/1/object/1`);
     }
   };
 
@@ -436,12 +447,20 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
           ]}
         />
         {selectedOntologyId && (
-          <button
-            onClick={handleOpenOntologyPage}
-            className="mt-2 w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
-          >
-            配置本体库
-          </button>
+          <div className="space-y-2 mt-2">
+            <button
+              onClick={handleOpenOntologyPage}
+              className="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+            >
+              配置本体库
+            </button>
+            <button
+              onClick={handleOpenNewOntologyPage}
+              className="w-full py-2 bg-secondary text-white rounded-lg hover:bg-secondary-dark"
+            >
+              新本体配置
+            </button>
+          </div>
         )}
       </div>
       
@@ -947,10 +966,12 @@ function OntologyExploreConfig({ node, nodes, onSave }: { node: any; nodes: any[
   const navigate = useNavigate();
   const [config, setConfig] = useState(node.config || {});
   const [selectedEntities, setSelectedEntities] = useState<string[]>(config?.selectedEntities || []);
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const ontologyNodes = nodes.filter(n => n.type === 'ontology');
   const ontologyNode = ontologyNodes[0];
   const entities = ontologyNode?.config?.entities || [];
+  const ontologyId = ontologyNode?.config?.ontologyId;
   
   const handleToggleEntity = (entityName: string) => {
     if (selectedEntities.includes(entityName)) {
@@ -963,43 +984,70 @@ function OntologyExploreConfig({ node, nodes, onSave }: { node: any; nodes: any[
   const handleSave = () => {
     const newConfig = {
       ...config,
-      selectedEntities
+      selectedEntities,
+      ontologyId
     };
     onSave(newConfig);
+  };
+  
+  const handleOpenOntologyExplorer = async () => {
+    if (!currentProjectId || !ontologyId || isNavigating) return;
+    setIsNavigating(true);
+    
+    try {
+      const newConfig = {
+        ...config,
+        selectedEntities,
+        ontologyId
+      };
+      onSave(newConfig);
+      
+      // 使用保存的 ontologyId 作为路径参数
+      navigate(`/ontology/${currentProjectId}/${ontologyId}/explorer`);
+    } catch (err) {
+      console.error('Failed to open ontology explorer:', err);
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-400 mb-2">选择展示的实体</label>
-        {entities.length === 0 ? (
-          <p className="text-sm text-gray-500">请先在本体库中配置实体</p>
-        ) : (
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {entities.map((entity: any) => (
-              <label
-                key={entity.name}
-                className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
-                  selectedEntities.includes(entity.name)
-                    ? 'bg-pink-900/50 border border-pink-700'
-                    : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedEntities.includes(entity.name)}
-                  onChange={() => handleToggleEntity(entity.name)}
-                  className="sr-only"
-                />
-                <span className="text-sm text-gray-300">{entity.name}</span>
-                {entity.description && (
-                  <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
-                )}
-              </label>
-            ))}
-          </div>
-        )}
+        <button
+          onClick={handleOpenOntologyExplorer}
+          disabled={isNavigating || !ontologyId}
+          className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-medium disabled:opacity-50 mb-4"
+        >
+          {isNavigating ? '打开中...' : '本体探索'}
+        </button>
       </div>
+      
+      {entities.length > 0 && (
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {entities.map((entity: any) => (
+            <label
+              key={entity.name}
+              className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
+                selectedEntities.includes(entity.name)
+                  ? 'bg-pink-900/50 border border-pink-700'
+                  : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedEntities.includes(entity.name)}
+                onChange={() => handleToggleEntity(entity.name)}
+                className="sr-only"
+              />
+              <span className="text-sm text-gray-300">{entity.name}</span>
+              {entity.description && (
+                <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
       
       <Button onClick={handleSave} className="w-full">
         保存配置

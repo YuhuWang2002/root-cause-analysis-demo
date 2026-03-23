@@ -5,6 +5,7 @@
 ## 技术栈
 
 ### 前端
+
 - React 18 + TypeScript
 - Vite
 - Tailwind CSS
@@ -14,6 +15,7 @@
 - React Router (路由管理)
 
 ### 后端
+
 - Flask
 - SQLAlchemy (ORM)
 - SQLite (数据库)
@@ -23,12 +25,14 @@
 ## 安装步骤
 
 ### 1. 克隆项目
+
 ```bash
 git clone https://github.com/YuhuWang2002/root-cause-analysis-demo.git
 cd root-cause-analysis-demo
 ```
 
 ### 2. 前端安装
+
 ```bash
 # 进入前端目录
 cd RCA_demo_new
@@ -38,6 +42,7 @@ npm install
 ```
 
 ### 3. 后端安装
+
 ```bash
 # 进入后端目录
 cd backend
@@ -54,6 +59,7 @@ pip install -r requirements.txt
 ## 运行步骤
 
 ### 1. 启动后端服务
+
 ```bash
 # 进入后端目录
 cd backend
@@ -61,9 +67,11 @@ cd backend
 # 启动服务
 python app.py
 ```
+
 后端服务将运行在 `http://127.0.0.1:5000`
 
 ### 2. 启动前端开发服务器
+
 ```bash
 # 进入前端目录
 cd RCA_demo_new
@@ -71,14 +79,17 @@ cd RCA_demo_new
 # 启动开发服务器
 npm run dev
 ```
+
 前端开发服务器将运行在 `http://127.0.0.1:5173`
 
 ### 3. 访问系统
+
 打开浏览器，访问 `http://127.0.0.1:5173` 即可进入系统。
 
 ## 项目结构
 
 ### 前端结构
+
 - `src/`
   - `components/` - 组件目录
     - `common/` - 通用组件
@@ -94,6 +105,7 @@ npm run dev
   - `types/` - TypeScript 类型定义
 
 ### 后端结构
+
 - `backend/`
   - `routes/` - API 路由
     - `root_cause.py` - 根因分析相关 API
@@ -123,11 +135,13 @@ npm run dev
 ## 开发命令
 
 ### 前端
+
 - `npm run dev` - 启动开发服务器
 - `npm run build` - 构建生产版本
 - `npm run lint` - 运行代码检查
 
 ### 后端
+
 - `python app.py` - 启动后端服务
 - `python test_prompt_saving.py` - 测试提示词保存功能
 - `python fix_canvas.py` - 修复画布数据
