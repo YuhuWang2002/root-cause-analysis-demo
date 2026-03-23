@@ -163,6 +163,7 @@ function ProcessConfig({ node, onSave }: { node: any; onSave: (config: Record<st
     node.config?.transforms || []
   );
   const [filters, setFilters] = useState<string[]>(node.config?.filters || []);
+  const navigate = useNavigate();
 
   const handleAddTransform = () => {
     setTransforms([...transforms, { from: '', to: '', type: 'rename' }]);
@@ -170,6 +171,12 @@ function ProcessConfig({ node, onSave }: { node: any; onSave: (config: Record<st
 
   const handleSave = () => {
     onSave({ transforms, filters });
+  };
+
+  const handleOpenPipelineBuilder = () => {
+    // 从节点ID中提取项目ID
+    const projectId = node.id.split('-')[1];
+    navigate(`/pipeline/${projectId}/${node.id}`);
   };
 
   return (
@@ -212,6 +219,10 @@ function ProcessConfig({ node, onSave }: { node: any; onSave: (config: Record<st
           rows={4}
         />
       </div>
+
+      <Button onClick={handleOpenPipelineBuilder} className="w-full mb-4">
+        打开Pipeline 构建
+      </Button>
 
       <Button onClick={handleSave} className="w-full">
         保存配置

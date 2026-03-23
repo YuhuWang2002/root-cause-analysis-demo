@@ -3,12 +3,12 @@ import { Navbar } from '@/components/layout/Navbar';
 import ProjectList from './pages/ProjectList';
 import CreateProject from './pages/CreateProject';
 import AnalysisFlow from './pages/AnalysisFlow';
-import OntologyEditor from './pages/OntologyEditor';
+import DataAnalysisDashboard from './pages/DataAnalysisDashboard';
 import OntologyObjectEditor from './pages/OntologyObjectEditor';
 import OntologyLinkEditor from './pages/OntologyLinkEditor';
 import OntologyActionEditor from './pages/OntologyActionEditor';
 import OntologyExplorer from './pages/OntologyExplorer';
-import DataAnalysisDashboard from './pages/DataAnalysisDashboard';
+import DataPipelineBuilder from './pages/DataPipelineBuilder';
 import RootCauseAnalysis from './pages/RootCauseAnalysis';
 
 function App() {
@@ -28,6 +28,7 @@ function App() {
           <Route path="/dashboard/:projectId" element={<DataAnalysisDashboard />} />
           <Route path="/dashboard/:projectId/:dashboardId" element={<DataAnalysisDashboard />} />
           <Route path="/root-cause/:projectId" element={<RootCauseAnalysis />} />
+          <Route path="/pipeline/:projectId/:pipelineId" element={<DataPipelineBuilder />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
