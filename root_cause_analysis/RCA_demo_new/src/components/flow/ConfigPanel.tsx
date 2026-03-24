@@ -216,7 +216,7 @@ function QualityConfig({ node, onSave }: { node: any; onSave: (config: Record<st
         <p className="text-sm text-gray-500 text-center py-4">暂无质量规则</p>
       ) : (
         rules.map((rule, i) => (
-          <div key={i} className="bg-gray-800 rounded-lg p-3 space-y-2">
+          <div key={i} className="bg-gray-100 rounded-lg p-3 space-y-2">
             <Input
               value={rule.field}
               onChange={(e) => {
@@ -427,7 +427,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
         ) : (
           <div className="space-y-3">
             {entities.map((entity, i) => (
-              <div key={i} className="bg-gray-800 rounded-lg p-3 space-y-2">
+              <div key={i} className="bg-gray-100 rounded-lg p-3 space-y-2">
                 <Input
                   value={entity.name}
                   onChange={(e) => {
@@ -445,7 +445,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                       newE[i].sourceTable = e.target.value;
                       setEntities(newE);
                     }}
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+                    className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
                   >
                     <option value="">选择数据表</option>
                     {acquisitionNodes.map(n => (
@@ -497,7 +497,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
         ) : (
           <div className="space-y-3">
             {relationships.map((rel, i) => (
-              <div key={i} className="bg-gray-800 rounded-lg p-3 space-y-2">
+              <div key={i} className="bg-gray-100 rounded-lg p-3 space-y-2">
                 <div className="flex gap-2">
                   <select
                     value={rel.from}
@@ -506,7 +506,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                       newR[i].from = e.target.value;
                       setRelationships(newR);
                     }}
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+                    className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
                   >
                     <option value="">源实体</option>
                     {entities.map(e => (
@@ -520,7 +520,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                       newR[i].type = e.target.value;
                       setRelationships(newR);
                     }}
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+                    className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
                   >
                     {relationTypes.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -533,7 +533,7 @@ function OntologyConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                       newR[i].to = e.target.value;
                       setRelationships(newR);
                     }}
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+                    className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
                   >
                     <option value="">目标实体</option>
                     {entities.map(e => (
@@ -721,7 +721,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
             <select
               value={analysisParams.type || 'statistics'}
               onChange={(e) => setAnalysisParams({ ...analysisParams, type: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
             >
               <option value="statistics">统计分析</option>
               <option value="trend">趋势分析</option>
@@ -734,7 +734,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
             <select
               value={analysisParams.format || 'chart'}
               onChange={(e) => setAnalysisParams({ ...analysisParams, format: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
             >
               <option value="chart">图表</option>
               <option value="table">表格</option>
@@ -751,7 +751,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
             <select
               value={analysisParams.depth || '2'}
               onChange={(e) => setAnalysisParams({ ...analysisParams, depth: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
             >
               <option value="1">1 层</option>
               <option value="2">2 层</option>
@@ -766,7 +766,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
               type="number"
               value={analysisParams.threshold || '0.5'}
               onChange={(e) => setAnalysisParams({ ...analysisParams, threshold: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-300"
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-700"
               step="0.1"
               min="0"
               max="1"
@@ -779,9 +779,9 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                 type="checkbox"
                 checked={analysisParams.autoDetect || false}
                 onChange={(e) => setAnalysisParams({ ...analysisParams, autoDetect: e.target.checked })}
-                className="rounded bg-gray-700 border-gray-600"
+                className="rounded bg-white border-gray-300"
               />
-              <span className="text-sm text-gray-300">自动根因检测</span>
+              <span className="text-sm text-gray-700">自动根因检测</span>
             </label>
           </div>
         </>
@@ -800,8 +800,8 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                     key={entity.name}
                     className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
                       selectedEntities.includes(entity.name)
-                        ? 'bg-pink-900/50 border border-pink-700'
-                        : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+                        ? 'bg-pink-100 border border-pink-300'
+                        : 'bg-white border border-gray-300 hover:border-gray-400'
                     }`}
                   >
                     <input
@@ -810,7 +810,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
                       onChange={() => handleToggleEntity(entity.name)}
                       className="sr-only"
                     />
-                    <span className="text-sm text-gray-300">{entity.name}</span>
+                    <span className="text-sm text-gray-700">{entity.name}</span>
                     {entity.description && (
                       <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
                     )}
@@ -823,7 +823,7 @@ function AnalysisConfig({ node, nodes, onSave }: { node: any; nodes: any[]; onSa
           {selectedEntities.length > 0 && relationships.length > 0 && (
             <div>
               <label className="block text-sm text-gray-400 mb-2">实体关系图预览</label>
-              <div className="bg-gray-800 rounded-lg p-3 text-xs text-gray-500">
+              <div className="bg-gray-100 rounded-lg p-3 text-xs text-gray-500">
                 <p>已选择 {selectedEntities.length} 个实体</p>
                 <p>可用关系: {relationships.length} 条</p>
                 <div className="mt-2 space-y-1">
@@ -970,8 +970,8 @@ function OntologyExploreConfig({ node, nodes, onSave }: { node: any; nodes: any[
               key={entity.name}
               className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
                 selectedEntities.includes(entity.name)
-                  ? 'bg-pink-900/50 border border-pink-700'
-                  : 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+                  ? 'bg-pink-100 border border-pink-300'
+                  : 'bg-white border border-gray-300 hover:border-gray-400'
               }`}
             >
               <input
@@ -980,7 +980,8 @@ function OntologyExploreConfig({ node, nodes, onSave }: { node: any; nodes: any[
                 onChange={() => handleToggleEntity(entity.name)}
                 className="sr-only"
               />
-              <span className="text-sm text-gray-300">{entity.name}</span>
+              <span className="text-sm text-gray-700">{entity.name}</span>
+              <span className="text-sm text-gray-700">{entity.name}</span>
               {entity.description && (
                 <span className="text-xs text-gray-500 ml-2 truncate">{entity.description}</span>
               )}
@@ -1060,23 +1061,23 @@ export default function ConfigPanel() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 320, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed right-0 top-16 bottom-0 w-80 bg-gray-900 border-l border-gray-800 z-40 overflow-y-auto"
+          className="fixed right-0 top-16 bottom-0 w-80 bg-white border-l border-gray-200 z-40 overflow-y-auto"
         >
           <div className="p-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">节点配置</h3>
+              <h3 className="text-lg font-semibold text-gray-900">节点配置</h3>
               <button
                 onClick={() => toggleConfigPanel(false)}
-                className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             
             <div className="space-y-4">
-              <div className="bg-gray-800 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center space-x-3 mb-3">
                   <div 
                     className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -1087,8 +1088,8 @@ export default function ConfigPanel() {
                     </span>
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">{node.name || '未命名'}</h4>
-                    <p className="text-xs text-gray-400">{colors.label}</p>
+                    <h4 className="text-gray-900 font-medium">{node.name || '未命名'}</h4>
+                    <p className="text-xs text-gray-500">{colors.label}</p>
                   </div>
                 </div>
                 
@@ -1119,12 +1120,12 @@ export default function ConfigPanel() {
                 </span>
               </div>
 
-              <hr className="border-gray-800" />
+              <hr className="border-gray-200" />
 
               {renderConfigContent()}
 
               {showDelete && (
-                <div className="pt-4 border-t border-gray-800">
+                <div className="pt-4 border-t border-gray-200">
                   <Button variant="danger" size="sm" onClick={handleDelete}>
                     删除节点
                   </Button>
