@@ -43,8 +43,8 @@ export default function ToolPalette() {
   };
 
   return (
-    <div className="w-20 bg-gray-800 border-r border-gray-700 flex flex-col items-center py-4 z-30 overflow-y-auto">
-      <h3 className="text-xs font-medium text-gray-400 mb-4 uppercase tracking-wider flex-shrink-0">工具</h3>
+    <div className="w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4 z-30 overflow-y-auto">
+      <h3 className="text-xs font-medium text-gray-500 mb-4 uppercase tracking-wider flex-shrink-0">工具</h3>
       
       <div className="space-y-3 w-full px-2 flex flex-col items-center">
         {toolItems.map((item) => (
@@ -53,7 +53,7 @@ export default function ToolPalette() {
             draggable
             onDragStart={(e) => handleDragStart(e, item.type)}
             onClick={() => handleClick(item.type)}
-            className="group flex flex-col items-center cursor-grab active:cursor-grabbing p-2 rounded-lg hover:bg-gray-700 transition-colors"
+            className="group flex flex-col items-center cursor-grab active:cursor-grabbing p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center mb-1 shadow-lg"
@@ -105,7 +105,7 @@ export default function ToolPalette() {
                 </svg>
               )}
             </div>
-            <span className="text-[10px] text-gray-400 group-hover:text-gray-300 text-center">{item.label}</span>
+            <span className="text-[10px] text-gray-500 group-hover:text-gray-700 text-center">{item.label}</span>
           </div>
         ))}
       </div>

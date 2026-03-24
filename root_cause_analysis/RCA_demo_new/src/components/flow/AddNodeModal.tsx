@@ -57,21 +57,21 @@ export default function AddNodeModal() {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-gray-800 rounded-xl p-6 w-96 border border-gray-700"
+            className="bg-white rounded-xl p-6 w-96 border border-gray-200"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {isAnalysis ? '添加分析' : isOntology ? '添加本体' : '添加数据源'}
             </h3>
             
             <div className="space-y-4">
               {isAnalysis && (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">分析类型</label>
+                  <label className="block text-sm text-gray-500 mb-1">分析类型</label>
                   <select
                     value={formData.analysisType}
                     onChange={(e) => setFormData({ ...formData, analysisType: e.target.value, name: '' })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-primary"
                   >
                     {analysisTypes.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -82,11 +82,11 @@ export default function AddNodeModal() {
 
               {isAnalysis && ontologyNodes.length > 0 && (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">关联本体库</label>
+                  <label className="block text-sm text-gray-500 mb-1">关联本体库</label>
                   <select
                     value={formData.ontologyId}
                     onChange={(e) => setFormData({ ...formData, ontologyId: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-primary"
                   >
                     <option value="">自动选择第一个本体</option>
                     {ontologyNodes.map(n => (
@@ -97,36 +97,36 @@ export default function AddNodeModal() {
               )}
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">名称</label>
+                <label className="block text-sm text-gray-500 mb-1">名称</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   placeholder={isAnalysis ? `如：${getAnalysisLabel(formData.analysisType)}` : isOntology ? '如：系统异常本体' : '如：采购系统'}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:border-primary"
                 />
               </div>
               
               {!isOntology && !isAnalysis && (
                 <>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">描述</label>
+                    <label className="block text-sm text-gray-500 mb-1">描述</label>
                     <input
                       type="text"
                       value={formData.description}
                       onChange={e => setFormData({ ...formData, description: e.target.value })}
                       placeholder="如：企业采购管理数据库"
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">连接信息</label>
+                    <label className="block text-sm text-gray-500 mb-1">连接信息</label>
                     <input
                       type="text"
                       value={formData.connection}
                       onChange={e => setFormData({ ...formData, connection: e.target.value })}
                       placeholder="如：MySQL | 192.168.1.10:3306"
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:border-primary"
                     />
                   </div>
                 </>

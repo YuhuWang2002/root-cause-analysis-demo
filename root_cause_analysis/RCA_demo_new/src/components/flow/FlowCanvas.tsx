@@ -239,7 +239,7 @@ export default function FlowCanvas({ onAddSource, onAddOntology, onAddAnalysis }
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         fitView
-        className="bg-gray-900"
+        className="bg-gray-100"
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
@@ -249,8 +249,8 @@ export default function FlowCanvas({ onAddSource, onAddOntology, onAddAnalysis }
         maxZoom={2}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
-        <Background color="#374151" gap={20} />
-        <Controls className="!bg-gray-800 !border-gray-700" />
+        <Background color="#9CA3AF" gap={20} />
+        <Controls className="!bg-white !border-gray-300" />
       </ReactFlow>
     </div>
   );
