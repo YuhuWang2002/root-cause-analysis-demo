@@ -78,33 +78,33 @@ export default function AnalysisFlow() {
   const progress = totalNodes > 0 ? Math.round((configuredNodes / totalNodes) * 100) : 0;
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0 min-h-[72px] z-10 relative">
+    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0 min-h-[72px] z-10 relative">
         <div className="flex items-center space-x-4">
           <button
             onClick={handleGoBack}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
-            <h1 className="text-lg font-semibold text-white">{currentProject?.name || '根因分析流程'}</h1>
-            <p className="text-sm text-gray-400">{currentProject?.description || '自定义分析'}</p>
+            <h1 className="text-lg font-semibold text-gray-900">{currentProject?.name || '根因分析流程'}</h1>
+            <p className="text-sm text-gray-500">{currentProject?.description || '自定义分析'}</p>
           </div>
         </div>
         
         <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-1">
-            <button className="p-2 hover:bg-gray-600 rounded-md transition-colors">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+            <button className="p-2 hover:bg-gray-200 rounded-md transition-colors">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button 
               onClick={togglePlay}
-              className={`p-2 rounded-md transition-colors ${isPlaying ? 'bg-primary text-white' : 'hover:bg-gray-600 text-gray-400'}`}
+              className={`p-2 rounded-md transition-colors ${isPlaying ? 'bg-primary text-white' : 'hover:bg-gray-200 text-gray-500'}`}
             >
               {isPlaying ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,19 +117,19 @@ export default function AnalysisFlow() {
                 </svg>
               )}
             </button>
-            <button className="p-2 hover:bg-gray-600 rounded-md transition-colors">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button className="p-2 hover:bg-gray-200 rounded-md transition-colors">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
           
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-gray-600">
             {configuredNodes} / {totalNodes} 节点
           </div>
           
           <div className="w-40">
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-primary rounded-full"
                 initial={{ width: 0 }}
