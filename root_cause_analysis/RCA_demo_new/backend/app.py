@@ -26,10 +26,6 @@ def create_app():
     app.register_blueprint(dashboards.bp)
     app.register_blueprint(root_cause.bp)
     
-    @app.route('/api/projects', methods=['OPTIONS'])
-    def handle_options():
-        return '', 204
-    
     return app
 
 if __name__ == '__main__':
