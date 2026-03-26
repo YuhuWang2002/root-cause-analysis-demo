@@ -352,6 +352,8 @@ export async function deleteDashboard(projectId: string, dashboardId: number): P
 }
 
 export interface RootCauseResults {
+  causal_effect: number;
+  refutation_results: Record<string, unknown> | null;
   counterfactual_analysis: {
     inventory_reduction: number;
     reduction_percentage: number;
@@ -361,6 +363,17 @@ export interface RootCauseResults {
     decline_period_counterfactual_inventory: number;
     decline_period_reduction: number;
   } | null;
+  causal_effects: Array<{
+    treatment: string;
+    causal_effect: number;
+    abs_causal_effect?: number;
+    success?: boolean;
+    error?: string;
+    rank?: number;
+    note?: string;
+  }>;
+  treatments: string[];
+  outcome: string;
   causal_graph?: string;
   message?: string;
 }

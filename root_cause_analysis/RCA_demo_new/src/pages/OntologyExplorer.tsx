@@ -12,6 +12,7 @@ import {
   NodeTypes,
   Handle,
 } from 'reactflow';
+import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { useOntologyStore } from '@/stores/ontologyStore';
 import * as api from '@/services/api';
@@ -131,6 +132,83 @@ const OntologyExplorer: React.FC = () => {
   // 直接使用 ReactFlow 的状态管理
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // 使用 ref 来追踪最新的节点和边，用于自动布局
+  const nodesRef = React.useRef(nodes);
+  const edgesRef = React.useRef(edges);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
+  // 自动布局函数（从左到右）
+  const getLayoutedElements = useCallback((nodes: Node[], edges: Edge[]) => {
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+    const nodeWidth = 176;
+    const nodeHeight = 140;
+
+    dagreGraph.setGraph({
+      rankdir: 'LR',
+      nodesep: 80,
+      ranksep: 120,
+      marginx: 50,
+      marginy: 50,
+    });
+
+    nodes.forEach((node) => {
+      dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+
+    edges.forEach((edge) => {
+      dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const layoutedNodes = nodes.map((node) => {
+      const nodeWithPosition = dagreGraph.node(node.id);
+      if (!nodeWithPosition) {
+        return {
+          ...node,
+        };
+      }
+      return {
+        ...node,
+        position: {
+          x: nodeWithPosition.x - nodeWidth / 2,
+          y: nodeWithPosition.y - nodeHeight / 2,
+        },
+      };
+    });
+
+    return { nodes: layoutedNodes, edges };
+  }, []);
+
+  // 触发自动布局（使用 ref 获取最新状态）
+  const triggerAutoLayout = useCallback(() => {
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    if (currentNodes.length === 0) return;
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(currentNodes, currentEdges);
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [getLayoutedElements, setNodes, setEdges]);
+
+  // 使用 useEffect 监听节点数量变化，自动触发布局
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const timer = setTimeout(() => {
+        const currentNodes = nodesRef.current;
+        const currentEdges = edgesRef.current;
+        if (currentNodes.length > 0) {
+          const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(currentNodes, currentEdges);
+          setNodes(layoutedNodes);
+          setEdges(layoutedEdges);
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length]);
 
   // 保存本体探索配置
   const handleSave = async () => {
@@ -231,16 +309,23 @@ const OntologyExplorer: React.FC = () => {
           if (ontology.canvas_data && ontology.canvas_data.length > 0) {
             const canvasData = ontology.canvas_data[0];
             if (canvasData.nodes && canvasData.edges) {
-              setNodes(canvasData.nodes.map((node: any) => ({
+              const loadedNodes = canvasData.nodes.map((node: any) => ({
                 ...node,
                 type: 'custom',
                 zIndex: 10
-              })));
-              setEdges(canvasData.edges.map((edge: any) => ({
+              }));
+              const loadedEdges = canvasData.edges.map((edge: any) => ({
                 ...edge,
                 type: 'smoothstep',
                 animated: true
-              })));
+              }));
+              // 应用自动布局
+              const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+                loadedNodes as Node[],
+                loadedEdges as Edge[]
+              );
+              setNodes(layoutedNodes);
+              setEdges(layoutedEdges);
             }
           } else {
             // 重置画布数据

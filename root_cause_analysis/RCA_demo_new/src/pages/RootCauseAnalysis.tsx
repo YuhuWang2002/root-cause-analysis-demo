@@ -519,51 +519,160 @@ export default function RootCauseAnalysis() {
               </div>
             </div>
 
-            {/* 分析结果 */}
-            {analysisResults?.counterfactual_analysis && (
+            {/* 因果效应结果 */}
+            {analysisResults && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="text-indigo-600">📈</span>
+                  <span className="text-indigo-600">�</span>
                   分析结果
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="text-sm text-purple-600 mb-1 font-medium">库存降低量</div>
-                    <div className="text-2xl font-bold text-purple-900">
-                      {analysisResults.counterfactual_analysis.inventory_reduction} 单位
-                    </div>
-                    <div className="text-sm text-purple-600 font-medium">
-                      {analysisResults.counterfactual_analysis.reduction_percentage}%
-                    </div>
+
+                {/* 基本信息 */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">结果变量:</span> {analysisResults.outcome}
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="text-sm text-blue-600 mb-1 font-medium">实际库存均值</div>
-                    <div className="text-2xl font-bold text-blue-900">
-                      {analysisResults.counterfactual_analysis.actual_inventory_mean}
-                    </div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="text-sm text-green-600 mb-1 font-medium">反事实库存均值</div>
-                    <div className="text-2xl font-bold text-green-900">
-                      {analysisResults.counterfactual_analysis.counterfactual_inventory_mean}
-                    </div>
-                    <div className="text-sm text-green-600 font-medium">如果改变原因</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">处理变量:</span> {analysisResults.treatments?.join(', ') || '-'}
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-600 font-medium">下降期实际库存</div>
-                    <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_actual_inventory}</div>
+
+                {/* 主要因果效应 */}
+                <div className="mb-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-200">
+                  <div className="text-sm text-indigo-600 font-medium mb-1">主要因果效应</div>
+                  <div className="text-3xl font-bold text-indigo-900">
+                    {typeof analysisResults.causal_effect === 'number' ? analysisResults.causal_effect.toFixed(2) : '-'}
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-600 font-medium">下降期反事实库存</div>
-                    <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_counterfactual_inventory}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-600 font-medium">下降期库存降低</div>
-                    <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_reduction}</div>
+                  <div className="text-xs text-indigo-500 mt-1">
+                    {analysisResults.treatments?.[0] || '-'} → {analysisResults.outcome}
                   </div>
                 </div>
+
+                {/* 因果效应排名列表 */}
+                {analysisResults.causal_effects && analysisResults.causal_effects.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <span>🏆</span>
+                      因果效应排名
+                    </h3>
+                    <div className="space-y-2">
+                      {analysisResults.causal_effects.map((effect, index) => (
+                        <div
+                          key={effect.treatment || index}
+                          className={`p-3 rounded-lg border ${
+                            effect.success === false
+                              ? 'bg-red-50 border-red-200'
+                              : index === 0
+                                ? 'bg-yellow-50 border-yellow-300'
+                                : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold ${index === 0 ? 'text-yellow-700' : 'text-gray-700'}`}>
+                                #{effect.rank || index + 1}
+                              </span>
+                              <span className="font-medium text-gray-900 truncate max-w-xs" title={effect.treatment}>
+                                {effect.treatment}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              {effect.success === false ? (
+                                <span className="text-red-600 text-sm">分析失败</span>
+                              ) : (
+                                <>
+                                  <span className="font-bold text-gray-900">
+                                    {typeof effect.causal_effect === 'number' ? effect.causal_effect.toFixed(2) : '-'}
+                                  </span>
+                                  {effect.note && (
+                                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                      {effect.note}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {effect.error && (
+                            <div className="text-xs text-red-500 mt-1">{effect.error}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 反驳测试结果 */}
+                {analysisResults.refutation_results && Object.keys(analysisResults.refutation_results).length > 0 && (
+                  <div className="mb-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <h3 className="text-md font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                      <span>🧪</span>
+                      反驳测试结果
+                    </h3>
+                    <div className="text-sm text-orange-800">
+                      {Object.entries(analysisResults.refutation_results).map(([key, value]) => (
+                        <div key={key} className="mt-1">
+                          <span className="font-medium">{key}:</span> {String(value)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 反事实分析结果 */}
+                {analysisResults.counterfactual_analysis && (
+                  <>
+                    <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <span>🔮</span>
+                      反事实分析
+                    </h3>
+                    <div className="mb-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-sm text-indigo-800">
+                      <p className="font-medium mb-1">💡 什么是反事实分析？</p>
+                      <p>反事实分析回答的是"假如...会怎样"的问题。</p>
+                      <p className="mt-1">假如<strong>服务器2288使用电源pac900s12_b2_1</strong>，库存将是<strong>{analysisResults.counterfactual_analysis.counterfactual_inventory_mean.toFixed(2)} 单位</strong>，比实际库存降低 <strong>{analysisResults.counterfactual_analysis.inventory_reduction.toFixed(2)} 单位</strong>。</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
+                        <div className="text-sm text-blue-600 mb-1 font-medium">实际库存均值</div>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {analysisResults.counterfactual_analysis.actual_inventory_mean.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-blue-500 mt-1">实际发生的库存</div>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 shadow-sm">
+                        <div className="text-sm text-purple-600 mb-1 font-medium">库存降低量</div>
+                        <div className="text-2xl font-bold text-purple-900">
+                          {analysisResults.counterfactual_analysis.inventory_reduction.toFixed(2)} 单位
+                        </div>
+                        <div className="text-sm text-purple-600 font-medium">
+                          {analysisResults.counterfactual_analysis.reduction_percentage.toFixed(2)}%
+                        </div>
+                        <div className="text-xs text-purple-500 mt-1">假如改变原因，库存降低</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
+                        <div className="text-sm text-green-600 mb-1 font-medium">反事实库存均值</div>
+                        <div className="text-2xl font-bold text-green-900">
+                          {analysisResults.counterfactual_analysis.counterfactual_inventory_mean.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-green-500 mt-1">假如2288使用pac900s12_b2_1</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
+                        <div className="text-sm text-gray-600 font-medium">下降期实际库存</div>
+                        <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_actual_inventory.toFixed(2)}</div>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
+                        <div className="text-sm text-gray-600 font-medium">下降期反事实库存</div>
+                        <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_counterfactual_inventory.toFixed(2)}</div>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
+                        <div className="text-sm text-gray-600 font-medium">下降期库存降低</div>
+                        <div className="font-semibold text-gray-900">{analysisResults.counterfactual_analysis.decline_period_reduction.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

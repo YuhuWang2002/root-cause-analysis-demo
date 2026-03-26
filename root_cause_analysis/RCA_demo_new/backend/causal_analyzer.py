@@ -214,11 +214,12 @@ class InventoryCausalAnalyzer:
 
         if fast_mode:
             refutation_results = {}
-            causal_effects_df = pd.DataFrame([{
-                "treatment": "server_2288hv7_uses_pac900s12_b2_1",
-                "causal_effect": float(estimate.value),
-                "note": "快速模式"
-            }])
+            # causal_effects_df = pd.DataFrame([{
+            #     "treatment": "server_2288hv7_uses_pac900s12_b2_1",
+            #     "causal_effect": float(estimate.value),
+            #     "note": "快速模式"
+            # }])
+            causal_effects_df = self.analyze_causal_effects(treatments, outcome)
         else:
             refutation_results = self.refute_estimate()
             causal_effects_df = self.analyze_causal_effects(treatments, outcome)
