@@ -470,3 +470,52 @@ export async function generateSolution(
     }),
   });
 }
+
+export async function queryGraph(
+  projectId: string,
+  ontologyId: number,
+  ontology: string = 'server_manufacturing_cog_graph',
+  startNode: string,
+  path: Array<{ relation: string; filters: any[] }>,
+  startFilters: any[] = []
+): Promise<any> {
+  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ontology,
+      start_node: startNode,
+      start_filters: startFilters,
+      path,
+    }),
+  });
+}
+
+export async function queryGraphTree(
+  projectId: string,
+  ontologyId: number,
+  ontology: string = 'server_manufacturing_cog_graph',
+  queryTree: any
+): Promise<any> {
+  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ontology,
+      query: queryTree,
+    }),
+  });
+}
+
+export async function queryGraphTrees(
+  projectId: string,
+  ontologyId: number,
+  ontology: string = 'server_manufacturing_cog_graph',
+  queryTrees: any[]
+): Promise<any> {
+  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ontology,
+      queries: queryTrees,
+    }),
+  });
+}

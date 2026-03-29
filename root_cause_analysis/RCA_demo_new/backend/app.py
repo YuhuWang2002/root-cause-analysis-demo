@@ -17,7 +17,7 @@ def create_app():
         db.create_all()
         print(f"Database created at: {db_path}")
     
-    from routes import projects, canvas, nodes, ontology, data_analysis, dashboards, root_cause
+    from routes import projects, canvas, nodes, ontology, data_analysis, dashboards, root_cause, graph_query
     app.register_blueprint(projects.bp)
     app.register_blueprint(canvas.bp)
     app.register_blueprint(nodes.bp)
@@ -25,6 +25,7 @@ def create_app():
     app.register_blueprint(data_analysis.bp)
     app.register_blueprint(dashboards.bp)
     app.register_blueprint(root_cause.bp)
+    app.register_blueprint(graph_query.bp)
     
     return app
 

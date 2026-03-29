@@ -3,7 +3,7 @@ import requests
 
 BASE_URL = "http://localhost:5000/api"
 
-PROJECT_ID = "09778791-9c38-4be2-8559-d30cf635f0b7"
+PROJECT_ID = "686d80ce-f690-497a-af6a-714d8baf343d"
 
 def create_ontology(project_id, name, description=""):
     """创建本体库"""
@@ -65,7 +65,7 @@ def create_ontology_relation(project_id, ontology_id, relation_data):
 
 def main():
     schema_path = "/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/inventory_rca_demo/server_inventory_schema.json"
-
+    # schema_path = "/Users/yuhuwang/Documents/trae_projects/root_cause_analysis/RCA_demo_new/server_manufacturing_ontology.json"
     with open(schema_path, 'r', encoding='utf-8') as f:
         schema = json.load(f)
 
@@ -73,7 +73,7 @@ def main():
     print("Importing Inventory Analysis Ontology")
     print("=" * 60)
 
-    ontology = create_ontology(PROJECT_ID, "库存分析本体库", "基于服务器库存分析的本体库")
+    ontology = create_ontology(PROJECT_ID, "server_inventory_graph", "基于服务器库存的本体库")
     if not ontology:
         print("Failed to create ontology. Exiting.")
         return
@@ -85,6 +85,7 @@ def main():
     print("\n--- Creating Entity Classes ---")
     for entity in schema.get('entity_types', []):
         class_data = {
+            "class_id": entity['id'],
             "name": entity['name'],
             "description": entity.get('description', '')
         }
@@ -134,7 +135,7 @@ def main():
                 relation_data = {
                     "source_class_id": source_id,
                     "target_class_id": target_id,
-                    "relation_type": f"{relation['name']} ({relation.get('id', '')})"
+                    "relation_type": relation['id']
                 }
                 create_ontology_relation(PROJECT_ID, ontology_id, relation_data)
 

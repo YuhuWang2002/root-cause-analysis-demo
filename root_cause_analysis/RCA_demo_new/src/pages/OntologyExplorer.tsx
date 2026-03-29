@@ -11,6 +11,7 @@ import {
   Edge,
   NodeTypes,
   Handle,
+  MarkerType,
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
@@ -18,7 +19,11 @@ import { useOntologyStore } from '@/stores/ontologyStore';
 import * as api from '@/services/api';
 
 // 自定义节点组件
-function CustomOntologyNode({ data, selected, isConnectable }: { data: { id: string; name: string; icon: string }; selected?: boolean; isConnectable?: boolean }) {
+function CustomOntologyNode({ data, selected, isConnectable }: { 
+  data: { id: string; name: string; icon: string; queryCount?: number; class_id?: string | number }; 
+  selected?: boolean; 
+  isConnectable?: boolean 
+}) {
   return (
     <div
       className={`w-40 h-32 border-2 ${selected ? 'border-blue-600' : 'border-blue-500'} rounded-lg p-3 bg-white shadow-sm cursor-move`}
@@ -37,9 +42,15 @@ function CustomOntologyNode({ data, selected, isConnectable }: { data: { id: str
       </div>
       <div className="space-y-1 text-xs">
         <div className="flex justify-between">
-          <span className="text-gray-500">{data.id.toLowerCase()}_id:</span>
-          <span className="font-medium">{data.id.substring(0, 2).toUpperCase()}1234</span>
+          <span className="text-gray-500">class_id:</span>
+          <span className="font-medium">{data.class_id ?? data.id}</span>
         </div>
+        {data.queryCount !== undefined && (
+          <div className="flex justify-between">
+            <span className="text-gray-500">总数:</span>
+            <span className="font-medium text-green-600">{data.queryCount}</span>
+          </div>
+        )}
         {data.id === 'Flight' && (
           <>
             <div className="flex justify-between">
@@ -109,6 +120,7 @@ const OntologyExplorer: React.FC = () => {
   const [selectedOntologyId, setSelectedOntologyId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ontology, setOntology] = useState<any>(null);
   const [ontologyClasses, setOntologyClasses] = useState<any[]>([]);
   
   // 过滤条件状态
@@ -129,15 +141,43 @@ const OntologyExplorer: React.FC = () => {
     dimension: 'day'
   });
   
+  // 图查询结果状态
+  const [graphQueryResult, setGraphQueryResult] = useState<any>(null);
+  const [nodeResults, setNodeResults] = useState<{ [nodeId: string]: { count: number; results: string[] } }>({});
+  const [aggregationResults, setAggregationResults] = useState<{
+    [nodeId: string]: {
+      [aggKey: string]: number;
+    };
+  }>({});
+  const [isQueryLoading, setIsQueryLoading] = useState(false);
+  
   // 直接使用 ReactFlow 的状态管理
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // 使用 ref 来保存查询函数，避免依赖循环
+  const executeGraphQueryRef = React.useRef<() => Promise<void>>();
+  const projectIdRef = React.useRef(projectId);
+  const selectedOntologyIdRef = React.useRef(selectedOntologyId);
+  const nodesRefForQuery = React.useRef(nodes);
+  const edgesRefForQuery = React.useRef(edges);
+  const filtersRef = React.useRef(filters);
+  const queryDebounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   
   // 使用 ref 来追踪最新的节点和边，用于自动布局
   const nodesRef = React.useRef(nodes);
   const edgesRef = React.useRef(edges);
   nodesRef.current = nodes;
   edgesRef.current = edges;
+  
+  // 更新查询用的 refs
+  useEffect(() => {
+    projectIdRef.current = projectId;
+    selectedOntologyIdRef.current = selectedOntologyId;
+    nodesRefForQuery.current = nodes;
+    edgesRefForQuery.current = edges;
+    filtersRef.current = filters;
+  }, [projectId, selectedOntologyId, nodes, edges, filters]);
 
   // 自动布局函数（从左到右）
   const getLayoutedElements = useCallback((nodes: Node[], edges: Edge[]) => {
@@ -269,6 +309,28 @@ const OntologyExplorer: React.FC = () => {
     }
   };
 
+  // 立即保存当前选中实体的配置
+  const saveCurrentEntityConfig = useCallback(() => {
+    if (!selectedCanvasEntity) return;
+    
+    const updatedNodes = nodes.map(n => {
+      if (n.id === selectedCanvasEntity) {
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            config: {
+              filters: filters,
+              aggregations: aggregations
+            }
+          }
+        };
+      }
+      return n;
+    });
+    setNodes(updatedNodes);
+  }, [selectedCanvasEntity, nodes, filters, aggregations, setNodes]);
+
 
 
   // 加载本体库数据
@@ -296,6 +358,15 @@ const OntologyExplorer: React.FC = () => {
     }
   }, [ontologies, selectedOntologyId, ontologyId]);
 
+  // 同步更新 nodes/edges refs，确保 executeGraphQuery 获取到最新配置
+  useEffect(() => {
+    nodesRefForQuery.current = [...nodes];
+  }, [nodes]);
+
+  useEffect(() => {
+    edgesRefForQuery.current = [...edges];
+  }, [edges]);
+
   // 当选择不同的本体库时，加载对应的本体类和画布数据
   useEffect(() => {
     if (projectId && selectedOntologyId) {
@@ -303,21 +374,43 @@ const OntologyExplorer: React.FC = () => {
       setError(null);
       api.getOntology(projectId, parseInt(selectedOntologyId))
         .then(ontology => {
+          setOntology(ontology);
           setOntologyClasses(ontology.classes || []);
           
           // 加载画布数据
           if (ontology.canvas_data && ontology.canvas_data.length > 0) {
             const canvasData = ontology.canvas_data[0];
             if (canvasData.nodes && canvasData.edges) {
-              const loadedNodes = canvasData.nodes.map((node: any) => ({
-                ...node,
-                type: 'custom',
-                zIndex: 10
-              }));
+              const loadedNodes = canvasData.nodes.map((node: any) => {
+                const cls = ontologyClasses.find(c => c.id.toString() === node.id);
+                return {
+                  ...node,
+                  type: 'custom',
+                  zIndex: 10,
+                  data: {
+                    ...node.data,
+                    class_id: cls?.class_id
+                  }
+                };
+              });
               const loadedEdges = canvasData.edges.map((edge: any) => ({
                 ...edge,
-                type: 'smoothstep',
-                animated: true
+                type: 'straight',
+                animated: true,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: '#94a3b8',
+                },
+                label: edge.label?.split('___')[0] || undefined,
+                labelStyle: {
+                  fill: '#666',
+                  fontWeight: 500,
+                  fontSize: 11,
+                },
+                labelBgStyle: {
+                  fill: '#fff',
+                  fillOpacity: 0.9,
+                },
               }));
               // 应用自动布局
               const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
@@ -373,7 +466,9 @@ const OntologyExplorer: React.FC = () => {
   };
 
   // 添加实体到画布
-  const addEntityToCanvas = (entity: { id: number; name: string }) => {
+  const addEntityToCanvas = (entity: { id: number; name: string; class_id?: string }) => {
+    console.log('addEntityToCanvas called with entity:', entity);
+    
     const newNode: Node = {
       id: entity.id.toString(),
       type: 'custom',
@@ -384,6 +479,7 @@ const OntologyExplorer: React.FC = () => {
       data: { 
         id: entity.id.toString(), 
         name: entity.name, 
+        class_id: entity.class_id,
         icon: getClassIcon(entity.name) 
       },
       zIndex: 10 + nodes.length,
@@ -418,18 +514,26 @@ const OntologyExplorer: React.FC = () => {
                 id: `edge-${existingNode.id}-${newNode.id}`,
                 source: existingNode.id,
                 target: newNode.id,
-                type: 'smoothstep',
+                type: 'straight',
                 animated: true,
-                label: relationFromExisting.relation_type,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: '#94a3b8',
+                },
                 style: { 
                   stroke: '#94a3b8', 
                   strokeWidth: 2,
-                  strokeDasharray: '4,2'
                 },
+                label: relationFromExisting.relation_type,
                 labelStyle: {
                   fill: '#666',
-                  fontSize: 12
-                }
+                  fontWeight: 500,
+                  fontSize: 11,
+                },
+                labelBgStyle: {
+                  fill: '#fff',
+                  fillOpacity: 0.9,
+                },
               };
               setEdges(prevEdges => {
                 // 检查边是否已存在
@@ -452,18 +556,26 @@ const OntologyExplorer: React.FC = () => {
                 id: `edge-${newNode.id}-${existingNode.id}`,
                 source: newNode.id,
                 target: existingNode.id,
-                type: 'smoothstep',
+                type: 'straight',
                 animated: true,
-                label: relationToExisting.relation_type,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: '#94a3b8',
+                },
                 style: { 
                   stroke: '#94a3b8', 
                   strokeWidth: 2,
-                  strokeDasharray: '4,2'
                 },
+                label: relationToExisting.relation_type,
                 labelStyle: {
                   fill: '#666',
-                  fontSize: 12
-                }
+                  fontWeight: 500,
+                  fontSize: 11,
+                },
+                labelBgStyle: {
+                  fill: '#fff',
+                  fillOpacity: 0.9,
+                },
               };
               setEdges(prevEdges => {
                 // 检查边是否已存在
@@ -482,59 +594,384 @@ const OntologyExplorer: React.FC = () => {
     }
   };
 
-  // 获取与选中实体有关系的相邻实体
-  const fetchRelatedEntities = (entityId: string) => {
-    if (!projectId || !selectedOntologyId) {
-      console.log('Missing projectId or selectedOntologyId');
+  // 构建多根节点查询结构（使用 ref 获取最新状态）
+  const buildQueryTrees = () => {
+    const currentNodes = nodesRefForQuery.current;
+    const currentEdges = edgesRefForQuery.current;
+    
+    console.log('=== buildQueryTrees debug info ===');
+    console.log('currentNodes:', currentNodes);
+    console.log('currentEdges:', currentEdges);
+    
+    if (currentNodes.length === 0) {
+      console.log('buildQueryTrees: no nodes');
+      return [];
+    }
+    
+    // 找到所有根节点（没有入边的节点）
+    const rootNodes = currentNodes.filter(n => !currentEdges.some(e => e.target === n.id));
+    console.log('rootNodes:', rootNodes);
+    
+    // 构建节点ID到节点的映射
+    const nodeMap = new Map(currentNodes.map(n => [n.id, n]));
+    
+    // 递归构建单个树
+    const buildNodeTree = (nodeId: string): any => {
+      const node = nodeMap.get(nodeId);
+      if (!node) return null;
+      
+      // 从 node.data.config.filters 获取过滤条件
+      const nodeFilters = node.data.config?.filters || [];
+      
+      const outgoingEdges = currentEdges.filter(e => e.source === nodeId);
+      
+      const children = outgoingEdges.map(edge => {
+        const targetNode = nodeMap.get(edge.target);
+        if (!targetNode) return null;
+        
+        // 从子节点的 data.config.filters 获取过滤条件
+        const targetFilters = targetNode.data.config?.filters || [];
+        
+        // 递归构建子节点的树
+        const childTree = buildNodeTree(edge.target);
+        
+        return {
+          relation: edge.label || '',
+          node_type: targetNode.data.class_id || targetNode.data.name,
+          filters: targetFilters,
+          children: childTree ? childTree.children : []
+        };
+      }).filter(Boolean);
+      
+      return {
+        node_type: node.data.class_id || node.data.name,
+        filters: nodeFilters,
+        children
+      };
+    };
+    
+    // 为每个根节点构建树
+    const queryTrees = rootNodes.map(rootNode => buildNodeTree(rootNode.id)).filter(Boolean);
+    
+    console.log('buildQueryTrees result:', queryTrees);
+    console.log('=== end buildQueryTrees debug info ===');
+    
+    return queryTrees;
+  };
+
+  // 递归遍历查询结果，将结果映射到节点
+  const mapResultsToNodes = (treeResult: any, nodes: any[], edges: any[], nodeResults: any, currentNodeId: string) => {
+    const nodeType = nodes.find(n => (n.data.class_id || n.data.name) === treeResult.node_type) || nodes.find(n => n.id === currentNodeId);
+    
+    if (!nodeType) {
+      // 找到匹配的节点
+      const matchingNode = nodes.find(n => 
+        (n.data.class_id === treeResult.node_type || n.data.name === treeResult.node_type) && !nodeResults[n.id]
+      );
+      
+      if (matchingNode) {
+        nodeResults[matchingNode.id] = {
+          count: treeResult.count,
+          results: treeResult.results
+        };
+        
+        // 处理子节点
+        if (treeResult.children && treeResult.children.length > 0) {
+          treeResult.children.forEach((childResult: any) => {
+            // 找到对应关系边
+            const edge = edges.find(e => 
+              e.source === matchingNode.id && e.label === childResult.relation
+            );
+            if (edge) {
+              mapResultsToNodes(childResult, nodes, edges, nodeResults, edge.target);
+            }
+          });
+        }
+      }
+    }
+  };
+
+  // 执行查询函数（使用 ref 获取最新状态，避免依赖循环）
+  const executeGraphQuery = async () => {
+    const currentProjectId = projectIdRef.current;
+    const currentSelectedOntologyId = selectedOntologyIdRef.current;
+    const currentNodes = nodesRefForQuery.current;
+    const currentEdges = edgesRefForQuery.current;
+    
+    console.log('executeGraphQuery called, nodes:', currentNodes.length);
+    
+    if (!currentProjectId || !currentSelectedOntologyId || currentNodes.length === 0) {
+      console.log('executeGraphQuery skipped: no projectId, selectedOntologyId, or nodes');
       return;
     }
     
-    console.log('Fetching related entities for entityId:', entityId);
-    console.log('ProjectId:', projectId);
-    console.log('SelectedOntologyId:', selectedOntologyId);
+    if (isQueryLoading) {
+      console.log('executeGraphQuery skipped: already loading');
+      return;
+    }
+    
+    const queryTrees = buildQueryTrees();
+    console.log('executeGraphQuery queryTrees:', queryTrees);
+    
+    if (!queryTrees || queryTrees.length === 0) {
+      console.log('executeGraphQuery skipped: no queryTrees');
+      return;
+    }
+    
+    setIsQueryLoading(true);
+    
+    try {
+      const result = await api.queryGraphTrees(
+        currentProjectId,
+        parseInt(currentSelectedOntologyId),
+        ontology?.name || 'server_manufacturing_cog_graph',
+        queryTrees
+      );
+      
+      console.log('executeGraphQuery result:', result);
+      
+      setGraphQueryResult(result);
+      
+      const newNodeResults: { [nodeId: string]: { count: number; results: string[] } } = {};
+      
+      // 处理多个查询结果
+      const queryResults = result.query_results || [];
+      
+      // 递归遍历单个树结果
+      const traverseAndMap = (treeNode: any, parentNodeId?: string) => {
+        // 找到匹配的节点
+        let targetNodeId: any;
+        if (parentNodeId) {
+          // 从父节点通过边找到
+          const edge = currentEdges.find(e => 
+            e.source === parentNodeId && e.label === treeNode.relation
+          );
+          if (edge) {
+            targetNodeId = edge.target;
+          }
+        } else {
+          // 根节点 - 在当前根节点中找到匹配的
+          const rootNode = currentNodes.find(n => 
+            !currentEdges.some(e => e.target === n.id) &&
+            ((n.data.class_id === treeNode.node_type) || (n.data.name === treeNode.node_type))
+          );
+          targetNodeId = rootNode?.id;
+        }
+        
+        if (targetNodeId) {
+          // 确认节点类型匹配
+          const node = currentNodes.find(n => n.id === targetNodeId);
+          if (node && (node.data.class_id === treeNode.node_type || node.data.name === treeNode.node_type)) {
+            newNodeResults[targetNodeId] = {
+              count: treeNode.count,
+              results: treeNode.results
+            };
+            
+            // 处理子节点
+            if (treeNode.children && treeNode.children.length > 0) {
+              treeNode.children.forEach((child: any) => {
+                traverseAndMap(child, targetNodeId);
+              });
+            }
+          }
+        }
+      };
+      
+      // 遍历每个查询结果树
+      queryResults.forEach((treeResult: any) => {
+        traverseAndMap(treeResult);
+      });
+      
+      console.log('newNodeResults:', newNodeResults);
+      
+      setNodeResults(newNodeResults);
+      
+      // 计算聚合结果
+      const newAggregationResults: {
+        [nodeId: string]: {
+          [aggKey: string]: number;
+        };
+      } = {};
+      
+      console.log('=== 开始计算聚合 ===');
+      console.log('currentNodes:', currentNodes);
+      console.log('newNodeResults:', newNodeResults);
+      
+      // 遍历所有节点，计算聚合
+      currentNodes.forEach(node => {
+        const nodeResult = newNodeResults[node.id];
+        const nodeAggregations = node.data.config?.aggregations || [];
+        
+        console.log(`处理节点 ${node.id}:`, {
+          hasResult: !!nodeResult,
+          aggregations: nodeAggregations
+        });
+        
+        if (nodeResult && nodeAggregations.length > 0) {
+          newAggregationResults[node.id] = {};
+          
+          nodeAggregations.forEach((agg: any) => {
+            const aggKey = `${agg.property}_${agg.aggregationType}`;
+            
+            console.log(`计算聚合 ${aggKey}:`, agg);
+            
+            // 简单聚合框架
+            if (agg.aggregationType === 'count') {
+              // count 聚合：直接使用节点结果的 count
+              newAggregationResults[node.id][aggKey] = nodeResult.count;
+            } else {
+              // 其他聚合（sum/avg/min/max）暂时用模拟数据演示
+              // 后续需要从图数据库获取实体属性后再计算
+              newAggregationResults[node.id][aggKey] = 0;
+            }
+          });
+        }
+      });
+      
+      console.log('newAggregationResults:', newAggregationResults);
+      setAggregationResults(newAggregationResults);
+      
+      setNodes(prevNodes => prevNodes.map(node => {
+        const result = newNodeResults[node.id];
+        if (result) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              queryCount: result.count
+            }
+          };
+        }
+        return node;
+      }));
+      
+    } catch (error) {
+      console.error('Failed to execute graph query:', error);
+    } finally {
+      setIsQueryLoading(false);
+    }
+  };
+
+  // 把函数赋给 ref
+  executeGraphQueryRef.current = executeGraphQuery;
+
+  // 监听节点或边变化，自动触发查询（带防抖）
+  useEffect(() => {
+    console.log('nodes or edges changed, nodes:', nodes.length, 'edges:', edges.length);
+    
+    // 清除之前的 timer
+    if (queryDebounceTimerRef.current) {
+      clearTimeout(queryDebounceTimerRef.current);
+    }
+    
+    // 设置新的 timer，300ms 后执行
+    if (nodes.length > 0 && executeGraphQueryRef.current) {
+      queryDebounceTimerRef.current = setTimeout(() => {
+        console.log('Debounce timer expired, executing query...');
+        executeGraphQueryRef.current!();
+      }, 300);
+    }
+    
+    // 组件卸载时清除 timer
+    return () => {
+      if (queryDebounceTimerRef.current) {
+        clearTimeout(queryDebounceTimerRef.current);
+      }
+    };
+  }, [nodes.length, edges.length]);
+
+  // 监听过滤条件变化，自动触发查询（带防抖）
+  useEffect(() => {
+    console.log('filters changed, filters:', filters);
+    
+    // 清除之前的 timer
+    if (queryDebounceTimerRef.current) {
+      clearTimeout(queryDebounceTimerRef.current);
+    }
+    
+    // 设置新的 timer，300ms 后执行
+    if (nodes.length > 0 && executeGraphQueryRef.current) {
+      queryDebounceTimerRef.current = setTimeout(() => {
+        console.log('Debounce timer expired, executing query...');
+        executeGraphQueryRef.current!();
+      }, 300);
+    }
+    
+    // 组件卸载时清除 timer
+    return () => {
+      if (queryDebounceTimerRef.current) {
+        clearTimeout(queryDebounceTimerRef.current);
+      }
+    };
+  }, [filters.length, nodes.length]);
+
+  // 监听聚合条件变化，自动触发查询（带防抖）
+  useEffect(() => {
+    console.log('aggregations changed, aggregations:', aggregations);
+    
+    // 清除之前的 timer
+    if (queryDebounceTimerRef.current) {
+      clearTimeout(queryDebounceTimerRef.current);
+    }
+    
+    // 设置新的 timer，300ms 后执行
+    if (nodes.length > 0 && executeGraphQueryRef.current) {
+      queryDebounceTimerRef.current = setTimeout(() => {
+        console.log('Debounce timer expired, executing query...');
+        executeGraphQueryRef.current!();
+      }, 300);
+    }
+    
+    // 组件卸载时清除 timer
+    return () => {
+      if (queryDebounceTimerRef.current) {
+        clearTimeout(queryDebounceTimerRef.current);
+      }
+    };
+  }, [aggregations.length, nodes.length]);
+
+  // 获取与选中实体有关系的相邻实体
+  const fetchRelatedEntities = (entityId: string) => {
+    if (!projectId || !selectedOntologyId) {
+      return;
+    }
     
     // 从当前本体库中获取关系数据
     api.getOntology(projectId, parseInt(selectedOntologyId))
       .then(ontology => {
-        console.log('Received ontology data:', ontology);
         const relations = ontology.relations || [];
         const classes = ontology.classes || [];
         
-        console.log('Relations found:', relations.length);
-        console.log('Classes found:', classes.length);
-        
-        // 找到与选中实体相关的关系
+        // 找到与选中实体相关的关系并去重
         const related = [];
+        const addedIds = new Set(); // 用于去重
         
         relations.forEach(relation => {
-          console.log('Checking relation:', relation);
           if (relation.source_class_id.toString() === entityId) {
             // 找到目标类
             const targetClass = classes.find(c => c.id === relation.target_class_id);
-            if (targetClass) {
+            if (targetClass && !addedIds.has(targetClass.id)) {
+              addedIds.add(targetClass.id);
               related.push({
                 ...targetClass,
                 relationType: relation.relation_type,
                 relationDirection: 'outgoing'
               });
-              console.log('Found outgoing relation:', targetClass);
             }
           } else if (relation.target_class_id.toString() === entityId) {
             // 找到源类
             const sourceClass = classes.find(c => c.id === relation.source_class_id);
-            if (sourceClass) {
+            if (sourceClass && !addedIds.has(sourceClass.id)) {
+              addedIds.add(sourceClass.id);
               related.push({
                 ...sourceClass,
                 relationType: relation.relation_type,
                 relationDirection: 'incoming'
               });
-              console.log('Found incoming relation:', sourceClass);
             }
           }
         });
         
-        console.log('Related entities found:', related.length);
-        console.log('Related entities:', related);
         setRelatedEntities(related);
       })
       .catch(err => {
@@ -754,9 +1191,13 @@ const OntologyExplorer: React.FC = () => {
                 fitView
                 className="bg-white"
                 defaultEdgeOptions={{
-                  type: 'smoothstep',
+                  type: 'straight',
                   animated: true,
                   style: { stroke: '#94a3b8', strokeWidth: 2 },
+                  markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                    color: '#94a3b8',
+                  },
                 }}
                 proOptions={{ hideAttribution: true }}
                 minZoom={0.1}
@@ -781,21 +1222,42 @@ const OntologyExplorer: React.FC = () => {
             <h3 className="text-sm font-medium text-gray-700">
               {getSelectedEntityName(selectedCanvasEntity)} - 数据浏览
             </h3>
-            <button
-              onClick={() => setShowRightPanel(false)}
-              className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 border border-gray-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  if (selectedCanvasEntity && window.confirm(`确定要删除节点 "${getSelectedEntityName(selectedCanvasEntity)}" 吗？`)) {
+                    setNodes(prevNodes => prevNodes.filter(n => n.id !== selectedCanvasEntity));
+                    setEdges(prevEdges => prevEdges.filter(e => e.source !== selectedCanvasEntity && e.target !== selectedCanvasEntity));
+                    setSelectedCanvasEntity(null);
+                    setShowRightPanel(false);
+                  }
+                }}
+                className="p-2 rounded-md bg-red-50 hover:bg-red-100 border border-red-200"
+                title="删除节点"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowRightPanel(false)}
+                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 border border-gray-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="space-y-4 p-4">
             <div>
-              <h4 className="mb-2 text-xs font-medium text-gray-500">总览 (最近30天)</h4>
+              <h4 className="mb-2 text-xs font-medium text-gray-500">总数</h4>
               <div className="flex items-end justify-between">
-                <span className="text-2xl font-bold text-gray-800">1,247</span>
-                <span className="text-xs text-green-600">+12.5%</span>
+                <span className="text-2xl font-bold text-gray-800">
+                  {selectedCanvasEntity && nodeResults[selectedCanvasEntity] 
+                    ? nodeResults[selectedCanvasEntity].count 
+                    : 0}
+                </span>
               </div>
             </div>
             
@@ -814,15 +1276,35 @@ const OntologyExplorer: React.FC = () => {
                 className="text-xs text-blue-600 hover:text-blue-800"
                 onClick={() => {
                   if (selectedCanvasEntity && currentFilter.property && currentFilter.value) {
-                    setFilters([...filters, {
-                      ...currentFilter,
-                      classId: selectedCanvasEntity
-                    }]);
+                    const newFilter = {
+                      property: currentFilter.property,
+                      operator: currentFilter.operator,
+                      value: currentFilter.value
+                    };
+                    const newFilters = [...filters, newFilter];
+                    setFilters(newFilters);
                     setCurrentFilter({
                       property: '',
                       operator: '=',
                       value: ''
                     });
+                    // 立即保存配置到节点
+                    const updatedNodes = nodes.map(n => {
+                      if (n.id === selectedCanvasEntity) {
+                        return {
+                          ...n,
+                          data: {
+                            ...n.data,
+                            config: {
+                              filters: newFilters,
+                              aggregations: aggregations
+                            }
+                          }
+                        };
+                      }
+                      return n;
+                    });
+                    setNodes(updatedNodes);
                   }
                 }}
               >
@@ -883,14 +1365,34 @@ const OntologyExplorer: React.FC = () => {
                   <h4 className="text-xs font-medium text-gray-500">已添加的条件</h4>
                   <div className="space-y-1">
                     {filters.map((filter, index) => {
-                      const cls = ontologyClasses.find(c => c.id.toString() === filter.classId);
+                      const cls = selectedCanvasEntity ? ontologyClasses.find(c => c.id.toString() === selectedCanvasEntity) : null;
                       return (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
                           <span className="text-xs">
                             {cls?.name}.{filter.property} {filter.operator} {filter.value}
                           </span>
                           <button
-                            onClick={() => setFilters(filters.filter((_, i) => i !== index))}
+                            onClick={() => {
+                              const newFilters = filters.filter((_, i) => i !== index);
+                              setFilters(newFilters);
+                              // 立即保存配置到节点
+                              const updatedNodes = nodes.map(n => {
+                                if (n.id === selectedCanvasEntity) {
+                                  return {
+                                    ...n,
+                                    data: {
+                                      ...n.data,
+                                      config: {
+                                        filters: newFilters,
+                                        aggregations: aggregations
+                                      }
+                                    }
+                                  };
+                                }
+                                return n;
+                              });
+                              setNodes(updatedNodes);
+                            }}
                             className="text-xs text-red-600 hover:text-red-800"
                           >
                             删除
@@ -903,7 +1405,10 @@ const OntologyExplorer: React.FC = () => {
               )}
               
               <div className="flex space-x-2">
-                <button className="flex-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                <button 
+                  className="flex-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  onClick={() => executeGraphQuery()}
+                >
                   应用
                 </button>
                 <button 
@@ -911,11 +1416,29 @@ const OntologyExplorer: React.FC = () => {
                   onClick={() => {
                     setFilters([]);
                     setCurrentFilter({
-                      classId: '',
                       property: '',
                       operator: '=',
                       value: ''
                     });
+                    // 立即保存配置到节点
+                    if (selectedCanvasEntity) {
+                      const updatedNodes = nodes.map(n => {
+                        if (n.id === selectedCanvasEntity) {
+                          return {
+                            ...n,
+                            data: {
+                              ...n.data,
+                              config: {
+                                filters: [],
+                                aggregations: aggregations
+                              }
+                            }
+                          };
+                        }
+                        return n;
+                      });
+                      setNodes(updatedNodes);
+                    }
                   }}
                 >
                   重置
@@ -932,15 +1455,35 @@ const OntologyExplorer: React.FC = () => {
                 className="text-xs text-blue-600 hover:text-blue-800"
                 onClick={() => {
                   if (selectedCanvasEntity && currentAggregation.property) {
-                    setAggregations([...aggregations, {
-                      ...currentAggregation,
-                      classId: selectedCanvasEntity
-                    }]);
+                    const newAggregation = {
+                      property: currentAggregation.property,
+                      aggregationType: currentAggregation.aggregationType,
+                      dimension: currentAggregation.dimension
+                    };
+                    const newAggregations = [...aggregations, newAggregation];
+                    setAggregations(newAggregations);
                     setCurrentAggregation({
                       property: '',
                       aggregationType: 'avg',
                       dimension: 'day'
                     });
+                    // 立即保存配置到节点
+                    const updatedNodes = nodes.map(n => {
+                      if (n.id === selectedCanvasEntity) {
+                        return {
+                          ...n,
+                          data: {
+                            ...n.data,
+                            config: {
+                              filters: n.data.config?.filters || [],
+                              aggregations: newAggregations
+                            }
+                          }
+                        };
+                      }
+                      return n;
+                    });
+                    setNodes(updatedNodes);
                   }
                 }}
               >
@@ -1003,7 +1546,7 @@ const OntologyExplorer: React.FC = () => {
                   <h4 className="text-xs font-medium text-gray-500">已添加的聚合项</h4>
                   <div className="space-y-1">
                     {aggregations.map((agg, index) => {
-                      const cls = ontologyClasses.find(c => c.id.toString() === agg.classId);
+                      const cls = selectedCanvasEntity ? ontologyClasses.find(c => c.id.toString() === selectedCanvasEntity) : null;
                       const aggTypeMap: Record<string, string> = {
                         avg: '平均值',
                         sum: '总和',
@@ -1024,7 +1567,27 @@ const OntologyExplorer: React.FC = () => {
                             {aggTypeMap[agg.aggregationType]}({cls?.name}.{agg.property}) 按 {dimensionMap[agg.dimension]}
                           </span>
                           <button
-                            onClick={() => setAggregations(aggregations.filter((_, i) => i !== index))}
+                            onClick={() => {
+                              const newAggregations = aggregations.filter((_, i) => i !== index);
+                              setAggregations(newAggregations);
+                              // 立即保存配置到节点
+                              const updatedNodes = nodes.map(n => {
+                                if (n.id === selectedCanvasEntity) {
+                                  return {
+                                    ...n,
+                                    data: {
+                                      ...n.data,
+                                      config: {
+                                        filters: n.data.config?.filters || [],
+                                        aggregations: newAggregations
+                                      }
+                                    }
+                                  };
+                                }
+                                return n;
+                              });
+                              setNodes(updatedNodes);
+                            }}
                             className="text-xs text-red-600 hover:text-red-800"
                           >
                             删除
@@ -1035,6 +1598,40 @@ const OntologyExplorer: React.FC = () => {
                   </div>
                 </div>
               )}
+              <div className="flex space-x-2 mt-3">
+                <button 
+                  className="flex-1 px-2 py-1 text-xs font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100"
+                  onClick={() => {
+                    setAggregations([]);
+                    setCurrentAggregation({
+                      property: '',
+                      aggregationType: 'avg',
+                      dimension: 'day'
+                    });
+                    // 立即保存配置到节点
+                    if (selectedCanvasEntity) {
+                      const updatedNodes = nodes.map(n => {
+                        if (n.id === selectedCanvasEntity) {
+                          return {
+                            ...n,
+                            data: {
+                              ...n.data,
+                              config: {
+                                filters: n.data.config?.filters || [],
+                                aggregations: []
+                              }
+                            }
+                          };
+                        }
+                        return n;
+                      });
+                      setNodes(updatedNodes);
+                    }
+                  }}
+                >
+                  重置
+                </button>
+              </div>
             </div>
           </div>
           
@@ -1112,6 +1709,65 @@ const OntologyExplorer: React.FC = () => {
               </button>
             </div>
           </div>
+          
+          {/* 聚合结果展示 */}
+          {selectedCanvasEntity && (
+            <div className="p-4 border-t border-gray-200">
+              <h3 className="mb-3 text-sm font-medium text-gray-700">聚合结果</h3>
+              <div className="space-y-2">
+                {aggregationResults[selectedCanvasEntity] ? (
+                  Object.entries(aggregationResults[selectedCanvasEntity]).map(([key, value]) => {
+                    const [property, aggType] = key.split('_');
+                    const aggTypeMap: Record<string, string> = {
+                      avg: '平均值',
+                      sum: '总和',
+                      count: '计数',
+                      min: '最小值',
+                      max: '最大值'
+                    };
+                    return (
+                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <span className="text-xs text-gray-600">
+                          {property} ({aggTypeMap[aggType]})
+                        </span>
+                        <span className="font-medium text-blue-600">{value}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-gray-500">暂无聚合结果，请先添加聚合条件并执行查询</div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* 查询结果列表 */}
+          {selectedCanvasEntity && nodeResults[selectedCanvasEntity] && (
+            <div className="p-4 border-t border-gray-200">
+              <h3 className="mb-3 text-sm font-medium text-gray-700">查询结果</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">总数:</span>
+                  <span className="font-medium text-green-600">{nodeResults[selectedCanvasEntity].count}</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                  {nodeResults[selectedCanvasEntity].results.slice(0, 100).map((result, index) => (
+                    <div 
+                      key={index}
+                      className="px-2 py-1 text-xs border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    >
+                      {result}
+                    </div>
+                  ))}
+                </div>
+                {nodeResults[selectedCanvasEntity].results.length > 100 && (
+                  <div className="text-xs text-gray-400 text-center">
+                    仅显示前 100 条结果
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>

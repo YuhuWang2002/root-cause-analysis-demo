@@ -4,3 +4,4 @@ dowhy
 numpy
 pandas
 scipy
+cogdb

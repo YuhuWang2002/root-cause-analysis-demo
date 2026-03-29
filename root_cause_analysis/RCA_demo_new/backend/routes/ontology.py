@@ -29,6 +29,7 @@ def create_ontology(project_id):
             for cls in template_ontology.classes:
                 new_cls = OntologyClass(
                     ontology_id=new_ontology.id,
+                    class_id=cls.class_id,
                     name=cls.name,
                     description=cls.description
                 )
@@ -137,6 +138,7 @@ def create_ontology_class(project_id, ontology_id):
     
     ontology_class = OntologyClass(
         ontology_id=ontology_id,
+        class_id=data.get('class_id'),
         name=data.get('name', '新类'),
         description=data.get('description', ''),
         properties_json='[]'

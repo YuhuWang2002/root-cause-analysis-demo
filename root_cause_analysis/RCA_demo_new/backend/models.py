@@ -106,6 +106,7 @@ class OntologyClass(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     ontology_id = db.Column(db.Integer, db.ForeignKey('ontologies.id'), nullable=False)
+    class_id = db.Column(db.String(200))
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     properties_json = db.Column(db.Text, default='[]')
@@ -115,6 +116,7 @@ class OntologyClass(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'class_id': self.class_id,
             'ontology_id': self.ontology_id,
             'name': self.name,
             'description': self.description,
