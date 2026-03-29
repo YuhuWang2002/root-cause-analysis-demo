@@ -1,0 +1,984 @@
+{
+  "entity_types": [
+    {
+      "id": "Supplier A",
+      "name": "供应商A",
+      "description": "电源供应商A",
+      "type": "Supplier",
+      "attributes": [
+        {
+          "name": "supplierCode",
+          "type": "string",
+          "value": "SUP-A",
+          "description": "供应商编码"
+        }
+      ]
+    },
+    {
+      "id": "Power Supply 02313XSF",
+      "name": "电源02313XSF",
+      "description": "供应商A生产的电源产品，编号02313XSF",
+      "type": "Product",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "02313XSF",
+          "description": "产品编码"
+        },
+        {
+          "name": "producedBy",
+          "type": "string",
+          "value": "Supplier A",
+          "description": "生产商"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Order",
+      "name": "昆仑2280订单",
+      "description": "昆仑2280服务器的订单",
+      "type": "Order",
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "string",
+          "value": "ORD-KL2280",
+          "description": "订单编号"
+        },
+        {
+          "name": "sales",
+          "type": "metric",
+          "fieldName": "kunlun_2280_order_sales",
+          "description": "昆仑2280订单销量",
+          "unit": "台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Order",
+      "name": "2288HV7订单",
+      "description": "2288HV7服务器的订单",
+      "type": "Order",
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "string",
+          "value": "ORD-2288HV7",
+          "description": "订单编号"
+        },
+        {
+          "name": "sales",
+          "type": "metric",
+          "fieldName": "server_2288hv7_order_sales",
+          "description": "2288HV7订单销量",
+          "unit": "台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280",
+      "name": "昆仑 2280",
+      "description": "型号为KunLun 2280 服务器",
+      "type": "Server",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "EW073063",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "countryCode",
+          "type": "string",
+          "value": "CN",
+          "description": "国家代码"
+        },
+        {
+          "name": "sales",
+          "type": "metric",
+          "fieldName": "kunlun_2280_sales",
+          "description": "昆仑2280销量",
+          "unit": "台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Power",
+      "name": "电源",
+      "description": "可被服务器KunLun 2280使用的电源组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "02313XSF",
+            "0231Y019"
+          ],
+          "description": "可被使用的昆仑2280服务器的电源组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PAC900S12-B2-1",
+      "name": "昆仑2280服务器电源白金900W",
+      "description": "一次电源-PAC900S12-B2-服务器白金900W 2.0 版本交流电源-ST",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "02313XSF",
+          "description": "电源产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_1_consumption",
+          "description": "PAC900S12-B2-1消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_1_inventory",
+          "description": "PAC900S12-B2-1库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_1_procurement",
+          "description": "PAC900S12-B2-1采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "PAC2000S12-B1",
+      "name": "服务器白金2000W",
+      "description": "功能模块-一次电源-PAC2000S12-B1-服务器白金2000W 2.0版本交流电源",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0231Y019",
+          "description": "电源产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "pac2000s12_b1_consumption",
+          "description": "PAC2000S12-B1消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "pac2000s12_b1_inventory",
+          "description": "PAC2000S12-B1库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "pac2000s12_b1_procurement",
+          "description": "PAC2000S12-B1采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 CPU",
+      "name": "CPU",
+      "description": "可被服务器KunLun 2280使用的CPU组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "03050SNB",
+            "03050SND",
+            "03050QFT"
+          ],
+          "description": "可被使用的昆仑2280服务器的CPU组件列表"
+        }
+      ]
+    },
+    {
+      "id": "S920S00",
+      "name": "鲲鹏920S",
+      "description": "成品板单元-KunLun 2280-S920S00-5220-BE-鲲鹏服务器主板 2*(鲲鹏920,32Core@2.6GHz,8DIMM)(散件发货)-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "03050SNB",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "s920s00_consumption",
+          "description": "S920S00消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "s920s00_inventory",
+          "description": "S920S00库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "s920s00_procurement",
+          "description": "S920S00采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "S920X00",
+      "name": "鲲鹏920X",
+      "description": "成品板单元-Kunpeng Server Board-S920X00-S920X00-7260-CX-鲲鹏主板(VD) 2*(鲲鹏920,64Core@2.6GHz,16DIMM)(散件发货)-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "03050SND",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "s920x00_consumption",
+          "description": "S920X00消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "s920x00_inventory",
+          "description": "S920X00库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "s920x00_procurement",
+          "description": "S920X00采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Disk",
+      "name": "磁盘",
+      "description": "可被服务器KunLun 2280使用的磁盘组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "0255Y819",
+            "0254Y524"
+          ],
+          "description": "可被使用的昆仑2280服务器的磁盘组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PM893-480GB",
+      "name": "480GB SATA SSD",
+      "description": "固态硬盘模组-Servers-固态硬盘-480GB-SATA 6Gb/s-读密集型-PM893系列-2.5英寸(2.5英寸托架)-KUNLUN专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0255Y819",
+          "description": "磁盘产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "pm893_480gb_consumption",
+          "description": "PM893-480GB消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "pm893_480gb_inventory",
+          "description": "PM893-480GB库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "pm893_480gb_procurement",
+          "description": "PM893-480GB采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "ST-4000GB-SATA",
+      "name": "4000GB SATA HDD",
+      "description": "通用硬盘模组-Servers-通用硬盘-4000GB-SATA 6.0Gb/s-7200rpm-3.5inch-128MB或以上-热插拔-内置式-3.5英寸拉手条-客户指定-Seagate-KunLun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0254Y524",
+          "description": "磁盘产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "st_4000gb_sata_consumption",
+          "description": "ST-4000GB-SATA消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "st_4000gb_sata_inventory",
+          "description": "ST-4000GB-SATA库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "st_4000gb_sata_procurement",
+          "description": "ST-4000GB-SATA采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "KunLun 2280 Memory",
+      "name": "内存",
+      "description": "可被服务器KunLun 2280使用的内存组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_kunlun_2280",
+          "type": "array",
+          "value": [
+            "2510318"
+          ],
+          "description": "可被使用的昆仑2280服务器的内存组件列表"
+        }
+      ]
+    },
+    {
+      "id": "BC82M32G46-32GB",
+      "name": "32GB DDR4 RDIMM",
+      "description": "内存模组-KunLun 2280-BC82M32G46-通用内存-DDR4-RDIMM-32GB-288pin-0.625ns-3200000KHz-1.2V-ECC-2Rank(2G*8bit)-MZ-计算专用-(OEM专用)-Kunlun专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "2510318",
+          "description": "内存产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "bc82m32g46_32gb_consumption",
+          "description": "BC82M32G46-32GB消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "bc82m32g46_32gb_inventory",
+          "description": "BC82M32G46-32GB库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "bc82m32g46_32gb_procurement",
+          "description": "BC82M32G46-32GB采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7",
+      "name": "2288HV7",
+      "description": "型号为2288HV7服务器",
+      "type": "Server",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "EW072949",
+          "description": "服务器产品编码"
+        },
+        {
+          "name": "countryCode",
+          "type": "string",
+          "value": "CN",
+          "description": "国家代码"
+        },
+        {
+          "name": "sales",
+          "type": "metric",
+          "fieldName": "server_2288hv7_sales",
+          "description": "2288HV7销量",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "uses_pac900s12_b2_1",
+          "type": "metric",
+          "fieldName": "server_2288hv7_uses_pac900s12_b2_1",
+          "description": "2288HV7是否使用PAC900S12-B2-1",
+          "unit": "布尔值",
+          "dataType": "boolean"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Power",
+      "name": "电源",
+      "description": "可被服务器2288HV7使用的电源组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "02313XSF",
+            "0231Y033"
+          ],
+          "description": "可被使用的2288HV7服务器的电源组件列表"
+        }
+      ]
+    },
+    {
+      "id": "PAC900S12-B2",
+      "name": "2288HV7服务器电源白金900W",
+      "description": "功能模块-一次电源-PAC900S12-B2-服务器白金900W 2.0 版本交流电源-ST",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "02313XSF",
+          "description": "电源产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_consumption",
+          "description": "PAC900S12-B2消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_inventory",
+          "description": "PAC900S12-B2库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "pac900s12_b2_procurement",
+          "description": "PAC900S12-B2采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "PAC1500S12-B1",
+      "name": "服务器白金1500W",
+      "description": "功能模块-2288H V5-PAC1500S12-B1-服务器白金1500W 2.0版本交流电源",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0231Y033",
+          "description": "电源产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "pac1500s12_b1_consumption",
+          "description": "PAC1500S12-B1消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "pac1500s12_b1_inventory",
+          "description": "PAC1500S12-B1库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "pac1500s12_b1_procurement",
+          "description": "PAC1500S12-B1采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 CPU",
+      "name": "CPU",
+      "description": "可被服务器2288HV7使用的CPU组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0253Y909",
+            "0253Y163",
+            "0253Y322"
+          ],
+          "description": "可被使用的2288HV7服务器的CPU组件列表"
+        }
+      ]
+    },
+    {
+      "id": "BC1CPU6544Y",
+      "name": "Intel Xeon Gold 6544Y",
+      "description": "CPU模组-Server-BC1CPU6544Y-英特尔至强金牌6544Y(3.6GHz/16-Core/45MB/270W)Emerald Rapids MCC CPU(带2U拉远散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y909",
+          "description": "CPU产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "bc1cpu6544y_consumption",
+          "description": "BC1CPU6544Y消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "bc1cpu6544y_inventory",
+          "description": "BC1CPU6544Y库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "bc1cpu6544y_procurement",
+          "description": "BC1CPU6544Y采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "BC7MX001CPU",
+      "name": "Intel Xeon Platinum 8480+",
+      "description": "CPU模组-Server-BC7MX001CPU-英特尔至强铂金8480+(2.0GHz/56-core/105MB/350W)Sapphire Rapids XCC CPU(带2U拉远散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y163",
+          "description": "CPU产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "bc7mx001cpu_consumption",
+          "description": "BC7MX001CPU消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "bc7mx001cpu_inventory",
+          "description": "BC7MX001CPU库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "bc7mx001cpu_procurement",
+          "description": "BC7MX001CPU采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "BC7MX093CPU",
+      "name": "Intel Xeon Gold 5418Y",
+      "description": "CPU模组-Server-BC7MX093CPU-英特尔至强金牌5418Y(2.0GHz/24-Core/45MB/185W)Sapphire Rapids MCC CPU(带2U热管单体散热器)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0253Y322",
+          "description": "CPU产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "bc7mx093cpu_consumption",
+          "description": "BC7MX093CPU消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "bc7mx093cpu_inventory",
+          "description": "BC7MX093CPU库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "bc7mx093cpu_procurement",
+          "description": "BC7MX093CPU采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Disk",
+      "name": "磁盘",
+      "description": "可被服务器2288HV7使用的磁盘组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0254Y057",
+            "0255YCDN"
+          ],
+          "description": "可被使用的2288HV7服务器的磁盘组件列表"
+        }
+      ]
+    },
+    {
+      "id": "SAS-600GB-10K",
+      "name": "600GB SAS HDD",
+      "description": "通用硬盘模组-Servers-通用硬盘-600GB-SAS 12Gb/s-10000rpm-2.5inch-128MB及以上-热插拔-内置式-2.5寸拉手条-V7服务器专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0254Y057",
+          "description": "磁盘产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "sas_600gb_10k_consumption",
+          "description": "SAS-600GB-10K消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "sas_600gb_10k_inventory",
+          "description": "SAS-600GB-10K库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "sas_600gb_10k_procurement",
+          "description": "SAS-600GB-10K采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "UH631a-1600GB",
+      "name": "1600GB SAS SSD",
+      "description": "固态硬盘模组-Servers-固态硬盘-1600GB-SAS 12Gb/s-读写混合型-UH631a-Y系列-2.5英寸(2.5英寸托架)-V7专用",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0255YCDN",
+          "description": "磁盘产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "uh631a_1600gb_consumption",
+          "description": "UH631a-1600GB消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "uh631a_1600gb_inventory",
+          "description": "UH631a-1600GB库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "uh631a_1600gb_procurement",
+          "description": "UH631a-1600GB采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "2288HV7 Memory",
+      "name": "内存",
+      "description": "可被服务器2288HV7使用的内存组件",
+      "type": "PartType",
+      "attributes": [
+        {
+          "name": "can_be_used_by_2288hv7",
+          "type": "array",
+          "value": [
+            "0620Y029",
+            "0620Y031"
+          ],
+          "description": "可被使用的2288HV7服务器的内存组件列表"
+        }
+      ]
+    },
+    {
+      "id": "DDR5-32GB-5600",
+      "name": "32GB DDR5 RDIMM",
+      "description": "通用内存-DDR5-RDIMM-32GB-288pin-0.357ns-5600000KHz-1.1V-ECC-2Rank(2G*8bit)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0620Y029",
+          "description": "内存产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "ddr5_32gb_5600_consumption",
+          "description": "DDR5-32GB-5600消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "ddr5_32gb_5600_inventory",
+          "description": "DDR5-32GB-5600库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "ddr5_32gb_5600_procurement",
+          "description": "DDR5-32GB-5600采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "DDR5-64GB-5600",
+      "name": "64GB DDR5 RDIMM",
+      "description": "通用内存-DDR5-RDIMM-64GB-288pin-0.357ns-5600000KHz-1.1V-ECC-2Rank(4G*4bit)",
+      "type": "Part",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "value": "0620Y031",
+          "description": "内存产品编码"
+        },
+        {
+          "name": "consumption",
+          "type": "metric",
+          "fieldName": "ddr5_64gb_5600_consumption",
+          "description": "DDR5-64GB-5600消耗量",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "ddr5_64gb_5600_inventory",
+          "description": "DDR5-64GB-5600库存",
+          "unit": "个",
+          "dataType": "integer"
+        },
+        {
+          "name": "procurement",
+          "type": "metric",
+          "fieldName": "ddr5_64gb_5600_procurement",
+          "description": "DDR5-64GB-5600采购量",
+          "unit": "个",
+          "dataType": "integer"
+        }
+      ]
+    }
+  ],
+  "relation_types": [
+    {
+      "id": "supplier_produces",
+      "name": "生产",
+      "description": "供应商生产电源产品",
+      "source_types": ["Supplier A"],
+      "target_types": ["Power Supply 02313XSF"]
+    },
+    {
+      "id": "power_procure_kunlun",
+      "name": "采购入库",
+      "description": "电源采购入库到昆仑2280专用库存",
+      "source_types": ["Power Supply 02313XSF"],
+      "target_types": ["PAC900S12-B2-1"]
+    },
+    {
+      "id": "power_procure_hv7",
+      "name": "采购入库",
+      "description": "电源采购入库到2288HV7专用库存",
+      "source_types": ["Power Supply 02313XSF"],
+      "target_types": ["PAC900S12-B2"]
+    },
+    {
+      "id": "part_used_by_kunlun2280",
+      "name": "被使用",
+      "description": "电源被昆仑2280服务器使用",
+      "source_types": ["PAC900S12-B2-1"],
+      "target_types": ["KunLun 2280"]
+    },
+    {
+      "id": "part_used_by_hv7",
+      "name": "被使用",
+      "description": "电源被2288HV7服务器使用",
+      "source_types": ["PAC900S12-B2"],
+      "target_types": ["2288HV7"]
+    },
+    {
+      "id": "kunlun2280_cpu_used_by",
+      "name": "被使用",
+      "description": "CPU被昆仑2280服务器使用",
+      "source_types": ["S920S00", "S920X00"],
+      "target_types": ["KunLun 2280"]
+    },
+    {
+      "id": "kunlun2280_disk_used_by",
+      "name": "被使用",
+      "description": "磁盘被昆仑2280服务器使用",
+      "source_types": ["PM893-480GB", "ST-4000GB-SATA"],
+      "target_types": ["KunLun 2280"]
+    },
+    {
+      "id": "kunlun2280_memory_used_by",
+      "name": "被使用",
+      "description": "内存被昆仑2280服务器使用",
+      "source_types": ["BC82M32G46-32GB"],
+      "target_types": ["KunLun 2280"]
+    },
+    {
+      "id": "hv7_cpu_used_by",
+      "name": "被使用",
+      "description": "CPU被2288HV7服务器使用",
+      "source_types": ["BC1CPU6544Y", "BC7MX001CPU", "BC7MX093CPU"],
+      "target_types": ["2288HV7"]
+    },
+    {
+      "id": "hv7_disk_used_by",
+      "name": "被使用",
+      "description": "磁盘被2288HV7服务器使用",
+      "source_types": ["SAS-600GB-10K", "UH631a-1600GB"],
+      "target_types": ["2288HV7"]
+    },
+    {
+      "id": "hv7_memory_used_by",
+      "name": "被使用",
+      "description": "内存被2288HV7服务器使用",
+      "source_types": ["DDR5-32GB-5600", "DDR5-64GB-5600"],
+      "target_types": ["2288HV7"]
+    },
+    {
+      "id": "kunlun2280_generates_order",
+      "name": "生成",
+      "description": "昆仑2280服务器生成订单",
+      "source_types": ["KunLun 2280"],
+      "target_types": ["KunLun 2280 Order"]
+    },
+    {
+      "id": "hv7_generates_order",
+      "name": "生成",
+      "description": "2288HV7服务器生成订单",
+      "source_types": ["2288HV7"],
+      "target_types": ["2288HV7 Order"]
+    }
+  ]
+}

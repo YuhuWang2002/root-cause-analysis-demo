@@ -1,0 +1,573 @@
+{
+  "entity_types": [
+    {
+      "id": "Supplier",
+      "name": "供应商",
+      "description": "提供原材料的厂商，如芯片、内存、硬盘、电源、主板等供应商",
+      "type": "Organization",
+      "attributes": [
+        {
+          "name": "supplierCode",
+          "type": "string",
+          "description": "供应商编码"
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "description": "供应类别（芯片/内存/存储/电源/主板等）"
+        }
+      ]
+    },
+    
+    {
+      "id": "Customer",
+      "name": "客户",
+      "description": "购买服务器的企业、政府、云厂商等",
+      "type": "Organization",
+      "attributes": [
+        {
+          "name": "customerCode",
+          "type": "string",
+          "description": "客户编码"
+        },
+        {
+          "name": "industry",
+          "type": "string",
+          "description": "所属行业"
+        }
+      ]
+    },
+    {
+      "id": "Logistics",
+      "name": "物流商",
+      "description": "负责运输配送的第三方物流公司",
+      "type": "Organization",
+      "attributes": [
+        {
+          "name": "logisticsCode",
+          "type": "string",
+          "description": "物流商编码"
+        }
+      ]
+    },
+    {
+      "id": "Manufacturer",
+      "name": "制造商",
+      "description": "组装生产服务器的工厂",
+      "type": "Organization",
+      "attributes": [
+        {
+          "name": "manufacturerCode",
+          "type": "string",
+          "description": "制造商编码"
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "description": "生产地点"
+        },
+        {
+          "name": "capacity",
+          "type": "metric",
+          "fieldName": "manufacturer_capacity",
+          "description": "产能",
+          "unit": "台/天",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "RawMaterial",
+      "name": "原材料",
+      "description": "CPU、内存、硬盘、主板、电源、机箱等零部件",
+      "type": "Material",
+      "attributes": [
+        {
+          "name": "materialCode",
+          "type": "string",
+          "description": "原材料编码"
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "description": "原材料类别（芯片/内存/存储/电源/主板/机箱）"
+        },
+        {
+          "name": "supplier",
+          "type": "string",
+          "description": "供应商编码"
+        },
+        {
+          "name": "batch",
+          "type": "string",
+          "description": "批次号"
+        },
+        {
+          "name": "productionDate",
+          "type": "date",
+          "description": "生产日期"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "raw_material_inventory",
+          "description": "库存",
+          "unit": "个/条",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "SemiFinished",
+      "name": "半成品",
+      "description": "组装中的模块，如装好CPU的主板、已完成组装但未测试的服务器",
+      "type": "Material",
+      "attributes": [
+        {
+          "name": "semiCode",
+          "type": "string",
+          "description": "半成品编码"
+        },
+        {
+          "name": "productionDate",
+          "type": "date",
+          "description": "生产日期"
+        },
+        {
+          "name": "production",
+          "type": "metric",
+          "fieldName": "semi_production",
+          "description": "产量",
+          "unit": "块/台",
+          "dataType": "integer"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "semi_inventory",
+          "description": "库存",
+          "unit": "块/台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "FinishedProduct",
+      "name": "成品",
+      "description": "最终的服务器整机",
+      "type": "Material",
+      "attributes": [
+        {
+          "name": "productCode",
+          "type": "string",
+          "description": "产品编码"
+        },
+        {
+          "name": "productionDate",
+          "type": "date",
+          "description": "生产日期"
+        },
+        {
+          "name": "inventory",
+          "type": "metric",
+          "fieldName": "finished_product_inventory",
+          "description": "库存",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "production",
+          "type": "metric",
+          "fieldName": "finished_product_production",
+          "description": "产量",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "sales",
+          "type": "metric",
+          "fieldName": "finished_product_sales",
+          "description": "销量",
+          "unit": "台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "Warehouse",
+      "name": "仓库",
+      "description": "原材料仓、成品仓等存储设施",
+      "type": "Resource",
+      "attributes": [
+        {
+          "name": "warehouseCode",
+          "type": "string",
+          "description": "仓库编码"
+        },
+        {
+          "name": "warehouseType",
+          "type": "string",
+          "description": "仓库类型（原材料仓/成品仓）"
+        },
+        {
+          "name": "capacity",
+          "type": "metric",
+          "fieldName": "warehouse_capacity",
+          "description": "仓库容量",
+          "unit": "托盘/台",
+          "dataType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "ProductionLine",
+      "name": "生产线",
+      "description": "具体组装产线，如AI服务器专线、通用服务器产线",
+      "type": "Resource",
+      "attributes": [
+        {
+          "name": "lineCode",
+          "type": "string",
+          "description": "生产线编码"
+        },
+        {
+          "name": "capacity",
+          "type": "metric",
+          "fieldName": "production_line_capacity",
+          "description": "产能",
+          "unit": "台/天",
+          "dataType": "integer"
+        },
+        {
+          "name": "utilization",
+          "type": "metric",
+          "fieldName": "production_line_utilization",
+          "description": "利用率",
+          "unit": "%",
+          "dataType": "float"
+        }
+      ]
+    },
+    {
+      "id": "Equipment",
+      "name": "设备",
+      "description": "测试仪器、组装机器人等生产设备",
+      "type": "Resource",
+      "attributes": [
+        {
+          "name": "equipmentCode",
+          "type": "string",
+          "description": "设备编码"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "description": "设备状态"
+        }
+      ]
+    },
+    {
+      "id": "PurchaseOrder",
+      "name": "采购订单",
+      "description": "向供应商下单的凭证",
+      "type": "Document",
+      "attributes": [
+        {
+          "name": "poNumber",
+          "type": "string",
+          "description": "采购订单号"
+        },
+        {
+          "name": "orderDate",
+          "type": "date",
+          "description": "下单日期"
+        },
+        {
+          "name": "quantity",
+          "type": "metric",
+          "fieldName": "purchase_order_quantity",
+          "description": "采购数量",
+          "unit": "个/条",
+          "dataType": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "description": "订单状态"
+        }
+      ]
+    },
+    {
+      "id": "Receipt",
+      "name": "入库单",
+      "description": "物料进仓记录",
+      "type": "Document",
+      "attributes": [
+        {
+          "name": "receiptNumber",
+          "type": "string",
+          "description": "入库单号"
+        },
+        {
+          "name": "receiptDate",
+          "type": "date",
+          "description": "入库日期"
+        },
+        {
+          "name": "quantity",
+          "type": "metric",
+          "fieldName": "receipt_quantity",
+          "description": "入库数量",
+          "unit": "个/条/台",
+          "dataType": "integer"
+        },
+        {
+          "name": "qualityStatus",
+          "type": "string",
+          "description": "质量状态"
+        }
+      ]
+    },
+    {
+      "id": "WorkOrder",
+      "name": "生产工单",
+      "description": "指导生产的任务单",
+      "type": "Document",
+      "attributes": [
+        {
+          "name": "woNumber",
+          "type": "string",
+          "description": "工单号"
+        },
+        {
+          "name": "createDate",
+          "type": "date",
+          "description": "创建日期"
+        },
+        {
+          "name": "plannedQuantity",
+          "type": "metric",
+          "fieldName": "work_order_planned_qty",
+          "description": "计划数量",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "completedQuantity",
+          "type": "metric",
+          "fieldName": "work_order_completed_qty",
+          "description": "完成数量",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "description": "工单状态"
+        }
+      ]
+    },
+    {
+      "id": "QualityReport",
+      "name": "质检报告",
+      "description": "来料检验或成品检验报告",
+      "type": "Document",
+      "attributes": [
+        {
+          "name": "reportNumber",
+          "type": "string",
+          "description": "报告编号"
+        },
+        {
+          "name": "inspectionDate",
+          "type": "date",
+          "description": "检验日期"
+        },
+        {
+          "name": "sampleSize",
+          "type": "metric",
+          "fieldName": "qc_sample_size",
+          "description": "抽样数量",
+          "unit": "个/台",
+          "dataType": "integer"
+        },
+        {
+          "name": "passRate",
+          "type": "metric",
+          "fieldName": "qc_pass_rate",
+          "description": "合格率",
+          "unit": "%",
+          "dataType": "float"
+        },
+        {
+          "name": "result",
+          "type": "string",
+          "description": "检验结果"
+        }
+      ]
+    },
+    {
+      "id": "SalesOrder",
+      "name": "销售订单",
+      "description": "客户购买合同",
+      "type": "Document",
+      "attributes": [
+        {
+          "name": "orderNumber",
+          "type": "string",
+          "description": "销售订单号"
+        },
+        {
+          "name": "orderDate",
+          "type": "date",
+          "description": "订单日期"
+        },
+        {
+          "name": "quantity",
+          "type": "metric",
+          "fieldName": "sales_order_quantity",
+          "description": "订单数量",
+          "unit": "台",
+          "dataType": "integer"
+        },
+        {
+          "name": "fulfillmentRate",
+          "type": "metric",
+          "fieldName": "sales_order_fulfillment",
+          "description": "满足率",
+          "unit": "%",
+          "dataType": "float"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "description": "订单状态"
+        }
+      ]
+    }
+  ],
+  "relation_types": [
+    
+    {
+      "id": "po_from_supplier",
+      "name": "下单",
+      "description": "采购订单来自供应商",
+      "source_types": ["PurchaseOrder"],
+      "target_types": ["Supplier"]
+    },
+    {
+      "id": "provided_by_supplier",
+      "name": "提供",
+      "description": "供应商提供原材料",
+      "source_types": ["Supplier"],
+      "target_types": ["RawMaterial"]
+    },
+    
+    {
+      "id": "stored_in_warehouse",
+      "name": "存储在",
+      "description": "物料存储在仓库",
+      "source_types": ["RawMaterial", "SemiFinished", "FinishedProduct"],
+      "target_types": ["Warehouse"]
+    },
+    {
+      "id": "consumed_by_production",
+      "name": "被消耗",
+      "description": "原材料被生产线消耗",
+      "source_types": ["RawMaterial"],
+      "target_types": ["ProductionLine"]
+    },
+    {
+      "id": "produced_by_line",
+      "name": "产出",
+      "description": "成品或半成品被生产线产出",
+      "source_types": ["ProductionLine"],
+      "target_types": ["SemiFinished", "FinishedProduct"]
+    },
+    {
+      "id": "converted_from_semi",
+      "name": "转化自",
+      "description": "成品转化自半成品",
+      "source_types": ["FinishedProduct"],
+      "target_types": ["SemiFinished"]
+    },
+    
+    {
+      "id": "delivered_by_logistics",
+      "name": "被配送",
+      "description": "客户被物流商配送",
+      "source_types": ["Customer"],
+      "target_types": ["Logistics"]
+    },
+    {
+      "id": "receipt_for_purchase_order",
+      "name": "对应",
+      "description": "入库单对应采购订单",
+      "source_types": ["Receipt"],
+      "target_types": ["PurchaseOrder"]
+    },
+    {
+      "id": "receipt_records_material",
+      "name": "记录",
+      "description": "入库单记录物料入库",
+      "source_types": ["Receipt"],
+      "target_types": ["RawMaterial"]
+    },
+    {
+      "id": "production_for_work_order",
+      "name": "执行",
+      "description": "生产线执行生产工单",
+      "source_types": ["ProductionLine"],
+      "target_types": ["WorkOrder"]
+    },
+    {
+      "id": "product_fulfills_work_order",
+      "name": "满足",
+      "description": "成品满足生产工单",
+      "source_types": ["WorkOrder"],
+      "target_types": ["FinishedProduct"]
+    },
+    {
+      "id": "qc_inspects_material",
+      "name": "检验",
+      "description": "质检报告检验原材料",
+      "source_types": ["RawMaterial"],
+      "target_types": ["QualityReport"]
+    },
+    {
+      "id": "qc_inspects_product",
+      "name": "检验",
+      "description": "质检报告检验成品",
+      "source_types": ["FinishedProduct"],
+      "target_types": ["QualityReport"]
+    },
+    {
+      "id": "equipment_used_in_line",
+      "name": "使用",
+      "description": "设备被生产线使用",
+      "source_types": ["ProductionLine"],
+      "target_types": ["Equipment"]
+    },
+    {
+      "id": "order_placed_by_customer",
+      "name": "下单",
+      "description": "销售订单被客户下单",
+      "target_types": ["SalesOrder"],
+      "source_types": ["Customer"]
+    },
+    {
+      "id": "order_requires_product",
+      "name": "满足",
+      "description": "销售订单需要成品",
+      "target_types": ["SalesOrder"],
+      "source_types": ["FinishedProduct"]
+    },
+    {
+      "id": "warehouse_fulfills_order",
+      "name": "满足",
+      "description": "仓库满足销售订单",
+      "source_types": ["SalesOrder"],
+      "target_types": ["Warehouse"]
+    }
+  ]
+}
