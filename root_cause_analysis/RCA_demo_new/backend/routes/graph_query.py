@@ -172,8 +172,8 @@ def process_query_tree(g, query_tree, parent_node_ids=None, step=0):
     return result
 
 
-@bp.route('/<project_id>/ontologies/<ontology_id>/graph/query', methods=['POST'])
-def graph_query(project_id, ontology_id):
+@bp.route('/graph/query', methods=['POST'])
+def graph_query():
     data = request.get_json()
     
     print('=== graph_query debug ===')

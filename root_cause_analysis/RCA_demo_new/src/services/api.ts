@@ -479,7 +479,7 @@ export async function queryGraph(
   path: Array<{ relation: string; filters: any[] }>,
   startFilters: any[] = []
 ): Promise<any> {
-  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+  return fetchAPI('/projects/graph/query', {
     method: 'POST',
     body: JSON.stringify({
       ontology,
@@ -496,7 +496,7 @@ export async function queryGraphTree(
   ontology: string = 'server_manufacturing_cog_graph',
   queryTree: any
 ): Promise<any> {
-  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+  return fetchAPI('/projects/graph/query', {
     method: 'POST',
     body: JSON.stringify({
       ontology,
@@ -511,7 +511,7 @@ export async function queryGraphTrees(
   ontology: string = 'server_manufacturing_cog_graph',
   queryTrees: any[]
 ): Promise<any> {
-  return fetchAPI(`/projects/${projectId}/ontologies/${ontologyId}/graph/query`, {
+  return fetchAPI('/projects/graph/query', {
     method: 'POST',
     body: JSON.stringify({
       ontology,
